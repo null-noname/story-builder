@@ -1,128 +1,57 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ストーリービルダー Prototype V0.06</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    <div id="top-screen" class="screen active">
-        <h1 class="app-title">ストーリービルダー</h1>
-        <div class="container">
-            <hr>
-            <div class="top-row">
-                <div class="diary-summary" onclick="showStats()">
-                    <div class="diary-title">執筆日記</div>
-                    <div class="diary-counts">
-                        <div>今日の文字数<br><b id="top-today-count">0</b> 字</div>
-                        <div>過去7日間<br><b id="top-week-count">0</b> 字</div>
-                    </div>
-                </div>
-                <div class="top-actions">
-                    <button class="btn-custom btn-full" onclick="openWorkEditor()">＋作品作成</button>
-                    <button class="btn-custom btn-full">共通メモ</button>
-                </div>
-            </div>
+    // Firebase Configの反映
+    const firebaseConfig = {
+        apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
+        authDomain: "story-builder-app.firebaseapp.com",
+        projectId: "story-builder-app",
+        storageBucket: "story-builder-app.firebasestorage.app",
+        messagingSenderId: "763153451684",
+        appId: "1:763153451684:web:37a447d4cafb4abe41f431"
+    };
 
-            <div class="list-header-row">
-                <div class="list-title">作品リスト</div>
-                <div class="list-controls">
-                    <select id="sort-select" onchange="renderWorkList()">
-                        <option value="updated">更新順</option>
-                        <option value="created">作成順</option>
-                    </select>
-                    <select id="filter-status" onchange="renderWorkList()">
-                        <option value="all">すべて</option>
-                        <option value="in-progress">制作中</option>
-                        <option value="completed">制作完了</option>
-                    </select>
-                </div>
+    const app = initializeApp(firebaseConfig);
+    window.db = getFirestore(app);
+    window.auth = getAuth(app);
+</script>
+
+<div id="tab-write">
+    <div class="writing-container">
+        <div class="episode-sidebar">
+            <div class="sidebar-header">
+                <span>サブタイトル</span>
+                <button class="btn-custom btn-small" onclick="addEpisode()">＋追加</button>
             </div>
-            <div id="work-list"></div>
+            <div id="episode-list" class="episode-list"></div>
         </div>
-    </div>
 
-    <div id="stats-screen" class="screen">
-        <div class="container">
-            <button class="btn-custom" onclick="showScreen('top-screen')">← 戻る</button>
-            <div class="stats-header">
-                <div class="stats-main-title">執筆文字数の推移</div>
-                <div class="stats-selectors">
-                    <select id="stat-range" onchange="updateChart()"><option value="7">過去7日間</option><option value="30">1か月</option><option value="365">1年</option></select>
-                    <select id="stat-year" onchange="updateChart()"><option value="2025">2025年</option><option value="2024">2024年</option></select>
+        <div class="editor-main">
+            <div class="editor-toolbar">
+                <div class="tool-group">
+                    <button class="btn-custom btn-small" onclick="toggleWritingMode()">縦/横切替</button>
+                    <button class="btn-custom btn-small" onclick="insertRuby()">ルビ</button>
+                    <button class="btn-custom btn-small" onclick="insertDash()">――</button>
+                    <button class="btn-custom btn-small" onclick="replaceText()">置換</button>
                 </div>
-            </div>
-            <div class="chart-container"><canvas id="writingChart"></canvas></div>
-            
-            <div class="stats-diary-title">執筆日記</div>
-            
-            <div class="stats-card-row">
-                <div class="stats-card"><div class="label">今日の文字数</div><div class="value" id="stat-today">0<span class="unit">字</span></div></div>
-                <div class="stats-card"><div class="label">過去7日間</div><div class="value" id="stat-week">0<span class="unit">字</span></div></div>
-            </div>
-            <div class="stats-card-row">
-                <div class="stats-card"><div class="label">総制作作品数</div><div class="value" id="stat-works">0<span class="unit">作品</span></div></div>
-                <div class="stats-card"><div class="label">総キャラクター数</div><div class="value" id="stat-chars">0<span class="unit">体</span></div></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="editor-screen" class="screen">
-        <div class="container">
-            <button class="btn-custom back-margin" onclick="showScreen('top-screen')">← 戻る</button>
-            <h2 id="info-editor-title">作品情報設定</h2>
-            <div class="editor-scroll">
-                <div class="form-group"><label>タイトル</label><input type="text" id="input-title"></div>
-                <div class="form-group"><label>あらすじ</label><textarea id="input-summary" rows="4"></textarea></div>
-                <div class="form-group"><label>キャッチコピー（最大35文字）</label>
-                    <input type="text" id="input-catch" maxlength="35" oninput="updateCatchCounter(this)">
-                    <div id="c-count" class="char-count-display">残り 35 文字</div>
-                </div>
-                <div class="flex-row">
-                    <div class="flex-1"><label class="bold-label">メインジャンル</label><input type="text" id="input-genre-main"></div>
-                    <div class="flex-1"><label class="bold-label">サブジャンル</label><input type="text" id="input-genre-sub"></div>
-                </div>
-                <div class="form-group"><label>制作ステータス</label><div class="compact-row"><label><input type="radio" name="novel-status" value="in-progress" checked><span>制作中</span></label><label><input type="radio" name="novel-status" value="completed"><span>完了</span></label><label><input type="radio" name="novel-status" value="suspended"><span>中断</span></label></div></div>
-                <div class="form-group"><label>作品種別</label><div class="compact-row"><label><input type="radio" name="novel-type" value="original" checked><span>オリジナル</span></label><label><input type="radio" name="novel-type" value="derivative"><span>二次創作</span></label></div></div>
-                <div class="form-group"><label>レーティング</label><div class="compact-row">
-                    <label><input type="checkbox" name="rating" value="none"><span>なし</span></label>
-                    <label><input type="checkbox" name="rating" value="sexual"><span>性描写</span></label>
-                    <label><input type="checkbox" name="rating" value="violence"><span>暴力</span></label>
-                    <label><input type="checkbox" name="rating" value="cruel"><span>残酷</span></label>
-                </div></div>
-                <div class="form-group"><label>AI利用について</label><div class="compact-row">
-                    <label><input type="radio" name="ai-usage" value="none" checked><span>なし</span></label>
-                    <label><input type="radio" name="ai-usage" value="support"><span>補助</span></label>
-                    <label><input type="radio" name="ai-usage" value="partial"><span>一部</span></label>
-                    <label><input type="radio" name="ai-usage" value="full"><span>本文</span></label>
-                </div></div>
-                <button onclick="saveWork()" class="btn-custom btn-full btn-save">作品情報を反映させる</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="detail-screen" class="screen">
-        <div class="container">
-            <button class="btn-custom" onclick="showScreen('top-screen')">← 戻る</button>
-            <h2 id="detail-title"></h2>
-            <div class="tab-bar">
-                <button class="btn-custom active" onclick="switchTab('write')">執筆</button>
-                <button class="btn-custom" onclick="switchTab('plot')">プロット</button>
-                <button class="btn-custom" onclick="switchTab('char')">登場人物</button>
-            </div>
-            <div id="tab-write">
-                <div class="editor-header">
-                    <div class="editor-char-count">合計: <b id="char-count-full">0</b> 字 | 空白抜き: <b id="char-count-pure">0</b></div>
+                <div class="tool-group">
+                    <button class="btn-custom btn-small" onclick="editorUndo()">戻る</button>
+                    <button class="btn-custom btn-small" onclick="editorRedo()">進む</button>
                     <button class="btn-custom btn-small gold-border" onclick="saveWriting()">保存</button>
                 </div>
-                <textarea id="editor-textarea" class="main-textarea" oninput="updateLiveCount()"></textarea>
+            </div>
+
+            <input type="text" id="episode-subtitle" class="subtitle-input" placeholder="サブタイトルを入力">
+            
+            <div id="editor-wrapper" class="editor-wrapper horizontal">
+                <textarea id="editor-textarea" class="main-textarea" oninput="updateLiveCount()" placeholder="ここから物語を始めましょう..."></textarea>
+            </div>
+
+            <div class="editor-footer">
+                <span>合計: <b id="char-count-full">0</b> 字 | 空白抜き: <b id="char-count-pure">0</b></span>
             </div>
         </div>
     </div>
-
-    <script src="script.js"></script>
-</body>
-</html>
+</div>
