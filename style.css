@@ -1,247 +1,205 @@
+/* style.css - Story Builder V0.06 Design Update */
+
 /* 変数定義 */
 :root {
     --bg-color: #3d3d3d;
     --text-color: #e0e0e0;
-    --card-bg: #4a4a4a; /* 少し明るいグレー */
-    --card-border: #222; /* カードの枠線 */
-    --accent-green: #2e7d32; /* ボタン等の鮮やかな緑 */
-    --accent-blue: #89b4fa; /* 統計の数字色 */
+    --card-bg: #4a4a4a;
+    --card-border: #222;
+    --accent-green: #2e7d32; /* 少し暗めの落ち着いた緑 */
+    --accent-blue: #64b5f6; /* 文字数などの青色 */
     --btn-border: #111;
-    --font-main: "MS Gothic", "MS ゴシック", sans-serif;
-    --gold-text: #fffacd; /* タイトルのフチ色っぽい雰囲気 */
+    --font-main: "MS Gothic", "MS ゴシック", "Yu Gothic", sans-serif;
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+    font-family: var(--font-main) !important; /* MSゴシックを強制 */
+}
 
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: var(--font-main);
     margin: 0; padding: 0;
     height: 100vh; overflow: hidden;
 }
 
-/* ロゴスタイル (袋文字風) */
+/* ロゴスタイル (シンプル化) */
 .app-logo {
-    font-size: 2.5em;
+    font-size: 2em;
     font-weight: bold;
-    color: var(--bg-color); /* 中抜きっぽく見せるため背景色に近い色 */
-    text-shadow: 
-        -1px -1px 0 #fff, 1px -1px 0 #fff,
-        -1px 1px 0 #fff, 1px 1px 0 #fff, /* 白フチ */
-        2px 2px 3px rgba(0,0,0,0.5); /* 影 */
+    color: #ffd700; /* 金色っぽい色でシンプルに */
+    text-shadow: 2px 2px 0 #000; /* 軽い影のみ */
     margin: 10px 0;
     letter-spacing: 2px;
 }
 
 /* ボタン共通 */
 button {
-    font-family: var(--font-main);
     cursor: pointer; border-radius: 4px;
     font-weight: bold;
+    font-size: 1em;
 }
+
+/* 緑色の大きなボタン (作品作成用) */
+.btn-large-green {
+    background-color: #4caf50; /* 明るすぎない緑 */
+    color: #000; /* 文字は見やすく黒 */
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 #000; /* 立体感 */
+    width: 100%; height: 50px;
+    font-size: 1.2em;
+    display: flex; align-items: center; justify-content: center;
+    text-shadow: none;
+}
+.btn-large-green:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* 共通メモボタン (グレー) */
+.btn-large-gray {
+    background-color: #757575;
+    color: #fff;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 #000;
+    width: 100%; height: 40px;
+    font-size: 1.1em;
+    display: flex; align-items: center; justify-content: center;
+    text-shadow: none;
+}
+.btn-large-gray:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* その他のボタン */
 .primary-btn {
     background-color: #555; color: #fff; border: 1px solid #222;
     padding: 8px 16px;
 }
-.danger-btn {
-    background-color: #d32f2f; color: #fff; border: 1px solid #222;
-    padding: 5px 15px;
+.mini-btn {
+    background: #444; border: 1px solid #222; color: #fff;
+    padding: 2px 8px; font-size: 0.9em;
 }
-.add-btn-green, .add-btn-green-large {
-    background-color: var(--accent-green); color: #fff;
-    border: 1px solid #1b5e20;
-    width: 100%; padding: 10px;
-    text-align: center;
-}
-.add-btn-green-large {
-    font-size: 1.2em; margin-bottom: 20px;
-}
+.delete-btn { color: #ff6b6b; border: 1px solid #222; background: #333; }
 
 /* 入力エリア */
 input, textarea, select {
     background-color: #2d2d2d; color: #fff;
     border: 1px solid #555; padding: 8px;
-    font-family: var(--font-main); border-radius: 4px;
+    border-radius: 2px;
 }
-input:focus, textarea:focus { outline: 2px solid var(--accent-green); }
 
 /* --- レイアウト構造 --- */
-.screen { display: flex; flex-direction: column; height: 100%; padding: 10px; }
-main { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.screen { display: flex; flex-direction: column; height: 100%; padding: 15px; }
 
-/* ログイン画面 */
-.login-container {
-    height: 100%; display: flex; flex-direction: column;
-    justify-content: center; align-items: center;
+/* TOP画面レイアウト (イラスト準拠) */
+.top-header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
 }
 
-/* グローバルヘッダー (メモ編集画面等用) */
-#global-header {
-    background-color: #222; padding: 10px;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.header-left { display: flex; align-items: center; gap: 10px; }
-#header-title { font-size: 1.2em; font-weight: bold; color: #fff; }
-
-/* --- TOP画面 --- */
-.top-header { text-align: left; padding-bottom: 5px; border-bottom: 2px solid #222; }
-
-.top-dashboard {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    margin: 15px 0; gap: 20px;
+/* ダッシュボードエリア：左に日記、右にボタン */
+.dashboard-grid {
+    display: flex; gap: 20px; align-items: stretch;
+    height: 120px; /* 高さ固定 */
 }
 
-/* 執筆日記ウィジェット */
+/* 執筆日記ウィジェット (クリック可能) */
 .diary-widget {
-    background-color: #1a1a1a; /* 黒背景 */
-    border: 1px solid #333; border-radius: 6px;
-    padding: 0; width: 400px; max-width: 60%;
+    flex: 1; /* 左側を埋める */
+    background-color: #111; /* 真っ黒に近い背景 */
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px;
+    display: flex; flex-direction: column;
+    cursor: pointer; /* クリックできることを示す指マーク */
+    transition: background-color 0.2s;
 }
-.diary-header {
-    padding: 5px 10px; font-weight: bold; border-bottom: 1px solid #333;
-    font-size: 0.9em;
+.diary-widget:hover { background-color: #1a1a1a; }
+
+.diary-title {
+    font-size: 0.9em; font-weight: bold; color: #fff;
+    margin-bottom: 10px;
 }
 .diary-content {
-    display: flex; padding: 10px;
+    display: flex; height: 100%; align-items: center;
 }
-.diary-item { flex: 1; display: flex; flex-direction: column; padding: 0 10px; }
-.diary-divider { width: 1px; background-color: #444; }
-.diary-label { font-size: 0.7em; color: var(--accent-blue); margin-bottom: 5px; }
-.diary-val { font-size: 1.2em; font-weight: bold; color: #fff; }
-
-/* TOP右側ボタン */
-.top-actions {
-    display: flex; flex-direction: column; gap: 10px; width: 150px;
+.diary-section {
+    flex: 1; display: flex; flex-direction: column; padding-left: 10px;
 }
-.action-box-btn {
-    background-color: #555; color: #e0e0e0;
-    border: 2px solid #222; /* 枠線しっかり */
-    padding: 10px; font-size: 1.1em;
-    text-shadow: 1px 1px 0 #000;
-    box-shadow: 2px 2px 0 #222; /* 立体感 */
+.diary-label {
+    font-size: 0.8em; color: var(--accent-blue); margin-bottom: 5px;
 }
-.action-box-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.diary-value {
+    font-size: 1.4em; font-weight: bold; color: #fff;
+}
+.diary-divider {
+    width: 1px; height: 60%; background-color: #444;
+}
 
-.divider-line { height: 2px; background-color: #222; margin-bottom: 10px; }
+/* 右側のボタンエリア */
+.action-buttons-area {
+    width: 200px; /* 幅固定 */
+    display: flex; flex-direction: column;
+    justify-content: space-between; /* 上下に配置 */
+}
 
-/* フィルター */
-.filter-controls { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-.custom-select {
-    background-color: #555; border: 1px solid #222;
-    margin-left: 5px; cursor: pointer;
+/* フィルターバー */
+.filter-bar {
+    display: flex; justify-content: flex-end; gap: 10px;
+    margin-bottom: 10px;
+}
+.filter-select {
+    background: #444; color: #fff; border: 1px solid #000;
+    box-shadow: 2px 2px 0 #000;
+    padding: 2px 5px;
 }
 
 /* 作品リスト */
 .work-list-container {
     flex: 1; overflow-y: auto;
     display: flex; flex-direction: column; gap: 10px;
+    border-top: 2px solid #000;
+    padding-top: 10px;
 }
+
+/* 作品カード (シンプル・フラット) */
 .work-card {
-    background-color: var(--card-bg);
-    border: 2px solid #222; /* 黒枠 */
-    padding: 10px 15px;
-    position: relative;
+    background-color: #4a4a4a;
+    border: 2px solid #000;
+    padding: 10px;
     display: flex; flex-direction: column;
 }
 .work-card-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 5px;
 }
-.work-card-title {
-    font-size: 1.6em; font-weight: bold;
-    color: var(--bg-color);
-    text-shadow: -1px -1px 0 #ccc, 1px -1px 0 #ccc, -1px 1px 0 #ccc, 1px 1px 0 #ccc; /* 簡易的な袋文字 */
+.work-title {
+    font-size: 1.5em; font-weight: bold; color: #fff; /* 金色のアウトライン廃止 */
+    text-shadow: 2px 2px 0 #222; /* 視認性向上のための薄い影だけ */
     cursor: pointer;
 }
-.work-card-actions {
+.work-meta {
+    font-size: 0.9em; color: #ccc;
+    font-family: "MS Gothic", sans-serif;
+}
+.card-actions {
     display: flex; gap: 5px;
 }
-.mini-btn {
-    background: #444; border: 1px solid #222; color: #fff;
-    font-size: 0.8em; padding: 2px 8px;
-    box-shadow: 1px 1px 0 #000;
-}
-.mini-btn.delete { color: #ff6b6b; text-shadow: 1px 1px 0 #000; }
 .star-btn {
-    background: #444; border: 2px solid #222; 
-    color: #666; font-size: 1.2em; width: 35px; height: 35px;
+    background: #444; border: 2px solid #000;
+    color: #666; width: 30px; height: 30px;
     display: flex; align-items: center; justify-content: center;
+    font-size: 1.2em;
 }
 .star-btn.active { color: #ffd700; }
 
-.work-card-meta {
-    margin-top: 5px; font-size: 0.9em; color: #ccc;
-    font-family: var(--font-main);
-}
-
-/* --- ワークスペース --- */
+/* ワークスペース等は変更なし（共通設定でフォントは変わります） */
 .workspace-tabs { display: flex; gap: 2px; border-bottom: 2px solid #222; }
-.tab-btn {
-    background: #444; color: #aaa; border: 1px solid #222; border-bottom: none;
-    padding: 8px 15px;
-}
-.tab-btn.active { background: var(--bg-color); color: #fff; font-weight: bold; border-bottom: 2px solid var(--bg-color); margin-bottom: -2px; }
-.back-tab { margin-left: auto; background: #666; color: #fff; }
-
+.tab-btn { padding: 8px 15px; background: #444; color: #aaa; border: 1px solid #000; border-bottom: none; }
+.tab-btn.active { background: var(--bg-color); color: #fff; font-weight: bold; }
 .tab-content { display: none; height: 100%; flex-direction: column; padding-top: 10px; }
 .tab-content.active { display: flex; }
+#main-editor { width: 100%; height: 100%; resize: none; border: none; padding: 20px; font-size: 16px; line-height: 1.8; background: #2d2d2d; color:#fff; }
 
-.editor-layout { display: flex; height: 100%; gap: 10px; }
-.chapter-list-sidebar { width: 200px; background: #2a2a2a; border: 1px solid #444; display: flex; flex-direction: column; }
-.main-editor-area { flex: 1; display: flex; flex-direction: column; }
-.editor-toolbar { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.editor-wrapper { flex: 1; background: #2d2d2d; border: 1px solid #444; }
-#main-editor { width: 100%; height: 100%; resize: none; border: none; padding: 20px; font-size: 16px; line-height: 1.8; }
-.vertical-mode #main-editor { writing-mode: vertical-rl; text-orientation: upright; }
-
-/* プロット・キャラ・メモ分割 */
-.split-view { display: flex; height: 100%; gap: 15px; }
-.list-side { width: 250px; overflow-y: auto; }
-.detail-side { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-
-/* --- 共通メモ一覧 --- */
-.memo-container { padding: 10px; height: 100%; display: flex; flex-direction: column; }
-.memo-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-.memo-card {
-    background: #222; border: 1px solid #444; border-radius: 4px; padding: 10px;
-    display: flex; justify-content: space-between; align-items: flex-start;
-}
-.memo-info { flex: 1; }
-.memo-title { color: #8bc34a; font-weight: bold; font-size: 1.1em; margin-bottom: 5px; display: block; } /* 画像の緑文字 */
-.memo-preview { color: #ccc; font-size: 0.9em; border-top: 1px dashed #555; padding-top: 5px; margin-top: 5px; } /* 点線 */
-.memo-actions { display: flex; gap: 5px; margin-left: 10px; }
-.memo-btn {
-    background: #333; border: 1px solid #555; color: #fff; padding: 5px 10px;
-    display: flex; align-items: center; justify-content: center;
-}
-.memo-btn.green { background: var(--accent-green); border-color: #1b5e20; }
-
-/* メモ編集画面 */
-.memo-editor-container { flex: 1; display: flex; flex-direction: column; padding: 10px; }
-.seamless-title { background: transparent; border: none; font-size: 1.5em; font-weight: bold; color: #fff; margin-bottom: 10px; }
-.seamless-editor { flex: 1; background: #2d2d2d; border: none; padding: 15px; resize: none; }
-
-/* --- 統計画面 --- */
-.stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.stats-title-large { font-size: 3em; color: #888; text-align: center; margin: 10px 0; font-weight: bold; opacity: 0.5; }
-.stats-cards-container { display: flex; flex-direction: column; gap: 10px; }
-.stats-card-dark {
-    background: #222; padding: 15px; border-radius: 8px;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.stats-row { display: flex; gap: 10px; }
-.stats-card-dark.half { flex: 1; flex-direction: column; align-items: flex-end; }
-.stats-label { color: #aaa; font-size: 0.9em; }
-.stats-value { font-size: 1.5em; font-weight: bold; color: var(--accent-blue); }
-
-.bar-graph-placeholder {
-    height: 200px; background: #333; position: relative; border-bottom: 2px solid #555; margin-bottom: 20px;
-}
-.bar {
-    position: absolute; bottom: 0; width: 30px; background-color: var(--accent-blue);
-}
-
-/* スクロールバー装飾 */
-::-webkit-scrollbar { width: 8px; }
+/* スクロールバー */
+::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-track { background: #222; }
-::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #555; border: 1px solid #000; }
