@@ -1,4 +1,4 @@
-/* Story Builder V0.07 script.js - Design Replication Edition */
+/* Story Builder V0.08 script.js - Form Design Updated */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -52,12 +52,11 @@ auth.onAuthStateChanged(user => {
 function switchView(name) {
     Object.values(views).forEach(el => el.style.display = 'none');
     if (views[name]) {
-        views[name].style.display = (name === 'top') ? 'flex' : 'flex'; 
+        views[name].style.display = 'flex'; // コンテナがあるのでflexで統一
         if(name === 'top') loadWorks();
     }
 }
 
-// Event Listeners for Navigation
 document.getElementById('diary-widget').addEventListener('click', () => switchView('stats'));
 document.getElementById('btn-common-memo').addEventListener('click', () => switchView('memo'));
 document.getElementById('back-to-top').addEventListener('click', () => { saveCurrentWork(); switchView('top'); });
@@ -70,8 +69,7 @@ document.getElementById('create-new-work-btn').addEventListener('click', async (
     const newWork = {
         uid: currentUser.uid,
         title: "無題の物語",
-        catchphrase: "",
-        status: "in_progress",
+        status: "in-progress",
         isPinned: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -82,7 +80,6 @@ document.getElementById('create-new-work-btn').addEventListener('click', async (
     } catch (e) { console.error(e); }
 });
 
-// 作品リスト描画 (提供されたデザインを再現)
 function loadWorks() {
     if (!currentUser) return;
     const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
@@ -99,17 +96,14 @@ function loadWorks() {
         });
 }
 
-// カード生成HTML (いただいたコードのHTML構造をJSで生成)
 function createWorkItem(id, data) {
     const div = document.createElement('div');
-    // ピン留めクラスの付与
     div.className = `work-item ${data.isPinned ? 'pinned' : ''}`;
     
-    // 日付フォーマット (YYYY/MM/DD HH:MM:SS)
     const formatDate = (ts) => {
         if(!ts) return '-';
         const d = new Date(ts.toDate());
-        return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+        return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
     };
 
     const pinnedStar = data.isPinned ? '★' : '☆';
@@ -117,7 +111,7 @@ function createWorkItem(id, data) {
 
     div.innerHTML = `
         <div class="work-info" onclick="openWork('${id}')">
-            <div class="work-title">${titlePrefix}${escapeHtml(data.title)}</div>
+            <div class="work-title">${titlePrefix}${escapeHtml(data.title || '無題')}</div>
             <div class="work-meta">
                 作成: ${formatDate(data.createdAt)} | 更新: ${formatDate(data.updatedAt)} | 全 ${data.totalChars || 0} 字
             </div>
@@ -131,7 +125,6 @@ function createWorkItem(id, data) {
     return div;
 }
 
-// 削除
 window.deleteWork = function(e, id) {
     e.stopPropagation();
     if(confirm("削除しますか？")) {
@@ -139,13 +132,12 @@ window.deleteWork = function(e, id) {
     }
 };
 
-// ピン留め
 window.togglePin = function(e, id, newState) {
     e.stopPropagation();
     db.collection('works').doc(id).update({ isPinned: newState }).then(loadWorks);
 };
 
-// --- Editor Logic ---
+// --- Editor Logic (新しいフォームIDに対応) ---
 window.openWork = function(id) {
     currentWorkId = id;
     db.collection('works').doc(id).get().then(doc => {
@@ -158,23 +150,44 @@ window.openWork = function(id) {
 };
 
 function fillWorkspace(data) {
-    document.getElementById('work-title-input').value = data.title || "";
-    document.getElementById('work-catchphrase').value = data.catchphrase || "";
-    document.getElementById('work-genre-main').value = data.genreMain || "";
-    document.getElementById('work-genre-sub').value = data.genreSub || "";
-    document.getElementById('work-desc-input').value = data.description || "";
-    document.getElementById('main-editor').value = data.content || "";
+    // テキストフィールド
+    document.getElementById('input-title').value = data.title || "";
+    document.getElementById('input-summary').value = data.description || "";
+    document.getElementById('input-catch').value = data.catchphrase || "";
+    document.getElementById('input-genre-main').value = data.genreMain || "";
+    document.getElementById('input-genre-sub').value = data.genreSub || "";
     
-    // ラジオボタン
-    const statusVal = data.status || "in_progress";
-    const radio = document.querySelector(`input[name="status"][value="${statusVal}"]`);
-    if(radio) radio.checked = true;
+    // エディタ
+    document.getElementById('main-editor').value = data.content || "";
+    document.getElementById('plot-editor').value = data.plot || "";
+    document.getElementById('char-editor').value = data.characterNotes || "";
+
+    // ラジオボタン (Status)
+    const statusVal = data.status || "in-progress";
+    const statusRadio = document.querySelector(`input[name="novel-status"][value="${statusVal}"]`);
+    if(statusRadio) statusRadio.checked = true;
+
+    // ラジオボタン (Type)
+    const typeVal = data.type || "original";
+    const typeRadio = document.querySelector(`input[name="novel-type"][value="${typeVal}"]`);
+    if(typeRadio) typeRadio.checked = true;
+
+    // ラジオボタン (AI Usage)
+    const aiVal = data.aiUsage || "none";
+    const aiRadio = document.querySelector(`input[name="ai-usage"][value="${aiVal}"]`);
+    if(aiRadio) aiRadio.checked = true;
+
+    // チェックボックス (Ratings) - 配列として保存されている想定
+    const ratings = data.ratings || [];
+    document.querySelectorAll('input[name="rating"]').forEach(chk => {
+        chk.checked = ratings.includes(chk.value);
+    });
 
     updateCharCount();
-    updateCatchCount();
+    updateCatchCounter(document.getElementById('input-catch'));
 }
 
-// 保存
+// 保存処理 (新しいフォームIDから取得)
 document.getElementById('save-work-info-btn').addEventListener('click', saveCurrentWork);
 document.getElementById('quick-save-btn').addEventListener('click', saveCurrentWork);
 
@@ -182,16 +195,29 @@ function saveCurrentWork() {
     if(!currentWorkId) return;
     
     const content = document.getElementById('main-editor').value;
-    const status = document.querySelector('input[name="status"]:checked')?.value || "in_progress";
+    
+    // チェックボックスの値を配列に収集
+    const selectedRatings = [];
+    document.querySelectorAll('input[name="rating"]:checked').forEach(chk => {
+        selectedRatings.push(chk.value);
+    });
 
     const data = {
-        title: document.getElementById('work-title-input').value,
-        catchphrase: document.getElementById('work-catchphrase').value,
-        genreMain: document.getElementById('work-genre-main').value,
-        genreSub: document.getElementById('work-genre-sub').value,
-        description: document.getElementById('work-desc-input').value,
-        status: status,
+        title: document.getElementById('input-title').value,
+        description: document.getElementById('input-summary').value,
+        catchphrase: document.getElementById('input-catch').value,
+        genreMain: document.getElementById('input-genre-main').value,
+        genreSub: document.getElementById('input-genre-sub').value,
+        
+        status: document.querySelector('input[name="novel-status"]:checked')?.value || "in-progress",
+        type: document.querySelector('input[name="novel-type"]:checked')?.value || "original",
+        aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value || "none",
+        ratings: selectedRatings,
+
         content: content,
+        plot: document.getElementById('plot-editor').value,
+        characterNotes: document.getElementById('char-editor').value,
+        
         totalChars: content.length,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -207,10 +233,14 @@ function updateCharCount() {
     document.getElementById('editor-char-count').textContent = len;
 }
 
-document.getElementById('work-catchphrase').addEventListener('input', updateCatchCount);
-function updateCatchCount() {
-    const len = document.getElementById('work-catchphrase').value.length;
-    document.getElementById('catch-remain').textContent = 35 - len;
+document.getElementById('input-catch').addEventListener('input', function() {
+    updateCatchCounter(this);
+});
+
+function updateCatchCounter(el) {
+    const remain = 35 - el.value.length;
+    document.getElementById('c-count').textContent = `残り ${remain} 文字`;
+    document.getElementById('c-count').style.color = remain < 0 ? '#ff6b6b' : '#89b4fa';
 }
 
 // タブ切り替え

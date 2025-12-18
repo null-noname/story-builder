@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Builder V0.07</title>
+    <title>Story Builder V0.08</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -31,7 +31,6 @@
                             <div>過去7日間<br><span id="widget-weekly-count" class="diary-val">0</span> 字</div>
                         </div>
                     </div>
-
                     <div class="top-buttons">
                         <button id="create-new-work-btn" class="btn-custom btn-full">＋作品作成</button>
                         <button id="btn-common-memo" class="btn-custom btn-full">共通メモ</button>
@@ -47,81 +46,97 @@
                         </select>
                         <select id="filter-status" class="filter-select">
                             <option value="all">すべて</option>
-                            <option value="in_progress">制作中</option>
+                            <option value="in-progress">制作中</option>
                             <option value="completed">制作完了</option>
                         </select>
                     </div>
                 </div>
 
-                <div id="work-list" class="work-list-container">
-                    </div>
+                <div id="work-list" class="work-list-container"></div>
             </div>
 
             <div id="workspace-view" style="display:none; height:100%; flex-direction:column;">
                 <button id="back-to-top" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">← 戻る</button>
                 
-                <div style="display: flex; gap: 2px; margin-bottom: 10px;">
-                    <button class="btn-custom tab-btn active" data-tab="tab-info" style="flex:1;">作品情報</button>
-                    <button class="btn-custom tab-btn" data-tab="tab-editor" style="flex:1;">執筆</button>
-                    <button class="btn-custom tab-btn" data-tab="tab-plot" style="flex:1;">プロット</button>
-                    <button class="btn-custom tab-btn" data-tab="tab-char" style="flex:1;">登場人物</button>
+                <div class="tab-bar">
+                    <button class="btn-custom tab-btn active" data-tab="tab-info">作品情報</button>
+                    <button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button>
+                    <button class="btn-custom tab-btn" data-tab="tab-plot">プロット</button>
+                    <button class="btn-custom tab-btn" data-tab="tab-char">登場人物</button>
                 </div>
 
-                <div id="tab-info" class="tab-content active" style="overflow-y:auto; padding-right:10px;">
+                <div id="tab-info" class="tab-content active" style="overflow-y: auto; padding-right: 10px;">
+                    <div class="form-group"><label>タイトル</label><input type="text" id="input-title"></div>
+                    <div class="form-group"><label>あらすじ</label><textarea id="input-summary" rows="4"></textarea></div>
                     <div class="form-group">
-                        <label>タイトル</label>
-                        <input type="text" id="work-title-input">
+                        <label>キャッチコピー（最大35文字）</label>
+                        <input type="text" id="input-catch" maxlength="35">
+                        <div id="c-count" style="text-align:right; font-size:16px; font-weight: bold; color:var(--accent-blue); margin-top: 5px;">残り 35 文字</div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-bottom:20px;">
+                        <div style="flex:1;"><label style="font-weight: bold; color:var(--gold); margin-bottom:8px; display:block;">メインジャンル</label><input type="text" id="input-genre-main"></div>
+                        <div style="flex:1;"><label style="font-weight: bold; color:var(--gold); margin-bottom:8px; display:block;">サブジャンル</label><input type="text" id="input-genre-sub"></div>
                     </div>
                     
                     <div class="form-group">
-                        <label>キャッチコピー (残り<span id="catch-remain">35</span>文字)</label>
-                        <input type="text" id="work-catchphrase" maxlength="35">
-                    </div>
-
-                    <div style="display:flex; gap:10px; margin-bottom:15px;">
-                        <div style="flex:1;"><label style="color:var(--gold); font-weight:bold; font-size:16px;">メインジャンル</label><input type="text" id="work-genre-main"></div>
-                        <div style="flex:1;"><label style="color:var(--gold); font-weight:bold; font-size:16px;">サブジャンル</label><input type="text" id="work-genre-sub"></div>
-                    </div>
-
-                    <div class="form-group">
                         <label>制作ステータス</label>
                         <div class="compact-row">
-                            <label><input type="radio" name="status" value="in_progress" checked>制作中</label>
-                            <label><input type="radio" name="status" value="completed">制作完了</label>
-                            <label><input type="radio" name="status" value="suspended">中断</label>
+                            <label><input type="radio" name="novel-status" value="in-progress" checked><span>制作中</span></label>
+                            <label><input type="radio" name="novel-status" value="completed"><span>完了</span></label>
+                            <label><input type="radio" name="novel-status" value="suspended"><span>中断</span></label>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>あらすじ</label>
-                        <textarea id="work-desc-input" rows="4"></textarea>
+                        <label>作品種別</label>
+                        <div class="compact-row">
+                            <label><input type="radio" name="novel-type" value="original" checked><span>オリジナル</span></label>
+                            <label><input type="radio" name="novel-type" value="derivative"><span>二次創作</span></label>
+                        </div>
                     </div>
 
-                    <button id="save-work-info-btn" class="btn-custom btn-full" style="border-color:var(--gold); margin-top:20px;">保存する</button>
-                </div>
+                    <div class="form-group">
+                        <label>レーティング</label>
+                        <div class="compact-row">
+                            <label><input type="checkbox" name="rating" value="none"><span>なし</span></label>
+                            <label><input type="checkbox" name="rating" value="sexual"><span>性描写</span></label>
+                            <label><input type="checkbox" name="rating" value="violence"><span>暴力</span></label>
+                            <label><input type="checkbox" name="rating" value="cruel"><span>残酷</span></label>
+                        </div>
+                    </div>
 
+                    <div class="form-group">
+                        <label>AI利用について</label>
+                        <div class="compact-row">
+                            <label><input type="radio" name="ai-usage" value="none" checked><span>なし</span></label>
+                            <label><input type="radio" name="ai-usage" value="support"><span>補助</span></label>
+                            <label><input type="radio" name="ai-usage" value="partial"><span>一部</span></label>
+                            <label><input type="radio" name="ai-usage" value="full"><span>本文</span></label>
+                        </div>
+                    </div>
+
+                    <button id="save-work-info-btn" class="btn-custom btn-full" style="padding:18px; font-size: 18px; border-color:var(--gold);">作品情報を反映させる</button>
+                </div>
                 <div id="tab-editor" class="tab-content" style="display:none; flex:1; flex-direction:column;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#ccc; font-size:12px;">
                         <span>文字数: <b id="editor-char-count" style="color:#fff; font-size:14px;">0</b> 文字</span>
                         <button class="btn-custom btn-small" id="quick-save-btn">保存</button>
                     </div>
-                    <textarea id="main-editor" style="flex:1; background:#111; color:#fff; padding:15px; border:1px solid #555; resize:none; font-size:16px; line-height:1.8;"></textarea>
+                    <textarea id="main-editor" class="main-textarea" style="height:100%;"></textarea>
                 </div>
 
-                <div id="tab-plot" class="tab-content" style="display:none; flex:1;"><textarea id="plot-editor" style="height:100%;"></textarea></div>
-                <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" style="height:100%;"></textarea></div>
+                <div id="tab-plot" class="tab-content" style="display:none; flex:1;"><textarea id="plot-editor" class="main-textarea" style="height:100%;"></textarea></div>
+                <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" class="main-textarea" style="height:100%;"></textarea></div>
             </div>
 
             <div id="stats-view" style="display:none;">
                 <button id="back-from-stats" class="btn-custom">← 戻る</button>
-                <h2 style="color:var(--gold); text-align:center;">執筆統計</h2>
-                <p style="text-align:center;">グラフ機能は準備中です</p>
+                <h2 style="color:var(--gold); text-align:center;">執筆統計 (準備中)</h2>
             </div>
 
             <div id="memo-view" style="display:none;">
                 <button id="back-from-memo" class="btn-custom">← 戻る</button>
-                <h2 style="color:var(--gold); text-align:center;">共通メモ</h2>
-                <div class="memo-list"></div>
+                <h2 style="color:var(--gold); text-align:center;">共通メモ (準備中)</h2>
             </div>
 
         </div>
