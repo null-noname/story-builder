@@ -3,294 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ストーリービルダー Prototype V0.06</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
-            authDomain: "story-builder-app.firebaseapp.com",
-            projectId: "story-builder-app",
-            storageBucket: "story-builder-app.firebasestorage.app",
-            messagingSenderId: "763153451684",
-            appId: "1:763153451684:web:37a447d4cafb4abe41f431"
-        };
-        const app = initializeApp(firebaseConfig);
-        window.db = getFirestore(app);
-    </script>
-
-    <style>
-        /* 基準コードのスタイルを完全維持 */
-        :root {
-            --bg-color: #3d3d3d;
-            --active-green: #2b4034;
-            --btn-bg: #222222;
-            --text-white: #e0e0e0;
-            --gold: #f0e68c;
-            --accent-blue: #89b4fa;
-            --sub-text: #cccccc;
-            --input-bg: #1a1a1a;
-        }
-
-        * { box-sizing: border-box; font-family: "MS Gothic", "MS ゴシック", "Courier New", monospace; }
-        body { background-color: var(--bg-color); color: var(--text-white); margin: 0; padding: 0; }
-        .container { padding: 20px; }
-        .app-title { font-size: 32px; color: var(--bg-color); -webkit-text-stroke: 1px var(--gold); margin: 0; padding: 20px 20px 0 20px; }
-        hr { border: 0.5px solid #555; margin: 15px 0; }
-
-        .screen { display: none; min-height: 100vh; background-color: var(--bg-color); }
-        .screen.active { display: block; }
-
-        .btn-custom {
-            background: var(--btn-bg); color: var(--gold); border: 1px solid #555;
-            padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 4px;
-        }
-        .btn-custom:active { background: var(--active-green) !important; color: #fff; }
-        .btn-full { width: 100%; margin-bottom: 10px; }
-        .btn-small { padding: 6px 10px; font-size: 13px; }
-
-        input, textarea, select { 
-            background: var(--input-bg); color: #fff; border: 1px solid #666; 
-            padding: 12px; border-radius: 4px; width: 100%; font-size: 14px;
-        }
-        select { font-size: 12px !important; font-weight: normal !important; padding: 4px 8px !important; }
-
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; color: var(--gold); font-weight: bold; font-size: 16px; }
-
-        .compact-row { display: flex; gap: 5px; background: var(--input-bg); padding: 5px; border-radius: 4px; }
-        .compact-row label { flex: 1; text-align: center; padding: 10px 5px; cursor: pointer; font-size: 12px; border: 1px solid #444; border-radius: 4px; }
-        .compact-row input { display: none; }
-        .compact-row label:has(input:checked) { background: #333; border-color: var(--accent-blue); color: var(--accent-blue); font-weight: bold; }
-
-        .work-item { background: var(--btn-bg); padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid var(--gold); display: flex; justify-content: space-between; align-items: center; }
-        .pinned { border-left-color: #ff4444; }
-
-        .stats-card-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        .stats-card { background: #2a2a2a; border-radius: 12px; padding: 15px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .stats-card .label { font-size: 14px; color: var(--text-white); margin-bottom: 5px; }
-        .stats-card .value { font-size: 26px; color: var(--accent-blue); font-weight: bold; text-align: right; }
-        .stats-card .unit { font-size: 14px; color: var(--text-white); margin-left: 5px; font-weight: normal; }
-
-        .tab-bar { display: flex; gap: 2px; margin-bottom: 10px; }
-        .tab-bar .btn-custom { flex: 1; border-radius: 4px 4px 0 0; }
-        .tab-bar .active { background: var(--active-green); }
-
-        /* 執筆画面用の拡張レイアウト（既存構造を壊さないよう追加） */
-        .writing-layout { display: flex; gap: 15px; height: 65vh; }
-        .episode-sidebar { width: 200px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; }
-        .episode-list { flex: 1; overflow-y: auto; margin-top: 10px; }
-        .episode-item { padding: 8px; margin-bottom: 5px; background: var(--btn-bg); border-radius: 4px; cursor: pointer; font-size: 12px; border: 1px solid #444; }
-        .episode-item.active { border-color: var(--gold); background: var(--active-green); }
-        .editor-main { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-        .main-textarea { width: 100%; height: 100%; background: #111; color: #fff; padding: 15px; font-size: 16px; line-height: 1.8; border: 1px solid #555; resize: none; }
-        .vertical-mode { writing-mode: vertical-rl; }
-    </style>
+    <title>ストーリービルダー</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<div id="top-screen" class="screen active">
-    <h1 class="app-title">ストーリービルダー</h1>
-    <div class="container">
-        <hr>
-        <div style="display: flex; gap: 20px; margin-bottom: 25px;">
-            <div style="background: var(--btn-bg); padding: 15px; border-radius: 12px; width: 320px; cursor: pointer; border: 1px solid #555;" onclick="showStats()">
-                <div style="font-weight:bold; margin-bottom:10px; font-size: 16px;">執筆日記</div>
-                <div style="display:flex; justify-content:space-between; font-size:13px;">
-                    <div>今日の文字数<br><b id="top-today-count" style="color:var(--accent-blue); font-size:20px;">0</b> 字</div>
-                    <div>過去7日間<br><b id="top-week-count" style="color:var(--accent-blue); font-size:20px;">0</b> 字</div>
-                </div>
-            </div>
-            <div style="flex: 1;">
-                <button class="btn-custom btn-full" onclick="openWorkEditor()">＋作品作成</button>
-                <button class="btn-custom btn-full">共通メモ</button>
-            </div>
+    <div id="login-screen" class="screen active">
+        <div class="login-container">
+            <h1 class="app-logo">ストーリービルダー</h1>
+            <p>Prototype V1.01</p>
+            <button id="login-btn" class="primary-btn">Googleでログイン</button>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
-            <div style="font-size: 26px; font-weight: bold; color: var(--gold);">作品リスト</div>
-            <div style="display: flex; gap: 10px;">
-                <select id="sort-select" style="width: 130px; height: 35px;" onchange="renderWorkList()">
-                    <option value="updated">更新順</option>
-                    <option value="created">作成順</option>
-                </select>
-                <select id="filter-status" style="width: 130px; height: 35px;" onchange="renderWorkList()">
-                    <option value="all">すべて</option>
-                    <option value="in-progress">制作中</option>
-                    <option value="completed">制作完了</option>
-                </select>
-            </div>
-        </div>
-        <div id="work-list"></div>
     </div>
-</div>
 
-<div id="stats-screen" class="screen">
-    <div class="container">
-        <button class="btn-custom" onclick="showScreen('top-screen')">← 戻る</button>
-        <div class="stats-card-row" style="margin-top:20px;">
-            <div class="stats-card"><div class="label">今日の文字数</div><div class="value" id="stat-today">0<span class="unit">字</span></div></div>
-            <div class="stats-card"><div class="label">過去7日間</div><div class="value" id="stat-week">0<span class="unit">字</span></div></div>
-        </div>
-        <div style="background: rgba(0,0,0,0.3); padding:15px; border-radius:10px; margin: 15px 0;"><canvas id="writingChart" style="max-height:220px;"></canvas></div>
-    </div>
-</div>
-
-<div id="detail-screen" class="screen">
-    <div class="container">
-        <button class="btn-custom" onclick="showScreen('top-screen')">← 戻る</button>
-        <h2 id="detail-title" style="color:var(--gold); margin: 15px 0;"></h2>
-        <div class="tab-bar">
-            <button class="btn-custom active" onclick="switchTab('write')">執筆</button>
-            <button class="btn-custom" onclick="switchTab('plot')">プロット</button>
-            <button class="btn-custom" onclick="switchTab('char')">登場人物</button>
-        </div>
+    <div id="app-container" class="screen" style="display: none;">
         
-        <div id="tab-write">
-            <div class="writing-layout">
-                <div class="episode-sidebar">
-                    <button class="btn-custom btn-small" onclick="addEpisode()">＋話数追加</button>
-                    <div id="episode-list" class="episode-list"></div>
+        <header id="global-header" style="display:none;">
+            <div class="header-left">
+                <button id="header-back-btn" class="icon-btn" style="display:none;"><i class="fa-solid fa-arrow-left"></i> 戻る</button>
+                <span id="header-title">タイトル</span>
+            </div>
+            <div class="header-right">
+                <button id="header-delete-btn" class="danger-btn" style="display:none;">削除</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="top-screen" class="view-section active">
+                <div class="top-header">
+                    <h1 class="app-logo">ストーリービルダー</h1>
                 </div>
-                <div class="editor-main">
-                    <div style="display:flex; gap:5px;">
-                        <button class="btn-custom btn-small" onclick="toggleVertical()">縦/横切替</button>
-                        <button class="btn-custom btn-small" onclick="insertRuby()">ルビ</button>
-                        <button class="btn-custom btn-small" onclick="saveWriting()" style="border-color:var(--gold);">保存</button>
+
+                <div class="top-dashboard">
+                    <div id="diary-widget" class="diary-widget clickable">
+                        <div class="diary-header">執筆日記</div>
+                        <div class="diary-content">
+                            <div class="diary-item">
+                                <span class="diary-label">今日の文字数</span>
+                                <span class="diary-val"><span id="today-count">0</span> 字</span>
+                            </div>
+                            <div class="diary-divider"></div>
+                            <div class="diary-item">
+                                <span class="diary-label">過去7日間の文字数</span>
+                                <span class="diary-val"><span id="week-count">0</span> 字</span>
+                            </div>
+                        </div>
                     </div>
-                    <input type="text" id="episode-subtitle" placeholder="サブタイトルを入力" style="margin-bottom:5px;">
-                    <textarea id="editor-textarea" class="main-textarea" oninput="updateLiveCount()"></textarea>
-                    <div style="font-size:12px; text-align:right;">
-                        合計: <b id="char-count-full">0</b> 字 | 空白抜き: <b id="char-count-pure">0</b>
+
+                    <div class="top-actions">
+                        <button id="create-work-btn" class="action-box-btn">+ 作品作成</button>
+                        <button id="common-memo-btn" class="action-box-btn">共通メモ</button>
                     </div>
                 </div>
+
+                <div class="divider-line"></div>
+
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <select id="sort-order" class="custom-select">
+                            <option value="created">作成日▼</option>
+                            <option value="updated">更新日▼</option>
+                        </select>
+                        <select id="filter-status" class="custom-select">
+                            <option value="all">すべて▼</option>
+                            <option value="writing">制作中</option>
+                            <option value="completed">制作完了</option>
+                            <option value="hiatus">制作中断</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="work-list" class="work-list-container">
+                    </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div id="editor-screen" class="screen">
-    <div class="container">
-        <button class="btn-custom" style="margin-bottom:15px;" onclick="showScreen('top-screen')">← 戻る</button>
-        <h2 id="info-editor-title" style="color:var(--gold); font-weight: bold;">作品情報設定</h2>
-        <div class="form-group"><label>タイトル</label><input type="text" id="input-title"></div>
-        <button onclick="saveWork()" class="btn-custom btn-full" style="padding:18px; font-size: 18px; border-color:var(--gold);">作品情報を反映させる</button>
-    </div>
-</div>
+            <div id="work-workspace" class="view-section" style="display: none;">
+                <div class="workspace-tabs">
+                    <button class="tab-btn active" data-target="editor-view">執筆画面</button>
+                    <button class="tab-btn" data-target="plot-view">プロット</button>
+                    <button class="tab-btn" data-target="char-view">登場人物</button>
+                    <button class="tab-btn" data-target="work-info-view">作品情報</button>
+                    <button id="workspace-back-btn" class="tab-btn back-tab">TOPへ</button>
+                </div>
 
-<script>
-    /* ロジックは基準コードをベースにエピソード管理を追加 */
-    let works = JSON.parse(localStorage.getItem('sb_works')) || [];
-    let dailyLogs = JSON.parse(localStorage.getItem('sb_daily_logs')) || {};
-    let currentId = null;
-    let currentEpisodeIdx = 0;
-    let writingChart = null;
+                <div id="editor-view" class="tab-content active">
+                    <div class="editor-layout">
+                        <div class="chapter-list-sidebar">
+                            <div class="sidebar-header">
+                                <span>各話一覧</span>
+                                <button id="add-chapter-btn" class="icon-btn-small"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div id="chapter-list" class="scrollable-list"></div>
+                            <div class="total-count-display">合計: <span id="work-total-chars">0</span>文字</div>
+                        </div>
+                        <div class="main-editor-area">
+                            <div class="editor-toolbar">
+                                <input type="text" id="chapter-title-input" placeholder="サブタイトル">
+                                <div class="tools">
+                                    <button onclick="insertText('｜', '《》')">ルビ</button>
+                                    <button onclick="insertText('――')">ダッシュ</button>
+                                    <button onclick="insertText('　')">空白</button>
+                                    <button id="toggle-vertical-btn">縦書き切替</button>
+                                    <button id="save-chapter-btn"><i class="fa-solid fa-floppy-disk"></i></button>
+                                </div>
+                            </div>
+                            <div class="editor-wrapper">
+                                <textarea id="main-editor" placeholder="本文..."></textarea>
+                            </div>
+                            <div class="editor-footer">
+                                <span>全文字数: <span id="char-count-all">0</span></span>
+                                <span style="margin-left:15px;">正味: <span id="char-count-net">0</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    function showScreen(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        if(id === 'top-screen') updateTopCounters();
-    }
+                <div id="plot-view" class="tab-content">
+                    <div class="split-view">
+                        <div class="list-side" id="plot-list">
+                            <button id="add-plot-btn" class="add-btn-green">+ プロット追加</button>
+                        </div>
+                        <div class="detail-side">
+                            <input type="text" id="plot-title" placeholder="タイトル" class="detail-input">
+                            <textarea id="plot-content" placeholder="内容" class="detail-textarea"></textarea>
+                            <button id="save-plot-btn" class="primary-btn">保存</button>
+                        </div>
+                    </div>
+                </div>
 
-    function updateTopCounters() {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('top-today-count').innerText = dailyLogs[today] || 0;
-    }
+                <div id="char-view" class="tab-content">
+                    <div class="split-view">
+                        <div class="list-side" id="char-list">
+                            <button id="add-char-btn" class="add-btn-green">+ キャラ追加</button>
+                        </div>
+                        <div class="detail-side scrollable">
+                            <div class="char-form-grid">
+                                <div class="form-group"><label>名前</label><input type="text" id="char-name"></div>
+                                <div class="form-group"><label>年齢</label><input type="number" id="char-age"></div>
+                                <div class="form-group"><label>役職</label><input type="text" id="char-role"></div>
+                            </div>
+                            <textarea id="char-detail" class="detail-textarea" placeholder="詳細設定..."></textarea>
+                            <button id="save-char-btn" class="primary-btn">保存</button>
+                        </div>
+                    </div>
+                </div>
 
-    function openWorkDetail(id) {
-        currentId = id;
-        const w = works.find(item => item.id === id);
-        if (!w.episodes) w.episodes = [{ subtitle: "第1話", content: "" }];
-        document.getElementById('detail-title').innerText = w.title;
-        currentEpisodeIdx = 0;
-        renderEpisodeList();
-        loadEpisode(0);
-        showScreen('detail-screen');
-    }
-
-    function renderEpisodeList() {
-        const w = works.find(item => item.id === currentId);
-        const listEl = document.getElementById('episode-list');
-        listEl.innerHTML = w.episodes.map((ep, idx) => `
-            <div class="episode-item ${idx === currentEpisodeIdx ? 'active' : ''}" onclick="loadEpisode(${idx})">
-                ${ep.subtitle || '無題'}
-            </div>
-        `).join('');
-    }
-
-    function loadEpisode(idx) {
-        const w = works.find(item => item.id === currentId);
-        currentEpisodeIdx = idx;
-        const ep = w.episodes[idx];
-        document.getElementById('episode-subtitle').value = ep.subtitle || "";
-        document.getElementById('editor-textarea').value = ep.content || "";
-        renderEpisodeList();
-        updateLiveCount();
-    }
-
-    function addEpisode() {
-        const w = works.find(item => item.id === currentId);
-        w.episodes.push({ subtitle: `第${w.episodes.length + 1}話`, content: "" });
-        renderEpisodeList();
-    }
-
-    function updateLiveCount() {
-        const text = document.getElementById('editor-textarea').value;
-        document.getElementById('char-count-full').innerText = text.length;
-        document.getElementById('char-count-pure').innerText = text.replace(/\s/g, '').length;
-    }
-
-    function saveWriting() {
-        const w = works.find(item => item.id === currentId);
-        const ep = w.episodes[currentEpisodeIdx];
-        const oldLen = ep.content ? ep.content.length : 0;
-        const newText = document.getElementById('editor-textarea').value;
-        
-        ep.subtitle = document.getElementById('episode-subtitle').value;
-        ep.content = newText;
-        
-        if (newText.length > oldLen) {
-            const today = new Date().toISOString().split('T')[0];
-            dailyLogs[today] = (dailyLogs[today] || 0) + (newText.length - oldLen);
-            localStorage.setItem('sb_daily_logs', JSON.stringify(dailyLogs));
-        }
-        
-        w.updated = Date.now();
-        localStorage.setItem('sb_works', JSON.stringify(works));
-        renderEpisodeList();
-        alert("保存しました");
-    }
-
-    function toggleVertical() {
-        document.getElementById('editor-textarea').classList.toggle('vertical-mode');
-    }
-
-    function insertRuby() {
-        const area = document.getElementById('editor-textarea');
-        area.setRangeText("|親文字《ふりがな》", area.selectionStart, area.selectionEnd, 'select');
-    }
-
-    function switchTab(t) {
-        document.querySelectorAll('.tab-bar .btn-custom').forEach(b => b.classList.remove('active'));
-        event.currentTarget.classList.add('active');
-    }
-
-    // 作品リスト表示ロジック等は基準コードを完全継承
-    function renderWorkList() {
-        const listEl = document.getElementById('work-list');
-        listEl.innerHTML = works.map(w => `
-            <div class="work-item">
-                <div style="flex:1; cursor:pointer;" onclick="openWorkDetail(${w.id})">
-                    <div style="font-weight:bold; font-size:20px; color:#fff;">${w.title}</div>
-                    <div style="font-size:12px; color:var(--sub-text);">更新: ${new Date(w.updated).toLocaleDateString()}</div>
+                <div id="work-info-view" class="tab-content">
+                    <div class="form-container">
+                        <h2>作品情報の編集</h2>
+                        <div class="form-group">
+                            <label>タイトル</label><input type="text" id="edit-work-title">
+                        </div>
+                        <div class="form-group">
+                            <label>キャッチコピー <span id="catchphrase-counter">残り35</span></label>
+                            <input type="text" id="edit-work-catchphrase" maxlength="35">
+                        </div>
+                        <div class="inline-options-group">
+                            <select id="edit-work-status"><option value="writing">制作中</option><option value="completed">制作完了</option><option value="hiatus">制作中断</option></select>
+                            <select id="edit-work-type"><option value="original">オリジナル</option><option value="fanfic">二次創作</option></select>
+                        </div>
+                        <button id="update-work-info-btn" class="primary-btn">更新保存</button>
+                    </div>
                 </div>
             </div>
-        `).join('');
-    }
 
-    window.onload = renderWorkList;
-</script>
+            <div id="common-memo-screen" class="view-section" style="display: none;">
+                <div class="memo-container">
+                    <button id="add-memo-btn" class="add-btn-green-large">+ 新しいメモを追加</button>
+                    <div id="memo-list" class="memo-list">
+                        </div>
+                </div>
+            </div>
+            
+            <div id="memo-edit-screen" class="view-section" style="display: none;">
+                <div class="memo-editor-container">
+                    <input type="text" id="memo-edit-title" class="seamless-title" placeholder="新規メモ">
+                    <textarea id="memo-edit-content" class="seamless-editor" placeholder="内容を入力..."></textarea>
+                </div>
+            </div>
+
+            <div id="stats-screen" class="view-section" style="display: none;">
+                <div class="stats-header">
+                    <h2>執筆文字数の推移</h2>
+                    <select class="stats-range-select"><option>過去7日間</option></select>
+                    <button id="close-stats-btn" class="icon-btn" style="position:absolute; right:10px; top:10px;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="stats-graph-area">
+                    <div class="bar-graph-placeholder">
+                        <div class="bar" style="height: 10%; left: 20%;"></div>
+                        <div class="bar" style="height: 80%; left: 70%;"></div>
+                    </div>
+                </div>
+
+                <h1 class="stats-title-large">執筆日記</h1>
+                
+                <div class="stats-cards-container">
+                    <div class="stats-card-dark">
+                        <div class="stats-label">今日の文字数</div>
+                        <div class="stats-value"><span id="stat-today">0</span> 字</div>
+                    </div>
+                    <div class="stats-card-dark">
+                        <div class="stats-label">過去7日間の文字数</div>
+                        <div class="stats-value"><span id="stat-week">0</span> 字</div>
+                    </div>
+                    <div class="stats-row">
+                        <div class="stats-card-dark half">
+                            <div class="stats-label">総制作作品数</div>
+                            <div class="stats-value"><span id="stat-works">0</span> 作品</div>
+                        </div>
+                        <div class="stats-card-dark half">
+                            <div class="stats-label">総制作キャラクター数</div>
+                            <div class="stats-value"><span id="stat-chars">0</span> 体</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+    <script type="module" src="script.js"></script>
 </body>
 </html>

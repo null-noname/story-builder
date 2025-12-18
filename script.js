@@ -1,233 +1,412 @@
-let works = JSON.parse(localStorage.getItem('sb_works')) || [];
-let dailyLogs = JSON.parse(localStorage.getItem('sb_daily_logs')) || {};
-let currentId = null;
-let currentEpisodeIdx = 0;
-let writingChart = null;
+// Firebase SDKのインポート
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, orderBy, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// 画面表示の基本関数
-function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const target = document.getElementById(id);
-    if(target) {
-        target.classList.add('active');
-        if(id === 'top-screen') updateTopCounters();
-    }
-    window.scrollTo(0, 0);
+// --- Firebase設定 ---
+const firebaseConfig = {
+  apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
+  authDomain: "story-builder-app.firebaseapp.com",
+  projectId: "story-builder-app",
+  storageBucket: "story-builder-app.firebasestorage.app",
+  messagingSenderId: "763153451684",
+  appId: "1:763153451684:web:37a447d4cafb4abe41f431"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+// --- 状態変数 ---
+let currentUser = null;
+let currentWorkId = null;
+let currentChapterId = null;
+let currentMemoId = null;
+let worksData = [];
+let chaptersData = [];
+
+// --- DOM要素キャッシュ ---
+const views = {
+    login: document.getElementById('login-screen'),
+    app: document.getElementById('app-container'),
+    top: document.getElementById('top-screen'),
+    workspace: document.getElementById('work-workspace'),
+    stats: document.getElementById('stats-screen'),
+    commonMemo: document.getElementById('common-memo-screen'),
+    memoEdit: document.getElementById('memo-edit-screen')
+};
+
+const header = {
+    el: document.getElementById('global-header'),
+    backBtn: document.getElementById('header-back-btn'),
+    title: document.getElementById('header-title'),
+    delBtn: document.getElementById('header-delete-btn')
+};
+
+// --- 初期化 ---
+document.addEventListener('DOMContentLoaded', () => {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            showApp();
+            loadDashboard();
+        } else {
+            currentUser = null;
+            showLogin();
+        }
+    });
+    setupEventListeners();
+});
+
+function showLogin() {
+    views.login.style.display = 'flex';
+    views.app.style.display = 'none';
 }
 
-// TOP画面の文字数表示更新
-function updateTopCounters() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('top-today-count').innerText = dailyLogs[today] || 0;
-    
-    let weekTotal = 0;
-    for(let i=0; i<7; i++) {
-        let d = new Date(); d.setDate(d.getDate() - i);
-        weekTotal += dailyLogs[d.toISOString().split('T')[0]] || 0;
-    }
-    document.getElementById('top-week-count').innerText = weekTotal;
+function showApp() {
+    views.login.style.display = 'none';
+    views.app.style.display = 'flex';
+    switchView('top');
 }
 
-// 作品リストの描画
-function renderWorkList() {
-    const listEl = document.getElementById('work-list');
-    if(!listEl) return;
-    const sortBy = document.getElementById('sort-select').value;
-    const filter = document.getElementById('filter-status').value;
+function switchView(viewName) {
+    Object.values(views).forEach(v => v.style.display = 'none');
     
-    let filtered = works.filter(w => filter === 'all' || w.status === filter);
-    filtered.sort((a, b) => {
-        if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
-        return (b[sortBy] || 0) - (a[sortBy] || 0);
+    // ヘッダー制御
+    header.el.style.display = (viewName === 'memoEdit') ? 'flex' : 'none';
+
+    if(viewName === 'top') views.top.style.display = 'block';
+    if(viewName === 'workspace') views.workspace.style.display = 'flex';
+    if(viewName === 'stats') views.stats.style.display = 'block';
+    if(viewName === 'commonMemo') views.commonMemo.style.display = 'flex';
+    if(viewName === 'memoEdit') views.memoEdit.style.display = 'flex';
+}
+
+// --- イベントリスナー ---
+function setupEventListeners() {
+    // Auth
+    document.getElementById('login-btn').addEventListener('click', () => signInWithPopup(auth, provider));
+    // ヘッダー戻るボタン（メモ編集から一覧へ）
+    header.backBtn.addEventListener('click', async () => {
+        if(currentMemoId) await saveCurrentMemo();
+        switchView('commonMemo');
+        loadCommonMemos();
+    });
+    // メモ削除ボタン
+    header.delBtn.addEventListener('click', async () => {
+        if(confirm("このメモを削除しますか？")) {
+            await deleteDoc(doc(db, `users/${currentUser.uid}/memos`, currentMemoId));
+            switchView('commonMemo');
+            loadCommonMemos();
+        }
     });
 
-    listEl.innerHTML = filtered.map(w => `
-        <div class="work-item ${w.isPinned ? 'pinned' : ''}">
-            <div style="flex:1; cursor:pointer;" onclick="openWorkDetail(${w.id})">
-                <div style="font-weight:bold; font-size:20px; color:#fff;">${w.isPinned ? '★ ' : ''}${w.title}</div>
-                <div style="font-size:12px; color:var(--sub-text); margin-top:5px;">
-                    作成: ${new Date(w.created).toLocaleDateString()} | 更新: ${new Date(w.updated).toLocaleDateString()} | 全 ${w.totalChars || 0} 字
+    // TOP
+    document.getElementById('create-work-btn').addEventListener('click', createNewWork);
+    document.getElementById('common-memo-btn').addEventListener('click', () => {
+        loadCommonMemos();
+        switchView('commonMemo');
+    });
+    document.getElementById('diary-widget').addEventListener('click', () => {
+        loadStats(); // 統計データ更新
+        switchView('stats');
+    });
+    document.getElementById('close-stats-btn').addEventListener('click', () => switchView('top'));
+
+    // フィルタ・ソート
+    document.getElementById('sort-order').addEventListener('change', () => renderWorkList());
+    document.getElementById('filter-status').addEventListener('change', () => renderWorkList());
+
+    // ワークスペース
+    document.getElementById('workspace-back-btn').addEventListener('click', () => {
+        saveCurrentChapter();
+        switchView('top');
+        loadDashboard();
+    });
+    
+    const tabBtns = document.querySelectorAll('.workspace-tabs .tab-btn:not(.back-tab)');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(btn.dataset.target).classList.add('active');
+        });
+    });
+
+    // エディタ
+    document.getElementById('main-editor').addEventListener('input', updateCharCount);
+    document.getElementById('toggle-vertical-btn').addEventListener('click', () => {
+        document.querySelector('.editor-wrapper').classList.toggle('vertical-mode');
+    });
+    document.getElementById('add-chapter-btn').addEventListener('click', addChapter);
+    document.getElementById('save-chapter-btn').addEventListener('click', saveCurrentChapter);
+
+    // 作品情報
+    document.getElementById('update-work-info-btn').addEventListener('click', updateWorkInfo);
+    document.getElementById('edit-work-catchphrase').addEventListener('input', (e) => {
+        document.getElementById('catchphrase-counter').textContent = `残り${35 - e.target.value.length}`;
+    });
+
+    // 共通メモ
+    document.getElementById('add-memo-btn').addEventListener('click', createNewMemo);
+}
+
+// --- 作品管理 ---
+async function loadDashboard() {
+    if(!currentUser) return;
+    const q = query(collection(db, `users/${currentUser.uid}/works`), orderBy("updatedAt", "desc"));
+    const snapshot = await getDocs(q);
+    worksData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+    
+    // 統計情報の更新（簡易）
+    let totalChars = 0;
+    worksData.forEach(w => totalChars += (w.totalCharCount || 0));
+    document.getElementById('stat-today').textContent = "1200"; // 仮
+    document.getElementById('stat-week').textContent = "5000"; // 仮
+    document.getElementById('today-count').textContent = "1200"; // 仮
+    document.getElementById('week-count').textContent = "5000"; // 仮
+    document.getElementById('stat-works').textContent = worksData.length;
+
+    renderWorkList();
+}
+
+function renderWorkList() {
+    const listContainer = document.getElementById('work-list');
+    listContainer.innerHTML = '';
+
+    // フィルタ
+    const statusFilter = document.getElementById('filter-status').value;
+    let filtered = (statusFilter === 'all') ? worksData : worksData.filter(w => w.status === statusFilter);
+
+    // ソート
+    const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
+    filtered.sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        const da = a[sortKey]?.toDate() || new Date(0);
+        const db = b[sortKey]?.toDate() || new Date(0);
+        return db - da;
+    });
+
+    filtered.forEach(work => {
+        // 更新日時のフォーマット: 2025/12/20 12:10
+        const d = work.updatedAt ? work.updatedAt.toDate() : new Date();
+        const dateStr = `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours()}:${d.getMinutes()}`;
+        const createD = work.createdAt ? work.createdAt.toDate() : new Date();
+        const createStr = `${createD.getFullYear()}/${(createD.getMonth()+1).toString().padStart(2,'0')}/${createD.getDate().toString().padStart(2,'0')}`;
+
+        const card = document.createElement('div');
+        card.className = 'work-card';
+        card.innerHTML = `
+            <div class="work-card-header">
+                <div class="work-card-title" onclick="openWork('${work.id}')">${work.title}</div>
+                <div class="work-card-actions">
+                    <button class="mini-btn" onclick="openWork('${work.id}')">編集</button>
+                    <button class="mini-btn delete" onclick="deleteWork('${work.id}')">削除</button>
+                    <button class="star-btn ${work.pinned?'active':''}" onclick="togglePin('${work.id}', ${!work.pinned})">★</button>
                 </div>
             </div>
-            <div style="display:flex; gap:8px;">
-                <button class="btn-custom btn-small" onclick="openWorkEditor(${w.id})">編集</button>
-                <button class="btn-custom btn-small" style="color:#ff8888;" onclick="deleteWork(${w.id})">削除</button>
-                <button class="btn-custom btn-small" onclick="togglePin(${w.id})">${w.isPinned ? '★' : '☆'}</button>
+            <div class="work-card-meta">
+                作成日: ${createStr}　更新日: ${dateStr}
             </div>
-        </div>
-    `).join('');
+        `;
+        listContainer.appendChild(card);
+    });
 }
 
-// 作品編集画面（作成・編集）を開く
-function openWorkEditor(id = null) {
-    currentId = id;
-    if(id) {
-        const w = works.find(item => item.id === id);
-        document.getElementById('info-editor-title').innerText = "作品情報の編集";
-        document.getElementById('input-title').value = w.title || "";
-        document.getElementById('input-summary').value = w.summary || "";
-        document.getElementById('input-catch').value = w.catch || "";
-        document.getElementById('input-genre-main').value = w.genreMain || "";
-        document.getElementById('input-genre-sub').value = w.genreSub || "";
-        if(w.status) document.querySelector(`input[name="novel-status"][value="${w.status}"]`).checked = true;
-    } else {
-        document.getElementById('info-editor-title').innerText = "新規作品作成";
-        document.getElementById('input-title').value = "";
-        document.getElementById('input-summary').value = "";
-        document.getElementById('input-catch').value = "";
-        document.getElementById('input-genre-main').value = "";
-        document.getElementById('input-genre-sub').value = "";
+window.deleteWork = async (id) => {
+    if(confirm("作品を削除しますか？復元できません。")) {
+        await deleteDoc(doc(db, `users/${currentUser.uid}/works`, id));
+        loadDashboard();
     }
-    showScreen('editor-screen');
-}
+};
 
-// 作品情報の保存
-function saveWork() {
-    const title = document.getElementById('input-title').value;
-    if (!title) return alert("タイトルを入力してください");
-    const now = Date.now();
-    const data = {
-        id: currentId || now,
-        title: title,
-        summary: document.getElementById('input-summary').value,
-        catch: document.getElementById('input-catch').value,
-        genreMain: document.getElementById('input-genre-main').value,
-        genreSub: document.getElementById('input-genre-sub').value,
-        status: document.querySelector('input[name="novel-status"]:checked').value,
-        updated: now,
-        created: currentId ? works.find(w => w.id === currentId).created : now,
-        isPinned: currentId ? works.find(w => w.id === currentId).isPinned : false,
-        totalChars: currentId ? (works.find(w => w.id === currentId).totalChars || 0) : 0,
-        episodes: currentId ? (works.find(w => w.id === currentId).episodes || []) : []
-    };
-    if (currentId) {
-        const idx = works.findIndex(w => w.id === currentId);
-        works[idx] = data;
-    } else {
-        works.push(data);
-    }
-    localStorage.setItem('sb_works', JSON.stringify(works));
-    renderWorkList();
-    showScreen('top-screen');
-}
+window.togglePin = async (id, status) => {
+    await updateDoc(doc(db, `users/${currentUser.uid}/works`, id), { pinned: status });
+    loadDashboard();
+};
 
-// 執筆詳細画面を開く
-function openWorkDetail(id) {
-    currentId = id;
-    const w = works.find(item => item.id === id);
-    if (!w.episodes || w.episodes.length === 0) w.episodes = [{ subtitle: "第1話", content: "" }];
+window.openWork = async (workId) => {
+    currentWorkId = workId;
+    const work = worksData.find(w => w.id === workId);
     
-    document.getElementById('detail-title').innerText = w.title;
-    currentEpisodeIdx = 0;
-    renderEpisodeList();
-    loadEpisode(0);
-    showScreen('detail-screen');
-}
-
-// エピソード一覧の描画
-function renderEpisodeList() {
-    const w = works.find(item => item.id === currentId);
-    const listEl = document.getElementById('episode-list');
-    listEl.innerHTML = w.episodes.map((ep, idx) => `
-        <div class="episode-item ${idx === currentEpisodeIdx ? 'active' : ''}" onclick="loadEpisode(${idx})">
-            ${ep.subtitle || '無題'}
-        </div>
-    `).join('');
-}
-
-// エピソードの読み込み
-function loadEpisode(idx) {
-    const w = works.find(item => item.id === currentId);
-    currentEpisodeIdx = idx;
-    const ep = w.episodes[idx];
-    document.getElementById('episode-subtitle').value = ep.subtitle || "";
-    document.getElementById('editor-textarea').value = ep.content || "";
-    renderEpisodeList();
-    updateLiveCount();
-}
-
-// エピソードの追加
-function addEpisode() {
-    const w = works.find(item => item.id === currentId);
-    w.episodes.push({ subtitle: `第${w.episodes.length + 1}話`, content: "" });
-    renderEpisodeList();
-    loadEpisode(w.episodes.length - 1);
-}
-
-// 執筆内容の保存（統計連動）
-function saveWriting() {
-    const w = works.find(item => item.id === currentId);
-    const ep = w.episodes[currentEpisodeIdx];
-    const oldLen = ep.content ? ep.content.length : 0;
-    const newText = document.getElementById('editor-textarea').value;
+    // フォームへの反映
+    document.getElementById('edit-work-title').value = work.title;
+    document.getElementById('edit-work-catchphrase').value = work.catchphrase || '';
+    document.getElementById('edit-work-status').value = work.status || 'writing';
     
-    ep.subtitle = document.getElementById('episode-subtitle').value;
-    ep.content = newText;
+    await loadChapters(workId);
+    switchView('workspace');
+    document.querySelector('.tab-btn[data-target="editor-view"]').click();
+};
+
+// --- チャプター機能 (簡易版) ---
+async function loadChapters(workId) {
+    const q = query(collection(db, `users/${currentUser.uid}/works/${workId}/chapters`), orderBy("order"));
+    const snapshot = await getDocs(q);
+    chaptersData = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
     
-    if (newText.length > oldLen) {
-        const today = new Date().toISOString().split('T')[0];
-        dailyLogs[today] = (dailyLogs[today] || 0) + (newText.length - oldLen);
-        localStorage.setItem('sb_daily_logs', JSON.stringify(dailyLogs));
-    }
-    
-    // 全文字数計算
+    const list = document.getElementById('chapter-list');
+    list.innerHTML = '';
     let total = 0;
-    w.episodes.forEach(e => total += (e.content || "").length);
-    w.totalChars = total;
-    w.updated = Date.now();
     
-    localStorage.setItem('sb_works', JSON.stringify(works));
+    chaptersData.forEach((c, i) => {
+        const div = document.createElement('div');
+        div.className = 'chapter-item'; // CSSで定義済みと仮定
+        div.textContent = c.title || `第${i+1}話`;
+        div.style.padding = "10px";
+        div.style.borderBottom = "1px solid #444";
+        div.style.cursor = "pointer";
+        div.onclick = () => selectChapter(c.id);
+        list.appendChild(div);
+        total += (c.charCount || 0);
+    });
+    
+    document.getElementById('work-total-chars').textContent = total;
+    if(chaptersData.length > 0) selectChapter(chaptersData[0].id);
+    else {
+        document.getElementById('main-editor').value = '';
+        document.getElementById('chapter-title-input').value = '';
+    }
+}
+
+async function addChapter() {
+    await addDoc(collection(db, `users/${currentUser.uid}/works/${currentWorkId}/chapters`), {
+        title: `第${chaptersData.length+1}話`, content: '', order: chaptersData.length, charCount: 0, updatedAt: serverTimestamp()
+    });
+    loadChapters(currentWorkId);
+}
+
+function selectChapter(id) {
+    currentChapterId = id;
+    const c = chaptersData.find(x => x.id === id);
+    document.getElementById('main-editor').value = c.content || '';
+    document.getElementById('chapter-title-input').value = c.title || '';
+    updateCharCount();
+}
+
+async function saveCurrentChapter() {
+    if(!currentChapterId) return;
+    const content = document.getElementById('main-editor').value;
+    const title = document.getElementById('chapter-title-input').value;
+    const count = content.replace(/[\s\n]/g, '').length;
+    
+    await updateDoc(doc(db, `users/${currentUser.uid}/works/${currentWorkId}/chapters`, currentChapterId), {
+        content, title, charCount: count, updatedAt: serverTimestamp()
+    });
+    // 本来はWorkの合計文字数も更新すべき
+}
+
+function updateCharCount() {
+    const val = document.getElementById('main-editor').value;
+    document.getElementById('char-count-all').textContent = val.length;
+    document.getElementById('char-count-net').textContent = val.replace(/[\s\n]/g, '').length;
+}
+
+// --- エディタ補助 ---
+window.insertText = (text, wrap='') => {
+    const el = document.getElementById('main-editor');
+    const start = el.selectionStart;
+    const val = el.value;
+    let ins = text;
+    if(wrap) {
+        const sel = val.substring(start, el.selectionEnd);
+        ins = sel ? `|${sel}《》` : `|親文字《ルビ》`;
+    }
+    el.value = val.substring(0, start) + ins + val.substring(el.selectionEnd);
+    updateCharCount();
+};
+
+async function updateWorkInfo() {
+    await updateDoc(doc(db, `users/${currentUser.uid}/works`, currentWorkId), {
+        title: document.getElementById('edit-work-title').value,
+        catchphrase: document.getElementById('edit-work-catchphrase').value,
+        status: document.getElementById('edit-work-status').value,
+        updatedAt: serverTimestamp()
+    });
     alert("保存しました");
 }
 
-// 文字数カウント
-function updateLiveCount() {
-    const text = document.getElementById('editor-textarea').value;
-    document.getElementById('char-count-full').innerText = text.length;
-    document.getElementById('char-count-pure').innerText = text.replace(/\s/g, '').length;
+// --- 共通メモ機能 ---
+async function createNewWork() {
+    const title = prompt("作品タイトル");
+    if(!title) return;
+    await addDoc(collection(db, `users/${currentUser.uid}/works`), {
+        title, status: 'writing', pinned: false, totalCharCount: 0, 
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+    loadDashboard();
 }
 
-// 縦書き切り替え
-function toggleVertical() {
-    document.getElementById('editor-textarea').classList.toggle('vertical-mode');
-}
-
-// 統計画面
-function showStats() {
-    showScreen('stats-screen');
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('stat-today').innerText = dailyLogs[today] || 0;
-    updateChart();
-}
-
-function updateChart() {
-    const ctxEl = document.getElementById('writingChart');
-    if(!ctxEl) return;
-    const ctx = ctxEl.getContext('2d');
-    if (writingChart) writingChart.destroy();
-    const range = parseInt(document.getElementById('stat-range').value);
-    let labels = []; let data = [];
-    for(let i=range-1; i>=0; i--) {
-        let d = new Date(); d.setDate(d.getDate() - i);
-        labels.push((d.getMonth()+1) + "/" + d.getDate());
-        data.push(dailyLogs[d.toISOString().split('T')[0]] || 0);
-    }
-    writingChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: '#89b4fa', borderRadius: 4 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+async function loadCommonMemos() {
+    const q = query(collection(db, `users/${currentUser.uid}/memos`), orderBy("updatedAt", "desc"));
+    const snap = await getDocs(q);
+    const list = document.getElementById('memo-list');
+    list.innerHTML = '';
+    
+    snap.forEach(d => {
+        const m = d.data();
+        const div = document.createElement('div');
+        div.className = 'memo-card';
+        // プレビュー用に本文の最初の方を取得
+        const preview = m.content ? m.content.substring(0, 30) + '...' : '内容なし';
+        
+        div.innerHTML = `
+            <div class="memo-info">
+                <span class="memo-title">${m.title || '無題'}</span>
+                <div class="memo-preview">${preview}</div>
+            </div>
+            <div class="memo-actions">
+                <button class="memo-btn" onclick="openMemo('${d.id}')">編集</button>
+                <button class="memo-btn" style="color:#aaa;">↑</button>
+                <button class="memo-btn green" onclick="deleteMemo('${d.id}')">－</button>
+            </div>
+        `;
+        list.appendChild(div);
     });
 }
 
-// その他の補助関数
-function togglePin(id) { const idx = works.findIndex(w => w.id === id); works[idx].isPinned = !works[idx].isPinned; localStorage.setItem('sb_works', JSON.stringify(works)); renderWorkList(); }
-function deleteWork(id) { if(confirm("削除しますか？")) { works = works.filter(w => w.id !== id); localStorage.setItem('sb_works', JSON.stringify(works)); renderWorkList(); } }
-function updateCatchCounter(el) { document.getElementById('c-count').innerText = `残り ${35 - el.value.length} 文字`; }
-function switchTab(t) {
-    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-    document.getElementById('tab-' + t).style.display = 'block';
-    document.querySelectorAll('.tab-bar .btn-custom').forEach(b => b.classList.remove('active'));
-    document.getElementById('btn-tab-' + t).classList.add('active');
+async function createNewMemo() {
+    const ref = await addDoc(collection(db, `users/${currentUser.uid}/memos`), {
+        title: '新規メモ', content: '', updatedAt: serverTimestamp()
+    });
+    openMemo(ref.id);
 }
 
-window.onload = () => { renderWorkList(); updateTopCounters(); };
+window.openMemo = async (id) => {
+    currentMemoId = id;
+    const snap = await getDocs(query(collection(db, `users/${currentUser.uid}/memos`))); // 簡易取得
+    const memo = snap.docs.find(d => d.id === id).data();
+    
+    document.getElementById('memo-edit-title').value = memo.title;
+    document.getElementById('memo-edit-content').value = memo.content;
+    
+    // ヘッダー設定
+    header.backBtn.style.display = 'block';
+    header.title.textContent = 'メモ編集';
+    header.delBtn.style.display = 'block';
+    
+    switchView('memoEdit');
+};
+
+async function saveCurrentMemo() {
+    if(!currentMemoId) return;
+    await updateDoc(doc(db, `users/${currentUser.uid}/memos`, currentMemoId), {
+        title: document.getElementById('memo-edit-title').value,
+        content: document.getElementById('memo-edit-content').value,
+        updatedAt: serverTimestamp()
+    });
+}
+
+window.deleteMemo = async (id) => {
+    if(confirm("メモを削除しますか？")) {
+        await deleteDoc(doc(db, `users/${currentUser.uid}/memos`, id));
+        loadCommonMemos();
+    }
+};
+
+function loadStats() {
+    // グラフ描画等はChart.jsなどで行うが、ここでは数字のみ
+}
