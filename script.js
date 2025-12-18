@@ -1,12 +1,121 @@
-// 話数管理用の変数
+let works = JSON.parse(localStorage.getItem('sb_works')) || [];
+let dailyLogs = JSON.parse(localStorage.getItem('sb_daily_logs')) || {};
+let currentId = null;
 let currentEpisodeIdx = 0;
-let isVertical = false;
+let writingChart = null;
 
-// 作品詳細を開く際の処理を拡張
+// 画面表示の基本関数
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(id);
+    if(target) {
+        target.classList.add('active');
+        if(id === 'top-screen') updateTopCounters();
+    }
+    window.scrollTo(0, 0);
+}
+
+// TOP画面の文字数表示更新
+function updateTopCounters() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('top-today-count').innerText = dailyLogs[today] || 0;
+    
+    let weekTotal = 0;
+    for(let i=0; i<7; i++) {
+        let d = new Date(); d.setDate(d.getDate() - i);
+        weekTotal += dailyLogs[d.toISOString().split('T')[0]] || 0;
+    }
+    document.getElementById('top-week-count').innerText = weekTotal;
+}
+
+// 作品リストの描画
+function renderWorkList() {
+    const listEl = document.getElementById('work-list');
+    if(!listEl) return;
+    const sortBy = document.getElementById('sort-select').value;
+    const filter = document.getElementById('filter-status').value;
+    
+    let filtered = works.filter(w => filter === 'all' || w.status === filter);
+    filtered.sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
+        return (b[sortBy] || 0) - (a[sortBy] || 0);
+    });
+
+    listEl.innerHTML = filtered.map(w => `
+        <div class="work-item ${w.isPinned ? 'pinned' : ''}">
+            <div style="flex:1; cursor:pointer;" onclick="openWorkDetail(${w.id})">
+                <div style="font-weight:bold; font-size:20px; color:#fff;">${w.isPinned ? '★ ' : ''}${w.title}</div>
+                <div style="font-size:12px; color:var(--sub-text); margin-top:5px;">
+                    作成: ${new Date(w.created).toLocaleDateString()} | 更新: ${new Date(w.updated).toLocaleDateString()} | 全 ${w.totalChars || 0} 字
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn-custom btn-small" onclick="openWorkEditor(${w.id})">編集</button>
+                <button class="btn-custom btn-small" style="color:#ff8888;" onclick="deleteWork(${w.id})">削除</button>
+                <button class="btn-custom btn-small" onclick="togglePin(${w.id})">${w.isPinned ? '★' : '☆'}</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 作品編集画面（作成・編集）を開く
+function openWorkEditor(id = null) {
+    currentId = id;
+    if(id) {
+        const w = works.find(item => item.id === id);
+        document.getElementById('info-editor-title').innerText = "作品情報の編集";
+        document.getElementById('input-title').value = w.title || "";
+        document.getElementById('input-summary').value = w.summary || "";
+        document.getElementById('input-catch').value = w.catch || "";
+        document.getElementById('input-genre-main').value = w.genreMain || "";
+        document.getElementById('input-genre-sub').value = w.genreSub || "";
+        if(w.status) document.querySelector(`input[name="novel-status"][value="${w.status}"]`).checked = true;
+    } else {
+        document.getElementById('info-editor-title').innerText = "新規作品作成";
+        document.getElementById('input-title').value = "";
+        document.getElementById('input-summary').value = "";
+        document.getElementById('input-catch').value = "";
+        document.getElementById('input-genre-main').value = "";
+        document.getElementById('input-genre-sub').value = "";
+    }
+    showScreen('editor-screen');
+}
+
+// 作品情報の保存
+function saveWork() {
+    const title = document.getElementById('input-title').value;
+    if (!title) return alert("タイトルを入力してください");
+    const now = Date.now();
+    const data = {
+        id: currentId || now,
+        title: title,
+        summary: document.getElementById('input-summary').value,
+        catch: document.getElementById('input-catch').value,
+        genreMain: document.getElementById('input-genre-main').value,
+        genreSub: document.getElementById('input-genre-sub').value,
+        status: document.querySelector('input[name="novel-status"]:checked').value,
+        updated: now,
+        created: currentId ? works.find(w => w.id === currentId).created : now,
+        isPinned: currentId ? works.find(w => w.id === currentId).isPinned : false,
+        totalChars: currentId ? (works.find(w => w.id === currentId).totalChars || 0) : 0,
+        episodes: currentId ? (works.find(w => w.id === currentId).episodes || []) : []
+    };
+    if (currentId) {
+        const idx = works.findIndex(w => w.id === currentId);
+        works[idx] = data;
+    } else {
+        works.push(data);
+    }
+    localStorage.setItem('sb_works', JSON.stringify(works));
+    renderWorkList();
+    showScreen('top-screen');
+}
+
+// 執筆詳細画面を開く
 function openWorkDetail(id) {
     currentId = id;
     const w = works.find(item => item.id === id);
-    if (!w.episodes) w.episodes = [{ subtitle: "第1話", content: "" }];
+    if (!w.episodes || w.episodes.length === 0) w.episodes = [{ subtitle: "第1話", content: "" }];
     
     document.getElementById('detail-title').innerText = w.title;
     currentEpisodeIdx = 0;
@@ -15,132 +124,110 @@ function openWorkDetail(id) {
     showScreen('detail-screen');
 }
 
-// 話数リストの描画
+// エピソード一覧の描画
 function renderEpisodeList() {
     const w = works.find(item => item.id === currentId);
     const listEl = document.getElementById('episode-list');
     listEl.innerHTML = w.episodes.map((ep, idx) => `
         <div class="episode-item ${idx === currentEpisodeIdx ? 'active' : ''}" onclick="loadEpisode(${idx})">
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px;">
-                ${ep.subtitle || '無題'}
-            </span>
-            <div style="display:flex; gap:2px;">
-                <button class="btn-custom" style="padding:2px 5px; font-size:10px;" onclick="moveEpisode(${idx}, -1); event.stopPropagation();">↑</button>
-                <button class="btn-custom" style="padding:2px 5px; font-size:10px;" onclick="moveEpisode(${idx}, 1); event.stopPropagation();">↓</button>
-            </div>
+            ${ep.subtitle || '無題'}
         </div>
     `).join('');
 }
 
-// 特定の話数をロード
+// エピソードの読み込み
 function loadEpisode(idx) {
     const w = works.find(item => item.id === currentId);
-    // 現在の入力を保存してから切り替え
-    saveCurrentToMemory();
-    
     currentEpisodeIdx = idx;
     const ep = w.episodes[idx];
     document.getElementById('episode-subtitle').value = ep.subtitle || "";
     document.getElementById('editor-textarea').value = ep.content || "";
-    
     renderEpisodeList();
     updateLiveCount();
 }
 
-// メモリ上のデータに一時保存
-function saveCurrentToMemory() {
-    const w = works.find(item => item.id === currentId);
-    if (w && w.episodes[currentEpisodeIdx]) {
-        w.episodes[currentEpisodeIdx].subtitle = document.getElementById('episode-subtitle').value;
-        w.episodes[currentEpisodeIdx].content = document.getElementById('editor-textarea').value;
-    }
-}
-
-// 新しい話数を追加
+// エピソードの追加
 function addEpisode() {
     const w = works.find(item => item.id === currentId);
-    if (w.episodes.length >= 1000) return alert("最大話数に達しました");
-    
     w.episodes.push({ subtitle: `第${w.episodes.length + 1}話`, content: "" });
     renderEpisodeList();
     loadEpisode(w.episodes.length - 1);
 }
 
-// 並び替え
-function moveEpisode(idx, dir) {
-    const w = works.find(item => item.id === currentId);
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= w.episodes.length) return;
-    
-    [w.episodes[idx], w.episodes[newIdx]] = [w.episodes[newIdx], w.episodes[idx]];
-    renderEpisodeList();
-    if (currentEpisodeIdx === idx) loadEpisode(newIdx);
-}
-
-// --- エディタ特殊機能 ---
-
-// ルビ挿入
-function insertRuby() {
-    const parent = prompt("親文字を入力してください");
-    const ruby = prompt("ふりがなを入力してください");
-    if (parent && ruby) {
-        const tag = `|${parent}《${ruby}》`;
-        const area = document.getElementById('editor-textarea');
-        area.setRangeText(tag, area.selectionStart, area.selectionEnd, 'end');
-        updateLiveCount();
-    }
-}
-
-// ダッシュ挿入
-function insertDash() {
-    const area = document.getElementById('editor-textarea');
-    area.setRangeText("――", area.selectionStart, area.selectionEnd, 'end');
-    updateLiveCount();
-}
-
-// 置換
-function replaceText() {
-    const target = prompt("置換したい文字");
-    const replacement = prompt("置換後の文字");
-    if (target !== null) {
-        const area = document.getElementById('editor-textarea');
-        area.value = area.value.split(target).join(replacement);
-        updateLiveCount();
-    }
-}
-
-// 縦書き/横書き切り替え
-function toggleWritingMode() {
-    isVertical = !isVertical;
-    const wrapper = document.getElementById('editor-wrapper');
-    wrapper.className = isVertical ? 'editor-wrapper vertical' : 'editor-wrapper horizontal';
-}
-
-// Undo/Redo (簡易実装: ブラウザ標準機能を利用)
-function editorUndo() { document.execCommand('undo'); }
-function editorRedo() { document.execCommand('redo'); }
-
-// 保存処理（統計連動強化）
+// 執筆内容の保存（統計連動）
 function saveWriting() {
-    saveCurrentToMemory();
     const w = works.find(item => item.id === currentId);
+    const ep = w.episodes[currentEpisodeIdx];
+    const oldLen = ep.content ? ep.content.length : 0;
+    const newText = document.getElementById('editor-textarea').value;
     
-    // 全文字数の再計算
+    ep.subtitle = document.getElementById('episode-subtitle').value;
+    ep.content = newText;
+    
+    if (newText.length > oldLen) {
+        const today = new Date().toISOString().split('T')[0];
+        dailyLogs[today] = (dailyLogs[today] || 0) + (newText.length - oldLen);
+        localStorage.setItem('sb_daily_logs', JSON.stringify(dailyLogs));
+    }
+    
+    // 全文字数計算
     let total = 0;
-    w.episodes.forEach(ep => total += (ep.content || "").length);
+    w.episodes.forEach(e => total += (e.content || "").length);
     w.totalChars = total;
     w.updated = Date.now();
     
     localStorage.setItem('sb_works', JSON.stringify(works));
-    updateTopCounters();
-    alert("クラウド(Firestore)と同期しました"); // 将来的にdb.collection().set()をここに追加
+    alert("保存しました");
 }
 
-// タブ切り替えの実装
-function switchTab(tabName) {
-    document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
-    document.getElementById('tab-' + tabName).style.display = 'block';
-    
-    document.querySelectorAll('.tab-bar .btn-custom').forEach(btn => btn.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+// 文字数カウント
+function updateLiveCount() {
+    const text = document.getElementById('editor-textarea').value;
+    document.getElementById('char-count-full').innerText = text.length;
+    document.getElementById('char-count-pure').innerText = text.replace(/\s/g, '').length;
 }
+
+// 縦書き切り替え
+function toggleVertical() {
+    document.getElementById('editor-textarea').classList.toggle('vertical-mode');
+}
+
+// 統計画面
+function showStats() {
+    showScreen('stats-screen');
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('stat-today').innerText = dailyLogs[today] || 0;
+    updateChart();
+}
+
+function updateChart() {
+    const ctxEl = document.getElementById('writingChart');
+    if(!ctxEl) return;
+    const ctx = ctxEl.getContext('2d');
+    if (writingChart) writingChart.destroy();
+    const range = parseInt(document.getElementById('stat-range').value);
+    let labels = []; let data = [];
+    for(let i=range-1; i>=0; i--) {
+        let d = new Date(); d.setDate(d.getDate() - i);
+        labels.push((d.getMonth()+1) + "/" + d.getDate());
+        data.push(dailyLogs[d.toISOString().split('T')[0]] || 0);
+    }
+    writingChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: '#89b4fa', borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+}
+
+// その他の補助関数
+function togglePin(id) { const idx = works.findIndex(w => w.id === id); works[idx].isPinned = !works[idx].isPinned; localStorage.setItem('sb_works', JSON.stringify(works)); renderWorkList(); }
+function deleteWork(id) { if(confirm("削除しますか？")) { works = works.filter(w => w.id !== id); localStorage.setItem('sb_works', JSON.stringify(works)); renderWorkList(); } }
+function updateCatchCounter(el) { document.getElementById('c-count').innerText = `残り ${35 - el.value.length} 文字`; }
+function switchTab(t) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + t).style.display = 'block';
+    document.querySelectorAll('.tab-bar .btn-custom').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-tab-' + t).classList.add('active');
+}
+
+window.onload = () => { renderWorkList(); updateTopCounters(); };
