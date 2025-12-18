@@ -19,7 +19,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// 言語設定を日本語に固定（エラーメッセージ等が日本語になります）
+// 言語設定を日本語に
 auth.languageCode = 'ja';
 
 // --- 状態変数 ---
@@ -30,7 +30,7 @@ let currentMemoId = null;
 let worksData = [];
 let chaptersData = [];
 
-// --- DOM要素取得ヘルパー ---
+// --- DOM要素取得 ---
 const getViews = () => ({
     login: document.getElementById('login-screen'),
     app: document.getElementById('app-container'),
@@ -52,12 +52,11 @@ const getHeader = () => ({
 function initApp() {
     setupEventListeners();
 
-    // 認証状態の監視
     onAuthStateChanged(auth, (user) => {
         if (user) {
             currentUser = user;
-            showApp();
-            loadDashboard();
+            showApp(); // 先に画面を表示
+            loadDashboard(); // その後データを読み込む
         } else {
             currentUser = null;
             showLogin();
@@ -65,7 +64,6 @@ function initApp() {
     });
 }
 
-// 読み込み完了待ち
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
 } else {
@@ -88,12 +86,11 @@ function showApp() {
 function switchView(viewName) {
     const views = getViews();
     const header = getHeader();
-
     Object.values(views).forEach(v => { if(v) v.style.display = 'none'; });
     
-    // ヘッダー制御
     if(header.el) header.el.style.display = (viewName === 'memoEdit') ? 'flex' : 'none';
 
+    // 画面表示の復帰
     if(viewName === 'top' && views.top) views.top.style.display = 'block';
     if(viewName === 'workspace' && views.workspace) views.workspace.style.display = 'flex';
     if(viewName === 'stats' && views.stats) views.stats.style.display = 'block';
@@ -103,33 +100,36 @@ function switchView(viewName) {
 
 // --- イベントリスナー ---
 function setupEventListeners() {
-    // 【修正】ログインボタン：詳細なエラーハンドリングを追加
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {
         loginBtn.addEventListener('click', async () => {
             try {
                 await signInWithPopup(auth, provider);
+                // ログイン成功時はonAuthStateChangedが発火するのでここは空でOK
             } catch (error) {
                 console.error("Login Error:", error);
-                
-                // エラー内容に応じた案内を表示
-                if (error.code === 'auth/configuration-not-found') {
-                    alert("【重要：設定が必要です】\n\nFirebaseコンソールで「Authentication（認証）」機能がまだ有効になっていません。\n\n1. Firebaseコンソールを開く\n2. 左メニューの「Build」→「Authentication」をクリック\n3. 「始める」ボタンを押して、Sign-in methodで「Google」を有効にしてください。");
-                } else if (error.code === 'auth/unauthorized-domain') {
-                    alert("【ドメイン許可エラー】\n\nこのサイトのURL（github.io等）がFirebaseで許可されていません。\n\nFirebaseコンソール > Authentication > 設定 > 承認済みドメイン に現在のドメインを追加してください。");
-                } else if (error.code === 'auth/popup-blocked') {
-                    alert("【ポップアップブロック】\n\nログイン画面がブラウザによってブロックされました。ポップアップを許可してください。");
-                } else {
-                    alert("ログインエラーが発生しました:\n" + error.message + "\n\n(コンソールを確認してください)");
-                }
+                alert("ログインエラー:\n" + error.message);
             }
         });
     }
 
     const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) logoutBtn.addEventListener('click', () => signOut(auth));
+    // ログアウトボタンが見つからない場合のエラー回避
+    const headerRight = document.querySelector('.header-right');
+    // もしHTMLにログアウトボタンがない場合、動的に追加（安全策）
+    if (!document.getElementById('logout-btn') && headerRight) {
+        const btn = document.createElement('button');
+        btn.id = 'logout-btn';
+        btn.className = 'icon-btn';
+        btn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i>';
+        headerRight.appendChild(btn);
+    }
+    // 改めて取得してリスナー登録
+    const safeLogoutBtn = document.getElementById('logout-btn');
+    if (safeLogoutBtn) safeLogoutBtn.addEventListener('click', () => signOut(auth));
 
-    // ヘッダー戻るボタン
+
+    // ヘッダー操作
     const header = getHeader();
     if (header.backBtn) {
         header.backBtn.addEventListener('click', async () => {
@@ -138,7 +138,6 @@ function setupEventListeners() {
             loadCommonMemos();
         });
     }
-    // メモ削除ボタン
     if (header.delBtn) {
         header.delBtn.addEventListener('click', async () => {
             if(confirm("このメモを削除しますか？")) {
@@ -149,7 +148,7 @@ function setupEventListeners() {
         });
     }
 
-    // TOP画面操作
+    // TOP画面
     const createWorkBtn = document.getElementById('create-work-btn');
     if(createWorkBtn) createWorkBtn.addEventListener('click', createNewWork);
     
@@ -225,7 +224,7 @@ function setupEventListeners() {
     if(addMemoBtn) addMemoBtn.addEventListener('click', createNewMemo);
 }
 
-// --- 作品管理 ---
+// --- 作品管理（エラーハンドリング強化） ---
 async function loadDashboard() {
     if(!currentUser) return;
     try {
@@ -233,41 +232,56 @@ async function loadDashboard() {
         const snapshot = await getDocs(q);
         worksData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
         
-        // 統計表示 (モックデータのまま維持)
-        const todayEl = document.getElementById('stat-today');
-        if(todayEl) todayEl.textContent = "1200"; 
-        
-        const weekEl = document.getElementById('stat-week');
-        if(weekEl) weekEl.textContent = "5000";
-        
-        const todayCountEl = document.getElementById('today-count');
-        if(todayCountEl) todayCountEl.textContent = "1200";
-        
-        const weekCountEl = document.getElementById('week-count');
-        if(weekCountEl) weekCountEl.textContent = "5000";
-        
+        // 統計表示 (モックデータ)
         const statWorksEl = document.getElementById('stat-works');
         if(statWorksEl) statWorksEl.textContent = worksData.length;
 
+        // リスト描画
         renderWorkList();
+
     } catch (e) {
         console.error("Data load error:", e);
+        
+        // エラーを画面内のリスト部分に表示（アラートだと見逃すため）
+        const listContainer = document.getElementById('work-list');
+        if(listContainer) {
+            let errorMsg = "データ読み込みエラー";
+            let subMsg = "コンソールを確認してください。";
+            
+            // よくあるエラーの判定
+            if (e.code === 'unimplemented' || e.code === 'not-found' || e.message.includes('Project not configured')) {
+                errorMsg = "データベースが作成されていません";
+                subMsg = "Firebaseコンソールで「Firestore Database」を作成してください。";
+            } else if (e.code === 'permission-denied') {
+                errorMsg = "アクセス権限がありません";
+                subMsg = "Firestoreのルール(Rules)を設定してください。";
+            }
+
+            listContainer.innerHTML = `
+                <div style="padding: 20px; border: 2px solid #ff6b6b; background: #331111; border-radius: 8px;">
+                    <h3 style="color: #ff6b6b; margin-top:0;">⚠️ ${errorMsg}</h3>
+                    <p>${subMsg}</p>
+                    <p style="font-size:0.8em; color:#ccc;">エラー詳細: ${e.message}</p>
+                    <hr style="border-color:#555;">
+                    <p><strong>解決手順:</strong><br>
+                    1. <a href="https://console.firebase.google.com/" target="_blank" style="color:#89b4fa;">Firebaseコンソール</a>を開く<br>
+                    2. 左メニュー「構築(Build)」>「Firestore Database」を選択<br>
+                    3. 「データベースを作成」をクリックして完了させる</p>
+                </div>
+            `;
+        }
     }
 }
 
 function renderWorkList() {
     const listContainer = document.getElementById('work-list');
     if(!listContainer) return;
-    
     listContainer.innerHTML = '';
 
-    // フィルタ
     const filterStatusEl = document.getElementById('filter-status');
     const statusFilter = filterStatusEl ? filterStatusEl.value : 'all';
-    
     let filtered = (statusFilter === 'all') ? worksData : worksData.filter(w => w.status === statusFilter);
 
-    // ソート
     const sortOrderEl = document.getElementById('sort-order');
     const sortKey = (sortOrderEl && sortOrderEl.value === 'created') ? 'createdAt' : 'updatedAt';
     
@@ -282,9 +296,7 @@ function renderWorkList() {
     filtered.forEach(work => {
         const d = work.updatedAt ? work.updatedAt.toDate() : new Date();
         const dateStr = `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours()}:${d.getMinutes()}`;
-        const createD = work.createdAt ? work.createdAt.toDate() : new Date();
-        const createStr = `${createD.getFullYear()}/${(createD.getMonth()+1).toString().padStart(2,'0')}/${createD.getDate().toString().padStart(2,'0')}`;
-
+        
         const card = document.createElement('div');
         card.className = 'work-card';
         card.innerHTML = `
@@ -296,55 +308,48 @@ function renderWorkList() {
                     <button class="star-btn ${work.pinned?'active':''}" onclick="togglePin('${work.id}', ${!work.pinned})">★</button>
                 </div>
             </div>
-            <div class="work-card-meta">
-                作成日: ${createStr}　更新日: ${dateStr}
-            </div>
+            <div class="work-card-meta">更新: ${dateStr}</div>
         `;
         listContainer.appendChild(card);
     });
 }
 
-// グローバル関数公開
 window.deleteWork = async (id) => {
-    if(confirm("作品を削除しますか？復元できません。")) {
-        await deleteDoc(doc(db, `users/${currentUser.uid}/works`, id));
-        loadDashboard();
+    if(confirm("削除しますか？")) {
+        try {
+            await deleteDoc(doc(db, `users/${currentUser.uid}/works`, id));
+            loadDashboard();
+        } catch(e) { alert("削除エラー: " + e.message); }
     }
 };
 
 window.togglePin = async (id, status) => {
-    await updateDoc(doc(db, `users/${currentUser.uid}/works`, id), { pinned: status });
-    loadDashboard();
+    try {
+        await updateDoc(doc(db, `users/${currentUser.uid}/works`, id), { pinned: status });
+        loadDashboard();
+    } catch(e) { console.error(e); }
 };
 
 window.openWork = async (workId) => {
     currentWorkId = workId;
     const work = worksData.find(w => w.id === workId);
     
-    const titleInput = document.getElementById('edit-work-title');
-    if(titleInput) titleInput.value = work.title;
-    
-    const catchInput = document.getElementById('edit-work-catchphrase');
-    if(catchInput) catchInput.value = work.catchphrase || '';
-    
-    const statusInput = document.getElementById('edit-work-status');
-    if(statusInput) statusInput.value = work.status || 'writing';
+    document.getElementById('edit-work-title').value = work.title;
+    document.getElementById('edit-work-catchphrase').value = work.catchphrase || '';
+    document.getElementById('edit-work-status').value = work.status || 'writing';
     
     await loadChapters(workId);
     switchView('workspace');
-    
-    const editorTab = document.querySelector('.tab-btn[data-target="editor-view"]');
-    if(editorTab) editorTab.click();
+    document.querySelector('.tab-btn[data-target="editor-view"]').click();
 };
 
-// --- チャプター機能 ---
 async function loadChapters(workId) {
-    const q = query(collection(db, `users/${currentUser.uid}/works/${workId}/chapters`), orderBy("order"));
-    const snapshot = await getDocs(q);
-    chaptersData = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-    
-    const list = document.getElementById('chapter-list');
-    if(list) {
+    try {
+        const q = query(collection(db, `users/${currentUser.uid}/works/${workId}/chapters`), orderBy("order"));
+        const snapshot = await getDocs(q);
+        chaptersData = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+        
+        const list = document.getElementById('chapter-list');
         list.innerHTML = '';
         let total = 0;
         
@@ -352,73 +357,58 @@ async function loadChapters(workId) {
             const div = document.createElement('div');
             div.className = 'chapter-item';
             div.textContent = c.title || `第${i+1}話`;
-            div.style.padding = "10px";
-            div.style.borderBottom = "1px solid #444";
-            div.style.cursor = "pointer";
             div.onclick = () => selectChapter(c.id);
             list.appendChild(div);
             total += (c.charCount || 0);
         });
+        document.getElementById('work-total-chars').textContent = total;
         
-        const totalCharsEl = document.getElementById('work-total-chars');
-        if(totalCharsEl) totalCharsEl.textContent = total;
-    }
-
-    if(chaptersData.length > 0) selectChapter(chaptersData[0].id);
-    else {
-        const editor = document.getElementById('main-editor');
-        if(editor) editor.value = '';
-        const titleIn = document.getElementById('chapter-title-input');
-        if(titleIn) titleIn.value = '';
-    }
+        if(chaptersData.length > 0) selectChapter(chaptersData[0].id);
+        else {
+            document.getElementById('main-editor').value = '';
+            document.getElementById('chapter-title-input').value = '';
+        }
+    } catch(e) { console.error(e); }
 }
 
 async function addChapter() {
-    await addDoc(collection(db, `users/${currentUser.uid}/works/${currentWorkId}/chapters`), {
-        title: `第${chaptersData.length+1}話`, content: '', order: chaptersData.length, charCount: 0, updatedAt: serverTimestamp()
-    });
-    loadChapters(currentWorkId);
+    try {
+        await addDoc(collection(db, `users/${currentUser.uid}/works/${currentWorkId}/chapters`), {
+            title: `第${chaptersData.length+1}話`, content: '', order: chaptersData.length, charCount: 0, updatedAt: serverTimestamp()
+        });
+        loadChapters(currentWorkId);
+    } catch(e) { alert("チャプター作成エラー: " + e.message); }
 }
 
 function selectChapter(id) {
     currentChapterId = id;
     const c = chaptersData.find(x => x.id === id);
-    const editor = document.getElementById('main-editor');
-    if(editor) editor.value = c.content || '';
-    const titleIn = document.getElementById('chapter-title-input');
-    if(titleIn) titleIn.value = c.title || '';
+    document.getElementById('main-editor').value = c.content || '';
+    document.getElementById('chapter-title-input').value = c.title || '';
     updateCharCount();
 }
 
 async function saveCurrentChapter() {
     if(!currentChapterId) return;
-    const editor = document.getElementById('main-editor');
-    const titleIn = document.getElementById('chapter-title-input');
-    const content = editor ? editor.value : '';
-    const title = titleIn ? titleIn.value : '';
-    const count = content.replace(/[\s\n]/g, '').length;
-    
-    await updateDoc(doc(db, `users/${currentUser.uid}/works/${currentWorkId}/chapters`, currentChapterId), {
-        content, title, charCount: count, updatedAt: serverTimestamp()
-    });
+    try {
+        const content = document.getElementById('main-editor').value;
+        const title = document.getElementById('chapter-title-input').value;
+        const count = content.replace(/[\s\n]/g, '').length;
+        
+        await updateDoc(doc(db, `users/${currentUser.uid}/works/${currentWorkId}/chapters`, currentChapterId), {
+            content, title, charCount: count, updatedAt: serverTimestamp()
+        });
+    } catch(e) { alert("保存エラー: " + e.message); }
 }
 
 function updateCharCount() {
-    const editor = document.getElementById('main-editor');
-    if(!editor) return;
-    const val = editor.value;
-    
-    const allCountEl = document.getElementById('char-count-all');
-    if(allCountEl) allCountEl.textContent = val.length;
-    
-    const netCountEl = document.getElementById('char-count-net');
-    if(netCountEl) netCountEl.textContent = val.replace(/[\s\n]/g, '').length;
+    const val = document.getElementById('main-editor').value;
+    document.getElementById('char-count-all').textContent = val.length;
+    document.getElementById('char-count-net').textContent = val.replace(/[\s\n]/g, '').length;
 }
 
-// エディタ補助
 window.insertText = (text, wrap='') => {
     const el = document.getElementById('main-editor');
-    if(!el) return;
     const start = el.selectionStart;
     const val = el.value;
     let ins = text;
@@ -431,107 +421,94 @@ window.insertText = (text, wrap='') => {
 };
 
 async function updateWorkInfo() {
-    const titleVal = document.getElementById('edit-work-title').value;
-    const catchVal = document.getElementById('edit-work-catchphrase').value;
-    const statusVal = document.getElementById('edit-work-status').value;
-
-    await updateDoc(doc(db, `users/${currentUser.uid}/works`, currentWorkId), {
-        title: titleVal,
-        catchphrase: catchVal,
-        status: statusVal,
-        updatedAt: serverTimestamp()
-    });
-    alert("保存しました");
+    try {
+        await updateDoc(doc(db, `users/${currentUser.uid}/works`, currentWorkId), {
+            title: document.getElementById('edit-work-title').value,
+            catchphrase: document.getElementById('edit-work-catchphrase').value,
+            status: document.getElementById('edit-work-status').value,
+            updatedAt: serverTimestamp()
+        });
+        alert("保存しました");
+    } catch(e) { alert("更新エラー: " + e.message); }
 }
 
 // --- 共通メモ ---
 async function createNewWork() {
     const title = prompt("作品タイトル");
     if(!title) return;
-    await addDoc(collection(db, `users/${currentUser.uid}/works`), {
-        title, status: 'writing', pinned: false, totalCharCount: 0, 
-        createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-    });
-    loadDashboard();
+    try {
+        await addDoc(collection(db, `users/${currentUser.uid}/works`), {
+            title, status: 'writing', pinned: false, totalCharCount: 0, 
+            createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        });
+        loadDashboard();
+    } catch(e) { alert("作成エラー: " + e.message); }
 }
 
 async function loadCommonMemos() {
     if(!currentUser) return;
-    const q = query(collection(db, `users/${currentUser.uid}/memos`), orderBy("updatedAt", "desc"));
-    const snap = await getDocs(q);
-    const list = document.getElementById('memo-list');
-    if(!list) return;
-    
-    list.innerHTML = '';
-    
-    snap.forEach(d => {
-        const m = d.data();
-        const div = document.createElement('div');
-        div.className = 'memo-card';
-        const preview = m.content ? m.content.substring(0, 30) + '...' : '内容なし';
+    try {
+        const q = query(collection(db, `users/${currentUser.uid}/memos`), orderBy("updatedAt", "desc"));
+        const snap = await getDocs(q);
+        const list = document.getElementById('memo-list');
+        list.innerHTML = '';
         
-        div.innerHTML = `
-            <div class="memo-info">
-                <span class="memo-title">${m.title || '無題'}</span>
-                <div class="memo-preview">${preview}</div>
-            </div>
-            <div class="memo-actions">
-                <button class="memo-btn" onclick="openMemo('${d.id}')">編集</button>
-                <button class="memo-btn green" onclick="deleteMemo('${d.id}')">－</button>
-            </div>
-        `;
-        list.appendChild(div);
-    });
+        snap.forEach(d => {
+            const m = d.data();
+            const div = document.createElement('div');
+            div.className = 'memo-card';
+            const preview = m.content ? m.content.substring(0, 30) + '...' : '内容なし';
+            div.innerHTML = `
+                <div class="memo-info"><span class="memo-title">${m.title||'無題'}</span><div class="memo-preview">${preview}</div></div>
+                <div class="memo-actions">
+                    <button class="memo-btn" onclick="openMemo('${d.id}')">編集</button>
+                    <button class="memo-btn green" onclick="deleteMemo('${d.id}')">－</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    } catch(e) { console.error(e); }
 }
 
 async function createNewMemo() {
-    const ref = await addDoc(collection(db, `users/${currentUser.uid}/memos`), {
-        title: '新規メモ', content: '', updatedAt: serverTimestamp()
-    });
-    openMemo(ref.id);
+    try {
+        const ref = await addDoc(collection(db, `users/${currentUser.uid}/memos`), {
+            title: '新規メモ', content: '', updatedAt: serverTimestamp()
+        });
+        openMemo(ref.id);
+    } catch(e) { alert("メモ作成エラー: " + e.message); }
 }
 
 window.openMemo = async (id) => {
     currentMemoId = id;
-    const snap = await getDocs(query(collection(db, `users/${currentUser.uid}/memos`))); 
-    const docSnap = snap.docs.find(d => d.id === id);
-    if(!docSnap) return;
+    const snap = await getDocs(query(collection(db, `users/${currentUser.uid}/memos`)));
+    const memo = snap.docs.find(d => d.id === id).data();
+    document.getElementById('memo-edit-title').value = memo.title;
+    document.getElementById('memo-edit-content').value = memo.content;
     
-    const memo = docSnap.data();
-    
-    const titleInput = document.getElementById('memo-edit-title');
-    if(titleInput) titleInput.value = memo.title;
-    
-    const contentInput = document.getElementById('memo-edit-content');
-    if(contentInput) contentInput.value = memo.content;
-    
-    const header = getHeader();
-    if(header.backBtn) header.backBtn.style.display = 'block';
-    if(header.title) header.title.textContent = 'メモ編集';
-    if(header.delBtn) header.delBtn.style.display = 'block';
-    
+    const h = getHeader();
+    h.backBtn.style.display = 'block'; h.title.textContent = 'メモ編集'; h.delBtn.style.display = 'block';
     switchView('memoEdit');
 };
 
 async function saveCurrentMemo() {
     if(!currentMemoId) return;
-    const titleVal = document.getElementById('memo-edit-title').value;
-    const contentVal = document.getElementById('memo-edit-content').value;
-
-    await updateDoc(doc(db, `users/${currentUser.uid}/memos`, currentMemoId), {
-        title: titleVal,
-        content: contentVal,
-        updatedAt: serverTimestamp()
-    });
+    try {
+        await updateDoc(doc(db, `users/${currentUser.uid}/memos`, currentMemoId), {
+            title: document.getElementById('memo-edit-title').value,
+            content: document.getElementById('memo-edit-content').value,
+            updatedAt: serverTimestamp()
+        });
+    } catch(e) { console.error(e); }
 }
 
 window.deleteMemo = async (id) => {
-    if(confirm("メモを削除しますか？")) {
-        await deleteDoc(doc(db, `users/${currentUser.uid}/memos`, id));
-        loadCommonMemos();
+    if(confirm("削除しますか？")) {
+        try {
+            await deleteDoc(doc(db, `users/${currentUser.uid}/memos`, id));
+            loadCommonMemos();
+        } catch(e) { alert("削除エラー: " + e.message); }
     }
 };
 
-function loadStats() {
-    // グラフ描画（将来実装）
-}
+function loadStats() {}
