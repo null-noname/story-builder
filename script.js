@@ -105,7 +105,6 @@ function setupEventListeners() {
         loginBtn.addEventListener('click', async () => {
             try {
                 await signInWithPopup(auth, provider);
-                // ログイン成功時はonAuthStateChangedが発火するのでここは空でOK
             } catch (error) {
                 console.error("Login Error:", error);
                 alert("ログインエラー:\n" + error.message);
@@ -114,9 +113,7 @@ function setupEventListeners() {
     }
 
     const logoutBtn = document.getElementById('logout-btn');
-    // ログアウトボタンが見つからない場合のエラー回避
     const headerRight = document.querySelector('.header-right');
-    // もしHTMLにログアウトボタンがない場合、動的に追加（安全策）
     if (!document.getElementById('logout-btn') && headerRight) {
         const btn = document.createElement('button');
         btn.id = 'logout-btn';
@@ -124,7 +121,6 @@ function setupEventListeners() {
         btn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i>';
         headerRight.appendChild(btn);
     }
-    // 改めて取得してリスナー登録
     const safeLogoutBtn = document.getElementById('logout-btn');
     if (safeLogoutBtn) safeLogoutBtn.addEventListener('click', () => signOut(auth));
 
@@ -224,7 +220,7 @@ function setupEventListeners() {
     if(addMemoBtn) addMemoBtn.addEventListener('click', createNewMemo);
 }
 
-// --- 作品管理（エラーハンドリング強化） ---
+// --- 作品管理（エラー対応強化版） ---
 async function loadDashboard() {
     if(!currentUser) return;
     try {
@@ -242,31 +238,34 @@ async function loadDashboard() {
     } catch (e) {
         console.error("Data load error:", e);
         
-        // エラーを画面内のリスト部分に表示（アラートだと見逃すため）
         const listContainer = document.getElementById('work-list');
         if(listContainer) {
-            let errorMsg = "データ読み込みエラー";
+            let errorMsg = "通信エラー";
             let subMsg = "コンソールを確認してください。";
-            
-            // よくあるエラーの判定
-            if (e.code === 'unimplemented' || e.code === 'not-found' || e.message.includes('Project not configured')) {
-                errorMsg = "データベースが作成されていません";
-                subMsg = "Firebaseコンソールで「Firestore Database」を作成してください。";
+            let solution = "";
+
+            // エラーの種類による分岐
+            if (e.code === 'unavailable' || e.message.includes('Failed to fetch') || e.message.includes('offline')) {
+                // ここが今回の原因である可能性大
+                errorMsg = "通信がブロックされました";
+                subMsg = "アドブロック（広告ブロック）等の拡張機能が、データベースへの接続を遮断している可能性があります。";
+                solution = "ブラウザの拡張機能設定で、このサイトのブロックを解除（オフに）してください。";
             } else if (e.code === 'permission-denied') {
                 errorMsg = "アクセス権限がありません";
-                subMsg = "Firestoreのルール(Rules)を設定してください。";
+                subMsg = "Firestoreのルール設定が必要です。";
+                solution = "Firebaseコンソールの「Rules」を設定してください。";
+            } else if (e.code === 'unimplemented' || e.code === 'not-found') {
+                errorMsg = "データベース未作成";
+                solution = "Firebaseコンソールで「Firestore Database」を作成してください。";
             }
 
             listContainer.innerHTML = `
                 <div style="padding: 20px; border: 2px solid #ff6b6b; background: #331111; border-radius: 8px;">
                     <h3 style="color: #ff6b6b; margin-top:0;">⚠️ ${errorMsg}</h3>
                     <p>${subMsg}</p>
-                    <p style="font-size:0.8em; color:#ccc;">エラー詳細: ${e.message}</p>
+                    <p style="font-weight:bold; color: #fff;">解決策: ${solution}</p>
                     <hr style="border-color:#555;">
-                    <p><strong>解決手順:</strong><br>
-                    1. <a href="https://console.firebase.google.com/" target="_blank" style="color:#89b4fa;">Firebaseコンソール</a>を開く<br>
-                    2. 左メニュー「構築(Build)」>「Firestore Database」を選択<br>
-                    3. 「データベースを作成」をクリックして完了させる</p>
+                    <p style="font-size:0.8em; color:#ccc;">エラー詳細: ${e.message}</p>
                 </div>
             `;
         }
