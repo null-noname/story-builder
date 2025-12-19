@@ -1,4 +1,4 @@
-/* Story Builder V0.12 script.js */
+/* Story Builder V0.13 script.js */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -18,7 +18,7 @@ const auth = firebase.auth();
 
 let currentUser = null;
 let currentWorkId = null;
-let writingChart = null; // グラフ用
+let writingChart = null;
 
 // --- DOM Elements ---
 const views = {
@@ -56,7 +56,7 @@ function switchView(name) {
         views[name].style.display = 'flex';
         
         if(name === 'top') loadWorks();
-        if(name === 'memo') loadCommonMemo();
+        if(name === 'memo') loadCommonMemo('common-memo-editor'); // TOP画面のメモ用
         if(name === 'stats') {
             loadStats();
             renderChart();
@@ -68,7 +68,7 @@ document.getElementById('diary-widget').addEventListener('click', () => switchVi
 document.getElementById('btn-common-memo').addEventListener('click', () => switchView('memo'));
 document.getElementById('back-to-top').addEventListener('click', () => { saveCurrentWork(); switchView('top'); });
 document.getElementById('back-from-stats').addEventListener('click', () => switchView('top'));
-document.getElementById('back-from-memo').addEventListener('click', () => { saveCommonMemo(); switchView('top'); });
+document.getElementById('back-from-memo').addEventListener('click', () => { saveCommonMemo('common-memo-editor'); switchView('top'); });
 
 // --- Work Management ---
 document.getElementById('create-new-work-btn').addEventListener('click', async () => {
@@ -92,11 +92,8 @@ function loadWorks() {
     const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
     const filterStatus = document.getElementById('filter-status').value;
     
-    let query = db.collection('works')
-        .where('uid', '==', currentUser.uid);
+    let query = db.collection('works').where('uid', '==', currentUser.uid);
     
-    // フィルタ適用の場合はクライアントサイドでソートするか、複合インデックスが必要
-    // 今回は簡易的に全取得してJSでフィルタ＆ソート
     query.get().then(snapshot => {
         const listEl = document.getElementById('work-list');
         listEl.innerHTML = '';
@@ -105,15 +102,14 @@ function loadWorks() {
         snapshot.forEach(doc => {
             let d = doc.data();
             d.id = doc.id;
-            worksData.push(d);
+            // 共通メモ用のデータはリストに表示しない
+            if(!d.isSystem) worksData.push(d);
         });
 
-        // フィルタ
         if(filterStatus !== 'all') {
             worksData = worksData.filter(w => w.status === filterStatus);
         }
 
-        // ソート (ピン留め優先 -> 指定順)
         worksData.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
             const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
@@ -175,6 +171,8 @@ window.openWork = function(id) {
         if(doc.exists) {
             const data = doc.data();
             fillWorkspace(data);
+            // ワークスペースを開くときに共通メモも読み込む
+            loadCommonMemo('ws-common-memo-editor');
             switchView('workspace');
         }
     });
@@ -261,36 +259,58 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // --- Common Memo Logic ---
-function loadCommonMemo() {
+// elementIdを指定して、TOP画面用とワークスペース用どちらにも対応
+function loadCommonMemo(elementId) {
     const memoId = `common_memo_${currentUser.uid}`;
     db.collection('works').doc(memoId).get().then(doc => {
         if(doc.exists) {
-            document.getElementById('common-memo-editor').value = doc.data().content || "";
+            document.getElementById(elementId).value = doc.data().content || "";
         } else {
-            document.getElementById('common-memo-editor').value = "";
+            document.getElementById(elementId).value = "";
         }
     });
 }
-document.getElementById('save-common-memo-btn').addEventListener('click', saveCommonMemo);
-function saveCommonMemo() {
+
+// ワークスペース内の保存ボタン
+document.getElementById('ws-save-common-memo-btn').addEventListener('click', () => {
+    saveCommonMemo('ws-common-memo-editor');
+});
+
+// TOP画面の保存ボタン
+document.getElementById('save-common-memo-btn').addEventListener('click', () => {
+    saveCommonMemo('common-memo-editor');
+});
+
+function saveCommonMemo(elementId) {
     const memoId = `common_memo_${currentUser.uid}`;
-    const content = document.getElementById('common-memo-editor').value;
+    const content = document.getElementById(elementId).value;
     db.collection('works').doc(memoId).set({
         uid: currentUser.uid,
         title: "Common Memo",
         content: content,
-        isSystem: true // フィルタ除外用フラグ（今回は簡易実装のためリストには出るかも）
+        isSystem: true // リストに表示させないためのフラグ
     }, { merge: true }).then(() => alert("共通メモを保存しました"));
 }
 
-// --- Stats Logic (Mock for UI) ---
+// --- Stats Logic ---
 function loadStats() {
-    // 簡易的に作品総数などを取得
     db.collection('works').where('uid', '==', currentUser.uid).get().then(snap => {
-        document.getElementById('stat-works').innerText = snap.size + " 作品";
+        let workCount = 0;
         let totalChars = 0;
-        snap.forEach(d => totalChars += (d.data().totalChars || 0));
-        // stat-todayなどは本来別途ログが必要。今回は仮置き
+        snap.forEach(d => {
+            const data = d.data();
+            if(!data.isSystem) {
+                workCount++;
+                totalChars += (data.totalChars || 0);
+            }
+        });
+        
+        // ★修正: innerHTMLを使って単位のspanタグを維持
+        document.getElementById('stat-works').innerHTML = `${workCount}<span class="unit">作品</span>`;
+        
+        // 他の数値（仮）
+        // stat-today, stat-week, stat-chars は別途集計ロジックが必要
+        // ここではUIの確認用にダミー値をセットする場合はinnerHTMLを使う
     });
 }
 
@@ -298,7 +318,6 @@ function renderChart() {
     const ctx = document.getElementById('writingChart').getContext('2d');
     if (writingChart) writingChart.destroy();
 
-    // ダミーデータ (UI確認用)
     const labels = ['12/13', '12/14', '12/15', '12/16', '12/17', '12/18', '12/19'];
     const data = [100, 450, 300, 0, 800, 200, 530];
 

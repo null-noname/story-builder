@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Builder V0.12</title>
+    <title>Story Builder V0.13</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -65,6 +65,7 @@
                     <button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button>
                     <button class="btn-custom tab-btn" data-tab="tab-plot">プロット</button>
                     <button class="btn-custom tab-btn" data-tab="tab-char">登場人物</button>
+                    <button class="btn-custom tab-btn" data-tab="tab-common-memo">共通メモ</button>
                 </div>
 
                 <div id="tab-info" class="tab-content active" style="overflow-y: auto; padding-right: 10px;">
@@ -129,6 +130,13 @@
                 </div>
                 <div id="tab-plot" class="tab-content" style="display:none; flex:1;"><textarea id="plot-editor" class="main-textarea" style="height:100%;"></textarea></div>
                 <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" class="main-textarea" style="height:100%;"></textarea></div>
+                
+                <div id="tab-common-memo" class="tab-content" style="display:none; flex:1; flex-direction:column;">
+                    <div style="display:flex; justify-content:flex-end; margin-bottom:5px;">
+                        <button id="ws-save-common-memo-btn" class="btn-custom btn-small">共通メモを保存</button>
+                    </div>
+                    <textarea id="ws-common-memo-editor" class="main-textarea" style="height:100%;" placeholder="作品をまたいで使えるアイデアやメモ..."></textarea>
+                </div>
             </div>
 
             <div id="stats-view" class="screen" style="display:none;">
@@ -178,7 +186,7 @@
                     <button id="save-common-memo-btn" class="btn-custom btn-small">保存</button>
                 </div>
                 
-                <textarea id="common-memo-editor" class="main-textarea" style="flex:1;" placeholder="作品をまたいで使えるアイデアやメモをここに..."></textarea>
+                <textarea id="common-memo-editor" class="main-textarea" style="flex:1;" placeholder="作品をまたいで使えるアイデアやメモ..."></textarea>
             </div>
 
         </div>
