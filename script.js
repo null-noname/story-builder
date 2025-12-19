@@ -1,4 +1,4 @@
-/* Story Builder V0.60 script.js */
+/* Story Builder V0.65 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dailyHistory = [0,0,0,0,0,0,0]; 
     window.dragSrcEl = null; 
     window.currentHistoryData = null; 
-    window.editingPlotId = null; // プロット編集用
+    window.editingPlotId = null; 
 
     // 設定初期値
     window.appSettings = {
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const contentEl = document.getElementById(tabId);
         if(contentEl) contentEl.style.display = (tabId === 'tab-editor') ? 'flex' : 'block';
-        if(tabId === 'tab-plot') loadPlots(); // プロットタブを開いたらリスト読み込み
+        if(tabId === 'tab-plot') loadPlots(); 
         saveAppState('workspace');
     }
 
@@ -287,7 +287,6 @@ document.addEventListener('DOMContentLoaded', () => {
                   loadPlots();
               });
         } else {
-            // 新規作成時は末尾に追加
             db.collection('works').doc(window.currentWorkId).collection('plots').get().then(snap => {
                 const newOrder = snap.size + 1;
                 db.collection('works').doc(window.currentWorkId).collection('plots').add({
@@ -312,7 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.movePlot = function(id, index, dir) {
-        // 簡易実装: 前後のOrderを入れ替え
         db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order','asc').get().then(snap => {
             const plots = [];
             snap.forEach(d => plots.push({id: d.id, ...d.data()}));
