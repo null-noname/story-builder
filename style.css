@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.30 */
+/* style.css - Story Builder V0.31 */
 
 :root {
     --bg-color: #202020; 
@@ -253,7 +253,24 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 }
 .char-count-display:hover { background: #444; }
 
-/* 2カラムレイアウト（章リスト + エディタ） */
+/* ★追加: サブタイトル入力欄 */
+.chapter-title-row {
+    margin-bottom: 5px;
+    flex-shrink: 0;
+}
+.chapter-title-input {
+    background: #111;
+    color: #fff;
+    border: 1px solid #444;
+    padding: 8px;
+    width: 100%;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 4px;
+}
+.chapter-title-input:focus { border-color: var(--accent-blue); }
+
+/* 2カラムレイアウト */
 .chapter-sidebar {
     width: 250px;
     border-right: 1px solid #444;

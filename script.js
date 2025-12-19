@@ -1,4 +1,4 @@
-/* Story Builder V0.30 script.js */
+/* Story Builder V0.31 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -27,8 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingMemoId = null; 
     window.previousView = 'top';
     window.charCountMode = 'total'; 
-    
-    // リスナー解除用関数を保持
     window.unsubscribeWorks = null;
 
     const views = {
@@ -55,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(loginScreen) loginScreen.style.display = 'none';
             if(mainApp) mainApp.style.display = 'block';
             
-            // ★修正: リロード復帰処理
             const lastView = localStorage.getItem('sb_last_view');
             if (lastView === 'workspace') {
                 const lastWork = localStorage.getItem('sb_last_work');
@@ -63,10 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lastTab = localStorage.getItem('sb_last_tab') || 'tab-editor';
                 
                 if (lastWork) {
-                    // 作品を開き、完了後に章を選択
                     await openWork(lastWork, lastTab);
                     if (lastChapter) {
-                        // 少し待ってから章を選択（リスト生成待ち）
                         setTimeout(() => {
                             const item = document.querySelector(`.chapter-item[data-id="${lastChapter}"]`);
                             if(item) item.click();
@@ -88,7 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 状態保存
     function saveAppState(viewName) {
         if(!viewName) return;
         localStorage.setItem('sb_last_view', viewName);
@@ -103,15 +97,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (views[name]) {
             views[name].style.display = 'flex';
             if(name === 'top') {
-                initWorkListener(); // リアルタイム監視開始
+                initWorkListener();
                 window.currentWorkId = null;
             } else {
-                // TOP以外では監視解除（無駄な通信削減）
                 if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
             }
             
             if(name === 'memo') loadMemoList();
-            if(name === 'stats') { loadStats(); renderChart(); }
+            if(name === 'stats') { loadStats(); /* グラフ描画削除 */ }
             if(name === 'workspace') loadMemoListForWorkspace(); 
             
             saveAppState(name);
@@ -144,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const sortEl = document.getElementById('sort-order');
-    if(sortEl) sortEl.addEventListener('change', initWorkListener); // ソート変更時もリスナー再設定
+    if(sortEl) sortEl.addEventListener('change', initWorkListener);
     const filterEl = document.getElementById('filter-status');
     if(filterEl) filterEl.addEventListener('change', initWorkListener);
     
@@ -190,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainArea = document.createElement('div');
         mainArea.className = 'editor-main-area';
         
-        // ヘッダー
+        // ヘッダー（ツールバー）
         const header = document.createElement('div');
         header.className = 'editor-header';
         
@@ -198,6 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
         toolbar.className = 'editor-toolbar';
         
         const tools = [
+            { id: 'btn-mobile-back', icon: '🔙', action: showMobileChapterList, mobileOnly: true },
+            { spacer: true, mobileOnly: true },
             { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
@@ -213,10 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if(t.spacer) {
                 const sp = document.createElement('div');
                 sp.style.width = '10px'; sp.style.flexShrink = '0';
+                if(t.mobileOnly) sp.classList.add('mobile-only');
                 toolbar.appendChild(sp);
             } else {
                 const btn = document.createElement('button');
                 btn.className = 'toolbar-btn';
+                if(t.mobileOnly) btn.classList.add('mobile-only');
                 if(t.id) btn.id = t.id;
                 btn.textContent = t.icon;
                 btn.onclick = t.action;
@@ -231,17 +228,15 @@ document.addEventListener('DOMContentLoaded', () => {
         counter.onclick = toggleCharCountMode;
         counter.textContent = '0文字';
 
-        // ★修正: 戻るボタン（🔙）を文字数の右横に配置
-        const backBtn = document.createElement('button');
-        backBtn.className = 'toolbar-btn mobile-only';
-        backBtn.textContent = '🔙';
-        backBtn.style.marginLeft = '8px';
-        backBtn.onclick = showMobileChapterList;
-
         header.appendChild(toolbar);
         header.appendChild(counter);
-        header.appendChild(backBtn); // 右端に追加
 
+        // ★追加: サブタイトル編集エリア（ツールバーの下、エディタの上）
+        const titleRow = document.createElement('div');
+        titleRow.className = 'chapter-title-row';
+        titleRow.innerHTML = `<input type="text" id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル">`;
+
+        // エディタ本体
         const editorContainer = document.createElement('div');
         editorContainer.id = 'editor-container';
         editorContainer.style.cssText = "flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;";
@@ -255,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveBtn.onclick = () => saveCurrentChapter(null, false);
 
         mainArea.appendChild(header);
+        mainArea.appendChild(titleRow); // 追加
         mainArea.appendChild(editorContainer);
         mainArea.appendChild(saveBtn);
 
@@ -304,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!parent) return;
         const ruby = prompt("ふりがなを入力してください");
         if(!ruby) return;
-        // ★修正: ルビ記号を全角縦線に変更
         insertTextAtCursor(`｜${parent}《${ruby}》`);
     }
 
@@ -326,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try { 
             const doc = await db.collection('works').add(newWork); 
             await db.collection('works').doc(doc.id).collection('chapters').add({
-                title: "第1話", // ★修正: シンプルなタイトル
+                title: "第1話",
                 content: "",
                 order: 1,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -335,7 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); }
     }
 
-    // openWorkはPromiseを返す（await対応）
     window.openWork = async function(id, initTab = 'tab-info') {
         window.currentWorkId = id;
         window.currentChapterId = null;
@@ -347,7 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = workDoc.data();
         fillWorkInfo(data); 
 
-        // 古いデータ構造からの移行チェック
         if (data.content && data.content.length > 0) {
             const chaptersSnap = await db.collection('works').doc(id).collection('chapters').get();
             if (chaptersSnap.empty) {
@@ -361,7 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 章リスト読み込み完了を待つ
         await loadChapters();
         switchView('workspace');
 
@@ -382,15 +374,17 @@ document.addEventListener('DOMContentLoaded', () => {
           .orderBy('order', 'asc')
           .get().then(snap => {
               listEl.innerHTML = '';
-              let totalChars = 0;
+              let totalPureChars = 0; // 正味文字数
               let chapters = [];
               snap.forEach(doc => { 
                   const d = doc.data();
                   chapters.push({id: doc.id, ...d});
-                  totalChars += (d.content ? d.content.length : 0);
+                  const content = d.content || "";
+                  // ★修正: 空白・改行を除去してカウント
+                  totalPureChars += content.replace(/\s/g, '').length;
               });
 
-              document.getElementById('total-work-chars').textContent = `合計: ${totalChars}文字`;
+              document.getElementById('total-work-chars').textContent = `合計: ${totalPureChars}文字`;
 
               if(chapters.length === 0) {
                   listEl.innerHTML = '<div style="padding:10px; color:#aaa;">章がありません</div>';
@@ -398,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   chapters.forEach(ch => {
                       const item = document.createElement('div');
                       item.className = 'chapter-item';
-                      item.setAttribute('data-id', ch.id); // リロード復帰用にIDを属性付与
+                      item.setAttribute('data-id', ch.id);
                       if(window.currentChapterId === ch.id) item.classList.add('active');
                       
                       const title = document.createElement('span');
@@ -407,7 +401,9 @@ document.addEventListener('DOMContentLoaded', () => {
                       const count = document.createElement('span');
                       count.style.fontSize = "0.8em";
                       count.style.color = "#888";
-                      count.textContent = `(${ch.content ? ch.content.length : 0}字)`;
+                      // 章ごとの文字数も正味で表示
+                      const chPure = (ch.content || "").replace(/\s/g, '').length;
+                      count.textContent = `(${chPure}字)`;
 
                       item.appendChild(title);
                       item.appendChild(count);
@@ -423,6 +419,10 @@ document.addEventListener('DOMContentLoaded', () => {
         saveAppState('workspace');
 
         document.getElementById('main-editor').value = data.content || "";
+        // ★修正: サブタイトル入力欄にセット
+        const titleInput = document.getElementById('chapter-title-input');
+        if(titleInput) titleInput.value = data.title || "";
+
         updateCharCount();
         
         const items = document.querySelectorAll('.chapter-item');
@@ -451,28 +451,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function saveCurrentChapter(nextViewName = null, showAlert = false) {
+    // ★修正: 保存時に作品全体の文字数を集計・更新
+    async function saveCurrentChapter(nextViewName = null, showAlert = false) {
         if(!window.currentWorkId || !window.currentChapterId) {
             if(nextViewName) switchView(nextViewName);
             return;
         }
         
         const content = document.getElementById('main-editor').value;
+        const titleInput = document.getElementById('chapter-title-input');
+        const title = titleInput ? titleInput.value : "無題";
+
         if(content.length > 20000) {
             alert("1話あたりの文字数が上限(20,000字)を超えています。保存できません。");
             return;
         }
 
-        db.collection('works').doc(window.currentWorkId)
+        // 1. 章の保存
+        await db.collection('works').doc(window.currentWorkId)
           .collection('chapters').doc(window.currentChapterId)
           .update({
+              title: title, // タイトルも保存
               content: content,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }).then(() => {
-              loadChapters(); // リストの文字数更新
-              if(nextViewName) switchView(nextViewName);
-              else if (showAlert) alert("保存しました");
           });
+
+        // 2. 作品全体の文字数集計と更新
+        // クライアント側で再計算するために全章取得（少し重いが正確性を優先）
+        const snap = await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
+        let totalPure = 0;
+        snap.forEach(doc => {
+            const d = doc.data();
+            totalPure += (d.content || "").replace(/\s/g, '').length;
+        });
+
+        // Worksドキュメント更新
+        await db.collection('works').doc(window.currentWorkId).update({
+            totalChars: totalPure,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        loadChapters(); // リスト更新
+        if(nextViewName) switchView(nextViewName);
+        else if (showAlert) alert("保存しました");
     }
 
     function saveWorkInfo() {
@@ -513,17 +534,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCatchCounter(document.getElementById('input-catch'));
     }
 
-    // ★修正: リアルタイムリスナーによる作品リスト取得
     function initWorkListener() {
-        if(window.unsubscribeWorks) window.unsubscribeWorks(); // 既存のリスナーがあれば解除
+        if(window.unsubscribeWorks) window.unsubscribeWorks();
         if (!window.currentUser) return;
 
         const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
         const filterStatus = document.getElementById('filter-status').value;
         
         let query = db.collection('works').where('uid', '==', window.currentUser.uid);
-        // Firestoreの複合クエリ制限回避のため、ソートはJS側で行う方針（またはインデックス作成が必要）
-        // ここでは全件取得してJSでフィルタ・ソートする安全策をとる
         
         window.unsubscribeWorks = query.onSnapshot(snapshot => {
             const listEl = document.getElementById('work-list');
@@ -543,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
             worksData.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
         });
     }
-    // 後方互換のためloadWorksも定義しておくが、実際はinitWorkListenerを使う
     function loadWorks() { initWorkListener(); }
 
     function createWorkItem(id, data) {
@@ -566,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="work-meta-container">
                     <div class="work-meta-row">作成日: ${formatDate(data.createdAt)}</div>
                     <div class="work-meta-row">更新日: ${formatDate(data.updatedAt)}</div>
+                    <div class="work-meta-row">全 ${data.totalChars || 0} 字</div>
                 </div>
             </div>
             <div class="work-actions">
@@ -682,31 +700,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadStats() {
+        // ★修正: 合計文字数（正味）をWorksから集計して表示（章保存時に更新されるため）
         db.collection('works').where('uid', '==', window.currentUser.uid).get().then(snap => {
             let workCount = 0;
-            snap.forEach(d => { if(!d.data().isSystem) workCount++; });
-            const el = document.getElementById('stat-works');
-            if(el) el.innerHTML = `${workCount}<span class="unit">作品</span>`;
+            let totalPureChars = 0;
+            snap.forEach(d => { 
+                const data = d.data();
+                if(!data.isSystem) workCount++; 
+                totalPureChars += (data.totalChars || 0);
+            });
+            const elWorks = document.getElementById('stat-works');
+            if(elWorks) elWorks.innerHTML = `${workCount}<span class="unit">作品</span>`;
+            
+            // ついでに文字数統計も出せるなら出す（今回の要件にはないが、stat-today等の計算は履歴DBがないので0のまま）
+            const elToday = document.getElementById('stat-today');
+            if(elToday) elToday.innerHTML = `0<span class="unit">字</span>`; // 履歴機能未実装のため0固定
         });
+        
+        // グラフは非表示（Canvasをクリア）
+        const canvas = document.getElementById('writingChart');
+        if(canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.style.display = 'none'; // 要素ごと隠す
+            if(canvas.parentNode) canvas.parentNode.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">データ蓄積中...</div>';
+        }
     }
     
     function renderChart() {
-        const ctxEl = document.getElementById('writingChart');
-        if(!ctxEl) return;
-        const ctx = ctxEl.getContext('2d');
-        if (window.writingChart) window.writingChart.destroy();
-        window.writingChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['12/13', '12/14', '12/15', '12/16', '12/17', '12/18', '12/19'],
-                datasets: [{ data: [100, 450, 300, 0, 800, 200, 530], backgroundColor: '#89b4fa', borderRadius: 4 }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, grid: { color: '#444' }, ticks: { color: '#aaa' } }, x: { grid: { display: false }, ticks: { color: '#aaa' } } }
-            }
-        });
+        // グラフ機能は一時停止
     }
 
     function escapeHtml(str) {
