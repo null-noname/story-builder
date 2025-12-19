@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ストーリービルダー</title>
-    <link rel="stylesheet" href="style.css?v=0.51">
+    <link rel="stylesheet" href="style.css?v=0.55">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -165,11 +166,14 @@
                         <button id="memo-editor-cancel" class="btn-custom">キャンセル</button>
                     </div>
                 </div>
+                
                 <label style="margin-bottom:5px;">タイトル</label>
                 <input type="text" id="memo-editor-title" placeholder="新規メモ" style="font-weight:bold; font-size:1.2em; margin-bottom:15px;">
+                
                 <label style="margin-bottom:5px;">内容</label>
                 <textarea id="memo-editor-content" class="main-textarea" style="flex:1; height:auto;" placeholder="内容を入力..."></textarea>
             </div>
+
         </div>
     </div>
 
@@ -184,6 +188,23 @@
         </div>
         <div id="preview-container" class="preview-container">
             <div id="preview-content" class="preview-content vertical-mode"></div>
+        </div>
+    </div>
+
+    <div id="history-modal" class="preview-modal" style="display:none;">
+        <div class="preview-toolbar">
+            <button id="history-close-btn" class="btn-custom">閉じる</button>
+            <div style="color:#fff; font-weight:bold;">執筆履歴・バックアップ</div>
+            <button id="history-restore-btn" class="btn-green">この内容で復元</button>
+        </div>
+        <div style="flex:1; display:flex; height: 100%; overflow:hidden;">
+            <div class="history-sidebar">
+                <div class="history-list-header">保存日時</div>
+                <div id="history-list" class="history-list"></div>
+            </div>
+            <div class="history-content-area">
+                <div id="history-diff-view" class="history-diff-view"></div>
+            </div>
         </div>
     </div>
 
@@ -283,6 +304,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=0.51"></script>
+    <script src="script.js?v=0.55"></script>
 </body>
 </html>

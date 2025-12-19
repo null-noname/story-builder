@@ -1,4 +1,4 @@
-/* Story Builder V0.51 script.js */
+/* Story Builder V0.55 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.writingChart = null; 
     window.dailyHistory = [0,0,0,0,0,0,0]; 
     window.dragSrcEl = null; 
+    window.currentHistoryData = null; // 履歴復元用
 
     // 設定初期値
     window.appSettings = {
@@ -153,6 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('preview-mode-btn', togglePreviewMode);
     bindClick('preview-setting-btn', openPreviewSettings); 
     
+    // 履歴操作
+    bindClick('history-close-btn', () => document.getElementById('history-modal').style.display = 'none');
+    bindClick('history-restore-btn', restoreHistory);
+
     // 設定モーダルボタン
     bindClick('es-cancel', () => document.getElementById('editor-settings-modal').style.display = 'none');
     bindClick('es-save', saveEditorSettings);
@@ -285,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const editor = document.getElementById('main-editor');
         const original = editor.value;
         
-        // エスケープ処理付き正規表現で一括置換
         const regex = new RegExp(escapeRegExp(searchVal), 'g');
         const count = (original.match(regex) || []).length;
         
@@ -308,6 +312,84 @@ document.addEventListener('DOMContentLoaded', () => {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
+    // --- History & Diff Logic ---
+    function openHistoryModal() {
+        if(!window.currentWorkId || !window.currentChapterId) return;
+        document.getElementById('history-modal').style.display = 'flex';
+        loadHistoryList();
+    }
+
+    function loadHistoryList() {
+        const listEl = document.getElementById('history-list');
+        listEl.innerHTML = '<div style="padding:10px;">読み込み中...</div>';
+        
+        db.collection('works').doc(window.currentWorkId)
+          .collection('chapters').doc(window.currentChapterId)
+          .collection('history')
+          .orderBy('savedAt', 'desc')
+          .limit(20) // 最新20件
+          .get().then(snap => {
+              listEl.innerHTML = '';
+              if(snap.empty) {
+                  listEl.innerHTML = '<div style="padding:10px;">履歴がありません</div>';
+                  return;
+              }
+              
+              snap.forEach((doc, index) => {
+                  const data = doc.data();
+                  const date = data.savedAt ? new Date(data.savedAt.toDate()) : new Date();
+                  const label = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+                  
+                  const item = document.createElement('div');
+                  item.className = 'history-item';
+                  item.textContent = label + ` (${data.content.length}字)`;
+                  item.onclick = () => showDiff(data.content, item);
+                  
+                  listEl.appendChild(item);
+                  if(index === 0) item.click(); // 最新を自動選択
+              });
+          });
+    }
+
+    function showDiff(oldContent, itemEl) {
+        // UI選択状態更新
+        document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+        itemEl.classList.add('active');
+        
+        window.currentHistoryData = oldContent; // 復元用に保持
+        
+        const currentContent = document.getElementById('main-editor').value;
+        const diff = Diff.diffChars(oldContent, currentContent);
+        const display = document.getElementById('history-diff-view');
+        display.innerHTML = '';
+
+        diff.forEach(part => {
+            // green for additions, red for deletions
+            // grey for common parts
+            const span = document.createElement('span');
+            if (part.added) {
+                span.className = 'diff-added';
+                span.appendChild(document.createTextNode(part.value));
+            } else if (part.removed) {
+                span.className = 'diff-removed';
+                span.appendChild(document.createTextNode(part.value));
+            } else {
+                span.appendChild(document.createTextNode(part.value));
+            }
+            display.appendChild(span);
+        });
+    }
+
+    function restoreHistory() {
+        if(window.currentHistoryData === null) return;
+        if(confirm("この履歴の内容でエディタを上書きしますか？")) {
+            document.getElementById('main-editor').value = window.currentHistoryData;
+            document.getElementById('history-modal').style.display = 'none';
+            updateCharCount();
+            trackDailyProgress();
+        }
+    }
+
     // --- Preview Logic ---
     function showPreview() {
         const editor = document.getElementById('main-editor');
@@ -318,7 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let text = editor.value;
         text = escapeHtml(text).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
         
-        // ★修正: ルビ
         // 1. |親文字《ルビ》
         text = text.replace(/[\|｜]([^《]+?)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
         // 2. 漢字《ルビ》
@@ -514,7 +595,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: openReplaceModal }, 
             { icon: 'ﾙﾋﾞ', action: insertRuby },
-            { icon: '―', action: insertDash }
+            { icon: '―', action: insertDash },
+            { icon: '🕒', action: openHistoryModal } // 履歴ボタン追加
         ];
 
         tools.forEach(t => {
@@ -975,6 +1057,14 @@ document.addEventListener('DOMContentLoaded', () => {
               title: title,
               content: content,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+        // 履歴保存（自動バックアップ）
+        db.collection('works').doc(window.currentWorkId)
+          .collection('chapters').doc(window.currentChapterId)
+          .collection('history').add({
+              content: content,
+              savedAt: firebase.firestore.FieldValue.serverTimestamp()
           });
 
         saveDailyLogToFirestore();
