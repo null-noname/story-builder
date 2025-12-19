@@ -1,5 +1,3 @@
-/* style.css - Story Builder V0.58 */
-
 :root {
     --bg-color: #202020; 
     --active-green: #2b4034;
@@ -91,6 +89,7 @@ hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
 
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 6px; color: #ddd; font-size: 14px; font-weight: bold; }
+.form-section-title { font-size: 16px; font-weight: bold; color: var(--accent-blue); margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; }
 input, textarea, select.form-control {
     background: var(--input-bg); color: #fff; border: 1px solid #555;
     padding: 10px; border-radius: 6px; width: 100%; font-size: 15px;
@@ -128,6 +127,36 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .memo-btn:hover { background: #333; }
 .memo-btn-delete { color: #ff8888; }
 .memo-text { font-size: 14px; color: #ddd; line-height: 1.5; white-space: pre-wrap; margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* プロット・キャラ新UI */
+.plot-card { background: #2a2a2a; border: 1px solid #444; border-radius: 6px; padding: 10px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s; position: relative; }
+.plot-card:hover { background: #333; }
+.plot-card-header { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
+.plot-card-title { font-weight: bold; color: var(--accent-blue); flex: 1; }
+.plot-card-type { font-size: 10px; padding: 2px 5px; border-radius: 3px; background: #555; color: #fff; margin-left: 5px; }
+.plot-card-preview { font-size: 12px; color: #aaa; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; margin-top: 5px; white-space: pre-wrap; }
+.plot-actions { display: flex; gap: 5px; margin-left: 10px; }
+.sort-btn { background: #444; border: 1px solid #666; color: #fff; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; }
+
+.char-card { background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; height: 100%; position: relative; }
+.char-card:hover { background: #333; }
+.char-icon { width: 60px; height: 60px; border-radius: 50%; background: #333; margin-bottom: 8px; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 24px; border: 2px solid #555; }
+.char-name { font-weight: bold; color: #fff; margin-bottom: 2px; font-size: 14px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.char-role { font-size: 11px; color: var(--accent-blue); width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.char-sort-controls { position: absolute; top: 5px; right: 5px; display: flex; flex-direction: column; gap: 2px; }
+.char-sort-btn { width: 20px; height: 20px; font-size: 10px; background: rgba(0,0,0,0.5); border: none; color: #fff; border-radius: 3px; cursor: pointer; }
+
+.edit-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 50; display: flex; flex-direction: column; }
+.edit-overlay-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #2a2a2a; border-bottom: 1px solid #444; }
+.edit-overlay-body { flex: 1; padding: 15px; }
+
+.char-icon-large { width: 100px; height: 100px; border-radius: 50%; background: #333; margin: 0 auto; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 40px; border: 2px solid #555; }
+.compact-grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+.cg-item { display: flex; flex-direction: column; }
+.cg-item label { font-size: 12px; color: #aaa; margin-bottom: 4px; }
+.cg-input-wrap { display: flex; align-items: center; gap: 5px; }
+.cg-input-wrap input { flex: 1; text-align: center; }
+.cg-input-wrap span { font-size: 12px; color: #888; width: 30px; }
 
 .tab-bar { display: flex; gap: 1px; margin-bottom: 8px; background: #333; padding: 2px; border-radius: 6px; }
 .tab-btn { flex: 1; padding: 8px 0; font-size: 12px; background: transparent; border: none; color: #aaa; text-align: center; }
@@ -235,13 +264,14 @@ rt { font-size: 0.5em; color: inherit; user-select: none; }
 .settings-btn-cancel:hover, .settings-btn-save:hover { background: #333; }
 
 /* 履歴・バックアップ関連 */
-.history-container { display: flex; height: 100%; overflow: hidden; } /* ★コンテナ化 */
+.history-container { display: flex; height: 100%; overflow: hidden; } 
 .history-sidebar {
     width: 200px; border-right: 1px solid #444; display: flex; flex-direction: column;
     background: #1a1a1a;
+    overflow-y: auto; /* ★ここが重要：スクロール可能に */
 }
 .history-list-header {
-    background: #222; padding: 10px; font-weight: bold; font-size: 14px; border-bottom: 1px solid #444;
+    background: #222; padding: 10px; font-weight: bold; font-size: 14px; border-bottom: 1px solid #444; flex-shrink: 0;
 }
 .history-list {
     flex: 1; overflow-y: auto;
@@ -281,8 +311,9 @@ rt { font-size: 0.5em; color: inherit; user-select: none; }
     .char-count-display { font-size: 10px; min-width: 50px; }
     .preview-content { padding: 15px; }
     
-    /* 履歴画面のスマホ対応: 縦並びにする */
+    /* 履歴画面のスマホ対応 */
     .history-container { flex-direction: column; }
-    .history-sidebar { width: 100%; height: 150px; border-right: none; border-bottom: 1px solid #444; }
+    .history-sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid #444; flex-shrink: 0; overflow-y: auto; }
+    .history-list { -webkit-overflow-scrolling: touch; }
     .history-content-area { flex: 1; }
 }

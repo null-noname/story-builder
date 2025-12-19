@@ -1,14 +1,14 @@
-/* Story Builder V0.58 script.js */
+/* Story Builder V0.90 script.js - Final Fix */
 
 document.addEventListener('DOMContentLoaded', () => {
 
     const firebaseConfig = {
-      apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
-      authDomain: "story-builder-app.firebaseapp.com",
-      projectId: "story-builder-app",
-      storageBucket: "story-builder-app.firebasestorage.app",
-      messagingSenderId: "763153451684",
-      appId: "1:763153451684:web:37a447d4cafb4abe41f431"
+        apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
+        authDomain: "story-builder-app.firebaseapp.com",
+        projectId: "story-builder-app",
+        storageBucket: "story-builder-app.firebasestorage.app",
+        messagingSenderId: "763153451684",
+        appId: "1:763153451684:web:37a447d4cafb4abe41f431"
     };
 
     if (typeof firebase !== 'undefined' && !firebase.apps.length) {
@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.currentWorkId = null;
     window.currentChapterId = null;
     window.editingMemoId = null; 
+    
+    // プロット・キャラ編集用ステート
+    window.editingPlotId = null;
+    window.editingCharId = null;
+
     window.previousView = 'top';
     window.charCountMode = 'total'; 
     window.unsubscribeWorks = null;
@@ -55,8 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
         workspace: document.getElementById('workspace-view'),
         stats: document.getElementById('stats-view'),
         memo: document.getElementById('memo-view'),
-        memoEditor: document.getElementById('memo-editor-view')
+        memoEditor: document.getElementById('memo-editor-view'),
+        // 新規追加ビュー（index.htmlに存在すると仮定、なければJSで制御）
+        plotEditor: document.getElementById('plot-edit-view'),
+        charEditor: document.getElementById('char-edit-view')
     };
+
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
 
@@ -78,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadLocalSettings(); 
 
             const lastView = localStorage.getItem('sb_last_view');
+            // ワークスペース復帰ロジック
             if (lastView === 'workspace') {
                 const lastWork = localStorage.getItem('sb_last_work');
                 const lastChapter = localStorage.getItem('sb_last_chapter');
@@ -94,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     switchView('top');
                 }
-            } else if (lastView) {
+            } else if (lastView && views[lastView]) {
                 switchView(lastView);
             } else {
                 switchView('top');
@@ -117,9 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.switchView = function(name) {
+        // ビュー切り替え（モーダル的なエディタも含む）
         Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
+        
         if (views[name]) {
-            views[name].style.display = 'flex';
+            views[name].style.display = 'flex'; // 基本はflex
+            
             if(name === 'top') {
                 initWorkListener();
                 loadDailyLog(); 
@@ -132,7 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if(name === 'stats') { loadStats(); }
             if(name === 'workspace') loadMemoListForWorkspace(); 
             
-            saveAppState(name);
+            // エディタ画面以外はステート保存
+            if (name !== 'plotEditor' && name !== 'charEditor') {
+                saveAppState(name);
+            }
         }
     };
 
@@ -141,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(el) el.addEventListener('click', handler);
     };
 
+    // --- Event Bindings ---
     bindClick('diary-widget', () => switchView('stats'));
     bindClick('btn-common-memo', () => switchView('memo'));
     bindClick('back-to-top', () => saveCurrentChapter('top'));
@@ -168,8 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('replace-cancel-btn', () => document.getElementById('replace-modal').style.display = 'none');
     bindClick('replace-execute-btn', executeReplace);
 
-    initEditorToolbar();
-
+    // 共通メモ操作
     bindClick('add-new-memo-btn', () => openMemoEditor(null, 'memo'));
     bindClick('ws-add-new-memo-btn', () => openMemoEditor(null, 'workspace'));
     bindClick('memo-editor-save', saveMemo);
@@ -179,11 +195,70 @@ document.addEventListener('DOMContentLoaded', () => {
         else switchView(window.previousView);
     });
 
+    // --- 新規機能: プロット操作 ---
+    bindClick('plot-add-new-btn', () => openPlotEditor(null));
+    bindClick('plot-edit-back', () => { 
+        document.getElementById('plot-edit-view').style.display = 'none'; 
+        document.getElementById('workspace-view').style.display = 'flex';
+    });
+    bindClick('plot-edit-save', savePlotItem);
+    bindClick('plot-edit-delete', deletePlotItem);
+
+    // --- 新規機能: キャラクター操作 ---
+    bindClick('char-add-new-btn', () => openCharEditor(null));
+    bindClick('char-edit-back', () => { 
+        document.getElementById('char-edit-view').style.display = 'none'; 
+        document.getElementById('workspace-view').style.display = 'flex';
+    });
+    bindClick('char-edit-save', saveCharItem);
+    bindClick('char-edit-delete', deleteCharItem);
+    
+    // 画像アップロード処理
+    const charIconInput = document.getElementById('char-icon-input');
+    if(charIconInput) {
+        charIconInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_SIZE = 150; // アイコン用にリサイズ
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                    } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    const previewEl = document.getElementById('char-icon-preview');
+                    previewEl.innerHTML = `<img src="${dataUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                    previewEl.setAttribute('data-base64', dataUrl);
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    initEditorToolbar();
+
+    // フィルタ・ソート
     const sortEl = document.getElementById('sort-order');
     if(sortEl) sortEl.addEventListener('change', initWorkListener);
     const filterEl = document.getElementById('filter-status');
     if(filterEl) filterEl.addEventListener('change', initWorkListener);
     
+    // エディタ入力検知
     const editorEl = document.getElementById('main-editor');
     if(editorEl) {
         editorEl.addEventListener('input', () => {
@@ -194,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const catchEl = document.getElementById('input-catch');
     if(catchEl) catchEl.addEventListener('input', function() { updateCatchCounter(this); });
 
+    // タブ切り替え
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             activateTab(btn.getAttribute('data-tab'));
@@ -209,324 +285,394 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const contentEl = document.getElementById(tabId);
         if(contentEl) contentEl.style.display = (tabId === 'tab-editor') ? 'flex' : 'block';
+        
+        // タブ固有のロード処理
+        if(tabId === 'tab-plot') loadPlots();
+        if(tabId === 'tab-char') loadCharacters();
+        if(tabId === 'tab-common-memo') loadMemoListForWorkspace();
+
         saveAppState('workspace');
     }
 
-    // --- Settings Functions (LocalStorage) ---
-    function loadLocalSettings() {
-        const saved = localStorage.getItem('sb_app_settings');
-        if(saved) {
-            try { window.appSettings = { ...window.appSettings, ...JSON.parse(saved) }; } 
-            catch(e) { console.error(e); }
-        }
-        applySettingsToDOM();
-    }
+    // --- Work Open Logic (Updated for Separation) ---
+    window.openWork = async function(id, initTab = 'tab-info') {
+        window.currentWorkId = id;
+        window.currentChapterId = null;
+        saveAppState('workspace');
 
-    function openEditorSettings() {
-        document.getElementById('es-letter-spacing').value = window.appSettings.edLetterSpacing;
-        document.getElementById('es-line-height').value = window.appSettings.edLineHeight;
-        document.getElementById('es-width').value = window.appSettings.edWidth;
-        document.getElementById('es-font-size').value = window.appSettings.edFontSize;
-        document.getElementById('editor-settings-modal').style.display = 'flex';
-    }
+        const workDoc = await db.collection('works').doc(id).get();
+        if(!workDoc.exists) return;
 
-    function saveEditorSettings() {
-        window.appSettings.edLetterSpacing = document.getElementById('es-letter-spacing').value;
-        window.appSettings.edLineHeight = document.getElementById('es-line-height').value;
-        window.appSettings.edWidth = document.getElementById('es-width').value;
-        window.appSettings.edFontSize = document.getElementById('es-font-size').value;
-        
-        localStorage.setItem('sb_app_settings', JSON.stringify(window.appSettings));
-        applySettingsToDOM();
-        document.getElementById('editor-settings-modal').style.display = 'none';
-    }
+        const data = workDoc.data();
+        fillWorkInfo(data); 
 
-    function openPreviewSettings() {
-        document.getElementById('ps-vertical-chars').value = window.appSettings.prVerticalChars;
-        document.getElementById('ps-lines-page').value = window.appSettings.prLinesPage;
-        document.getElementById('ps-font-scale').value = window.appSettings.prFontScale;
-        document.getElementById('preview-settings-modal').style.display = 'flex';
-    }
-
-    function savePreviewSettings() {
-        window.appSettings.prVerticalChars = document.getElementById('ps-vertical-chars').value;
-        window.appSettings.prLinesPage = document.getElementById('ps-lines-page').value;
-        window.appSettings.prFontScale = document.getElementById('ps-font-scale').value;
-        
-        localStorage.setItem('sb_app_settings', JSON.stringify(window.appSettings));
-        applySettingsToDOM();
-        
-        const modal = document.getElementById('preview-modal');
-        if(modal.style.display === 'flex') {
-            applyPreviewLayout(); 
-        }
-        document.getElementById('preview-settings-modal').style.display = 'none';
-    }
-
-    function applySettingsToDOM() {
-        const r = document.documentElement.style;
-        r.setProperty('--ed-font-size', window.appSettings.edFontSize + 'px');
-        r.setProperty('--ed-line-height', window.appSettings.edLineHeight);
-        r.setProperty('--ed-letter-spacing', window.appSettings.edLetterSpacing + 'em');
-        r.setProperty('--ed-width', window.appSettings.edWidth + '%');
-    }
-
-    // --- Replace Logic ---
-    function openReplaceModal() {
-        document.getElementById('replace-search-input').value = "";
-        document.getElementById('replace-target-input').value = "";
-        document.getElementById('replace-modal').style.display = 'flex';
-    }
-
-    function executeReplace() {
-        const searchVal = document.getElementById('replace-search-input').value;
-        const replaceVal = document.getElementById('replace-target-input').value;
-        
-        if (!searchVal) {
-            alert("検索する文字を入力してください");
-            return;
-        }
-
-        const editor = document.getElementById('main-editor');
-        const original = editor.value;
-        
-        const regex = new RegExp(escapeRegExp(searchVal), 'g');
-        const count = (original.match(regex) || []).length;
-        
-        if(count === 0) {
-            alert("該当する文字が見つかりませんでした");
-            return;
-        }
-
-        const replaced = original.replace(regex, replaceVal);
-        editor.value = replaced;
-        
-        updateCharCount();
-        trackDailyProgress();
-        
-        alert(`${count}件 置換しました`);
-        document.getElementById('replace-modal').style.display = 'none';
-    }
-
-    function escapeRegExp(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
-    // --- History & Diff Logic ---
-    function openHistoryModal() {
-        if(!window.currentWorkId || !window.currentChapterId) return;
-        document.getElementById('history-modal').style.display = 'flex';
-        loadHistoryList();
-    }
-
-    function loadHistoryList() {
-        const listEl = document.getElementById('history-list');
-        listEl.innerHTML = '<div style="padding:10px;">読み込み中...</div>';
-        
-        db.collection('works').doc(window.currentWorkId)
-          .collection('chapters').doc(window.currentChapterId)
-          .collection('history')
-          .orderBy('savedAt', 'desc')
-          .limit(20) // 最新20件
-          .get().then(snap => {
-              listEl.innerHTML = '';
-              if(snap.empty) {
-                  listEl.innerHTML = '<div style="padding:10px;">履歴がありません</div>';
-                  return;
-              }
-              
-              snap.forEach((doc, index) => {
-                  const data = doc.data();
-                  const date = data.savedAt ? new Date(data.savedAt.toDate()) : new Date();
-                  const label = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
-                  
-                  const item = document.createElement('div');
-                  item.className = 'history-item';
-                  item.textContent = label + ` (${data.content.length}字)`;
-                  item.onclick = () => showDiff(data.content, item);
-                  
-                  listEl.appendChild(item);
-                  if(index === 0) item.click(); 
-              });
-          });
-    }
-
-    function showDiff(oldContent, itemEl) {
-        document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
-        itemEl.classList.add('active');
-        
-        window.currentHistoryData = oldContent; 
-        
-        const currentContent = document.getElementById('main-editor').value;
-        const diff = Diff.diffChars(oldContent, currentContent);
-        const display = document.getElementById('history-diff-view');
-        display.innerHTML = '';
-
-        diff.forEach(part => {
-            const span = document.createElement('span');
-            if (part.added) {
-                span.className = 'diff-added';
-                span.appendChild(document.createTextNode(part.value));
-            } else if (part.removed) {
-                span.className = 'diff-removed';
-                span.appendChild(document.createTextNode(part.value));
-            } else {
-                span.appendChild(document.createTextNode(part.value));
+        // 初回章作成ロジック（旧データ互換）
+        if (data.content && data.content.length > 0) {
+            const chaptersSnap = await db.collection('works').doc(id).collection('chapters').get();
+            if (chaptersSnap.empty) {
+                await db.collection('works').doc(id).collection('chapters').add({
+                    title: "第1話",
+                    content: data.content,
+                    order: 1,
+                    updatedAt: new Date()
+                });
+                await db.collection('works').doc(id).update({ content: "" });
             }
-            display.appendChild(span);
-        });
-    }
-
-    async function restoreHistory() {
-        if(window.currentHistoryData === null) return;
-        if(confirm("この履歴の内容で復元しますか？\n（現在の内容は上書きされ、保存されます）")) {
-            // エディタにセット
-            document.getElementById('main-editor').value = window.currentHistoryData;
-            document.getElementById('history-modal').style.display = 'none';
-            updateCharCount();
-            
-            // ★即座にDBに保存して確定させる
-            await saveCurrentChapter(null, false);
-            // ポップアップ削除
         }
+
+        await loadChapters();
+        switchView('workspace');
+        activateTab(initTab);
+    };
+
+    // --- Plot Logic (New) ---
+    function loadPlots() {
+        if(!window.currentWorkId) return;
+        const container = document.getElementById('plot-list-container');
+        if(!container) return;
+        container.innerHTML = '<div style="padding:10px; color:#aaa;">読み込み中...</div>';
+
+        db.collection('works').doc(window.currentWorkId).collection('plots')
+            .orderBy('order', 'asc').get()
+            .then(snap => {
+                container.innerHTML = '';
+                if(snap.empty) {
+                    container.innerHTML = '<div style="padding:20px; text-align:center; color:#555;">プロットがありません。<br>右下の＋ボタンで追加してください。</div>';
+                    return;
+                }
+                const plots = [];
+                snap.forEach(doc => plots.push({...doc.data(), id: doc.id}));
+                
+                plots.forEach((p, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'plot-item-card'; // CSSでデザイン調整推奨
+                    div.style.cssText = "background:#222; border:1px solid #444; border-radius:8px; padding:10px; margin-bottom:10px;";
+                    
+                    const typeLabel = p.type === 'timeline' ? '【タイムライン】' : '【メモ】';
+                    const previewText = (p.content || "").split('\n').slice(0, 5).join('\n'); // 5行プレビュー
+                    
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <span style="font-weight:bold; color:#89b4fa;">${escapeHtml(p.title || '無題')}</span>
+                            <span style="font-size:12px; color:#888;">${typeLabel}</span>
+                        </div>
+                        <div style="font-size:14px; color:#ccc; white-space:pre-wrap; max-height:100px; overflow:hidden; opacity:0.8; margin-bottom:8px;">${escapeHtml(previewText)}...</div>
+                        <div style="display:flex; justify-content:flex-end; gap:10px;">
+                            <button class="btn-custom btn-small" onclick="movePlot('${p.id}', -1)">↑</button>
+                            <button class="btn-custom btn-small" onclick="movePlot('${p.id}', 1)">↓</button>
+                            <button class="btn-custom btn-small" onclick="openPlotEditor('${p.id}')">編集・全文</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            });
     }
 
-    // --- Preview Logic ---
-    function showPreview() {
-        const editor = document.getElementById('main-editor');
-        const modal = document.getElementById('preview-modal');
-        const content = document.getElementById('preview-content');
-        if(!editor || !modal || !content) return;
+    window.openPlotEditor = function(id) {
+        window.editingPlotId = id;
+        const titleEl = document.getElementById('plot-editor-title');
+        const contentEl = document.getElementById('plot-editor-content');
+        const typeEl = document.getElementById('plot-editor-type'); // select box
 
-        let text = editor.value;
-        text = escapeHtml(text).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
-        
-        // 1. |親文字《ルビ》
-        text = text.replace(/[\|｜]([^《]+?)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-        // 2. 漢字《ルビ》
-        text = text.replace(/([\u4E00-\u9FFF\u3005\u30F6\u30F5]+)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-
-        content.innerHTML = text;
-        modal.style.display = 'flex';
-        applyPreviewLayout();
-        updatePreviewModeButton();
-    }
-
-    function applyPreviewLayout() {
-        const r = document.documentElement.style;
-        const baseSize = 18 * parseFloat(window.appSettings.prFontScale);
-        r.setProperty('--pr-font-size', baseSize + 'px');
-        const height = baseSize * parseInt(window.appSettings.prVerticalChars);
-        r.setProperty('--pr-height', height + 'px');
-    }
-
-    function closePreview() {
-        document.getElementById('preview-modal').style.display = 'none';
-    }
-
-    function togglePreviewMode() {
-        const content = document.getElementById('preview-content');
-        content.classList.toggle('vertical-mode');
-        updatePreviewModeButton();
-    }
-
-    function updatePreviewModeButton() {
-        const content = document.getElementById('preview-content');
-        const btn = document.getElementById('preview-mode-btn');
-        if(content.classList.contains('vertical-mode')) {
-            btn.textContent = "横読み"; 
+        if(id) {
+            db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(doc => {
+                if(doc.exists) {
+                    const d = doc.data();
+                    titleEl.value = d.title;
+                    contentEl.value = d.content;
+                    if(typeEl) typeEl.value = d.type || 'memo';
+                }
+            });
         } else {
-            btn.textContent = "縦読み"; 
+            titleEl.value = "";
+            contentEl.value = "";
+            if(typeEl) typeEl.value = 'memo';
         }
-    }
-
-    // --- Daily Log & Graph Logic ---
-    function getTodayId() {
-        const d = new Date();
-        return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-    }
-
-    async function loadDailyLog() {
-        if(!window.currentUser) return;
-        let promises = [];
-        let labels = [];
-        for(let i=6; i>=0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-            const label = `${d.getMonth()+1}/${d.getDate()}`;
-            labels.push(label);
-            const logId = `${window.currentUser.uid}_${dateStr}`;
-            promises.push(db.collection('daily_logs').doc(logId).get());
-        }
-
-        const snapshots = await Promise.all(promises);
-        let weeklyTotal = 0;
-        window.dailyHistory = snapshots.map(doc => {
-            const val = doc.exists ? (doc.data().count || 0) : 0;
-            weeklyTotal += val;
-            return val;
-        });
-
-        window.todayAddedCount = window.dailyHistory[6];
-        updateDailyWidgetUI(window.todayAddedCount, weeklyTotal);
-        window.graphLabels = labels;
-    }
-
-    function updateDailyWidgetUI(today, weekly) {
-        const tEl = document.getElementById('widget-today-count');
-        if(tEl) tEl.innerHTML = `${today}<span class="unit">字</span>`;
-        const wEl = document.getElementById('widget-weekly-count');
-        if(wEl) wEl.innerHTML = `${weekly}<span class="unit">字</span>`;
         
-        const stToday = document.getElementById('stat-today');
-        if(stToday) stToday.innerHTML = `${today}<span class="unit">字</span>`;
-        const stWeek = document.getElementById('stat-week');
-        if(stWeek) stWeek.innerHTML = `${weekly}<span class="unit">字</span>`;
-    }
+        // ビュー切り替え
+        Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
+        document.getElementById('plot-edit-view').style.display = 'flex';
+    };
 
-    function trackDailyProgress() {
-        const editor = document.getElementById('main-editor');
-        if(!editor) return;
+    window.savePlotItem = async function() {
+        if(!window.currentWorkId) return;
+        const title = document.getElementById('plot-editor-title').value || "無題";
+        const content = document.getElementById('plot-editor-content').value;
+        const type = document.getElementById('plot-editor-type') ? document.getElementById('plot-editor-type').value : 'memo';
         
-        const currentLen = editor.value.length;
-        const diff = currentLen - window.lastContentLength;
-
-        if (diff > 0) {
-            window.todayAddedCount += diff;
-            window.dailyHistory[6] = window.todayAddedCount;
-            updateDailyWidgetUI(window.todayAddedCount, calculateWeeklyTotal());
-            
-            if(window.writingChart) {
-                window.writingChart.data.datasets[0].data = window.dailyHistory;
-                window.writingChart.update();
-            }
-
-            if(window.pendingLogSave) clearTimeout(window.pendingLogSave);
-            window.pendingLogSave = setTimeout(saveDailyLogToFirestore, 3000);
-        }
-        window.lastContentLength = currentLen;
-    }
-
-    function calculateWeeklyTotal() {
-        return window.dailyHistory.reduce((a, b) => a + b, 0);
-    }
-
-    function saveDailyLogToFirestore() {
-        if(!window.currentUser) return;
-        const todayId = getTodayId();
-        const docId = `${window.currentUser.uid}_${todayId}`;
-        
-        db.collection('daily_logs').doc(docId).set({
-            uid: window.currentUser.uid,
-            date: todayId,
-            count: window.todayAddedCount,
+        const data = {
+            title, content, type,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        };
+
+        if(window.editingPlotId) {
+            await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(data);
+        } else {
+            // 新規作成時は末尾に追加
+            const snap = await db.collection('works').doc(window.currentWorkId).collection('plots').get();
+            data.order = snap.size + 1;
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection('works').doc(window.currentWorkId).collection('plots').add(data);
+        }
+        
+        document.getElementById('plot-edit-view').style.display = 'none';
+        document.getElementById('workspace-view').style.display = 'flex';
+        loadPlots();
+    };
+
+    window.deletePlotItem = async function() {
+        if(!window.editingPlotId || !confirm("削除しますか？")) return;
+        await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete();
+        document.getElementById('plot-edit-view').style.display = 'none';
+        document.getElementById('workspace-view').style.display = 'flex';
+        loadPlots();
+    };
+
+    window.movePlot = async function(id, direction) {
+        // 簡単な実装: 配列で取得して入れ替える
+        const snap = await db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order', 'asc').get();
+        let items = [];
+        snap.forEach(d => items.push({id: d.id, ...d.data()}));
+        
+        const idx = items.findIndex(i => i.id === id);
+        if(idx === -1) return;
+        const targetIdx = idx + direction;
+        if(targetIdx < 0 || targetIdx >= items.length) return;
+        
+        // swap
+        [items[idx], items[targetIdx]] = [items[targetIdx], items[idx]];
+        
+        const batch = db.batch();
+        items.forEach((item, i) => {
+            const ref = db.collection('works').doc(window.currentWorkId).collection('plots').doc(item.id);
+            batch.update(ref, { order: i + 1 });
+        });
+        await batch.commit();
+        loadPlots();
+    };
+
+
+    // --- Character Logic (New) ---
+    function loadCharacters() {
+        if(!window.currentWorkId) return;
+        const container = document.getElementById('char-list-container');
+        if(!container) return;
+        container.innerHTML = '<div style="padding:10px; color:#aaa;">読み込み中...</div>';
+
+        db.collection('works').doc(window.currentWorkId).collection('characters')
+            .orderBy('order', 'asc').get()
+            .then(snap => {
+                container.innerHTML = '';
+                if(snap.empty) {
+                    container.innerHTML = '<div style="padding:20px; text-align:center; color:#555;">登場人物がいません。<br>右下の＋ボタンで追加してください。</div>';
+                    return;
+                }
+                
+                // 左側のリスト
+                const listWrapper = document.createElement('div');
+                listWrapper.style.cssText = "display:flex; flex-direction:column; gap:10px;";
+
+                snap.forEach((doc, index) => {
+                    const d = doc.data();
+                    const item = document.createElement('div');
+                    item.className = 'char-list-item';
+                    item.style.cssText = "display:flex; align-items:center; background:#222; padding:8px; border-radius:8px; cursor:pointer; border:1px solid #444;";
+                    
+                    const iconSrc = d.iconBase64 || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2NjYyIgZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='; // デフォルトアイコン
+                    
+                    item.innerHTML = `
+                        <img src="${iconSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px; background:#333;">
+                        <div style="flex:1;">
+                            <div style="font-weight:bold; font-size:14px;">${escapeHtml(d.name || '名称未設定')}</div>
+                            <div style="font-size:11px; color:#888;">${escapeHtml(d.role || '')}</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column;">
+                            <button class="btn-tiny" onclick="event.stopPropagation(); moveChar('${doc.id}', -1)">▲</button>
+                            <button class="btn-tiny" onclick="event.stopPropagation(); moveChar('${doc.id}', 1)">▼</button>
+                        </div>
+                    `;
+                    item.onclick = () => openCharPreview(doc.id, d);
+                    listWrapper.appendChild(item);
+                    
+                    // 最初の要素を自動表示
+                    if(index === 0 && !window.editingCharId) openCharPreview(doc.id, d);
+                });
+                container.appendChild(listWrapper);
+            });
     }
 
-    // --- Toolbar & Editor ---
+    function openCharPreview(id, data) {
+        // プレビューエリア（右側）に表示
+        const previewArea = document.getElementById('char-preview-area');
+        if(!previewArea) return;
+        
+        const iconSrc = data.iconBase64 || '';
+        const iconHtml = iconSrc ? `<img src="${iconSrc}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #555;">` : '<div style="width:80px; height:80px; background:#333; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#555;">No Img</div>';
 
+        previewArea.innerHTML = `
+            <div style="display:flex; gap:15px; margin-bottom:15px; border-bottom:1px solid #444; padding-bottom:10px;">
+                ${iconHtml}
+                <div style="flex:1;">
+                    <h3 style="margin:0 0 5px 0; color:#89b4fa;">
+                        <ruby>${escapeHtml(data.name)}<rt>${escapeHtml(data.ruby||'')}</rt></ruby>
+                        <span style="font-size:0.7em; color:#aaa; margin-left:8px;">(${escapeHtml(data.alias||'')})</span>
+                    </h3>
+                    <div style="font-size:13px; color:#ccc;">
+                        年齢: ${escapeHtml(data.age||'?')}歳 / 誕生日: ${escapeHtml(data.birthday||'?')} / 身長: ${escapeHtml(data.height||'?')}cm<br>
+                        役職: ${escapeHtml(data.role||'なし')}
+                    </div>
+                </div>
+                <button class="btn-custom btn-small" onclick="openCharEditor('${id}')">編集</button>
+            </div>
+            <div style="flex:1; overflow-y:auto; font-size:14px; line-height:1.6; color:#ddd;">
+                <div style="margin-bottom:10px;"><strong style="color:#aaa;">見た目・性格:</strong><br>${escapeHtml(data.appearance||'')}</div>
+                <div style="margin-bottom:10px;"><strong style="color:#aaa;">特技・スキル:</strong><br>${escapeHtml(data.skill||'')}</div>
+                <div style="margin-bottom:10px;"><strong style="color:#aaa;">生い立ち:</strong><br>${escapeHtml(data.background||'')}</div>
+                <div style="margin-bottom:10px;"><strong style="color:#aaa;">その他メモ:</strong><br>${escapeHtml(data.note||'')}</div>
+            </div>
+        `;
+    }
+
+    window.openCharEditor = function(id) {
+        window.editingCharId = id;
+        
+        // フィールド取得
+        const fields = ['name', 'ruby', 'alias', 'age', 'birthday', 'role', 'height', 'appearance', 'skill', 'background', 'note'];
+        const iconPreview = document.getElementById('char-icon-preview');
+        
+        if(id) {
+            db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc => {
+                if(doc.exists) {
+                    const d = doc.data();
+                    fields.forEach(f => {
+                        const el = document.getElementById('char-' + f);
+                        if(el) el.value = d[f] || "";
+                    });
+                    if(d.iconBase64) {
+                        iconPreview.innerHTML = `<img src="${d.iconBase64}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                        iconPreview.setAttribute('data-base64', d.iconBase64);
+                    } else {
+                        iconPreview.innerHTML = '<span style="color:#555;">No Img</span>';
+                        iconPreview.removeAttribute('data-base64');
+                    }
+                }
+            });
+        } else {
+            fields.forEach(f => {
+                const el = document.getElementById('char-' + f);
+                if(el) el.value = "";
+            });
+            iconPreview.innerHTML = '<span style="color:#555;">No Img</span>';
+            iconPreview.removeAttribute('data-base64');
+        }
+
+        Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
+        document.getElementById('char-edit-view').style.display = 'flex';
+    };
+
+    window.saveCharItem = async function() {
+        if(!window.currentWorkId) return;
+        
+        const getData = (id) => document.getElementById('char-' + id)?.value || "";
+        const iconBase64 = document.getElementById('char-icon-preview').getAttribute('data-base64') || "";
+
+        const data = {
+            name: getData('name'),
+            ruby: getData('ruby'),
+            alias: getData('alias'),
+            age: getData('age'),
+            birthday: getData('birthday'),
+            role: getData('role'),
+            height: getData('height'),
+            appearance: getData('appearance'),
+            skill: getData('skill'),
+            background: getData('background'),
+            note: getData('note'),
+            iconBase64: iconBase64,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if(window.editingCharId) {
+            await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(data);
+        } else {
+            const snap = await db.collection('works').doc(window.currentWorkId).collection('characters').get();
+            data.order = snap.size + 1;
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection('works').doc(window.currentWorkId).collection('characters').add(data);
+        }
+        
+        document.getElementById('char-edit-view').style.display = 'none';
+        document.getElementById('workspace-view').style.display = 'flex';
+        loadCharacters();
+    };
+
+    window.deleteCharItem = async function() {
+        if(!window.editingCharId || !confirm("削除しますか？")) return;
+        await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();
+        document.getElementById('char-edit-view').style.display = 'none';
+        document.getElementById('workspace-view').style.display = 'flex';
+        loadCharacters();
+    };
+
+    window.moveChar = async function(id, direction) {
+        const snap = await db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order', 'asc').get();
+        let items = [];
+        snap.forEach(d => items.push({id: d.id, ...d.data()}));
+        
+        const idx = items.findIndex(i => i.id === id);
+        if(idx === -1) return;
+        const targetIdx = idx + direction;
+        if(targetIdx < 0 || targetIdx >= items.length) return;
+        
+        [items[idx], items[targetIdx]] = [items[targetIdx], items[idx]];
+        
+        const batch = db.batch();
+        items.forEach((item, i) => {
+            const ref = db.collection('works').doc(window.currentWorkId).collection('characters').doc(item.id);
+            batch.update(ref, { order: i + 1 });
+        });
+        await batch.commit();
+        loadCharacters();
+    };
+
+    // --- Work Info Saving (Compatible with old method for basic info) ---
+    function saveWorkInfo() {
+        if(!window.currentWorkId) return;
+        const selectedRatings = [];
+        document.querySelectorAll('input[name="rating"]:checked').forEach(c => selectedRatings.push(c.value));
+        const data = {
+            title: document.getElementById('input-title').value,
+            description: document.getElementById('input-summary').value,
+            catchphrase: document.getElementById('input-catch').value,
+            genreMain: document.getElementById('input-genre-main').value,
+            genreSub: document.getElementById('input-genre-sub').value,
+            status: document.querySelector('input[name="novel-status"]:checked')?.value || "in-progress",
+            type: document.querySelector('input[name="novel-type"]:checked')?.value || "original",
+            aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value || "none",
+            ratings: selectedRatings,
+            // plot/characterNotes は旧フィールドだが互換性のため残すか、削除するか。ここでは更新対象から外す
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        db.collection('works').doc(window.currentWorkId).update(data).then(() => alert("保存しました"));
+    }
+
+    function fillWorkInfo(data) {
+        document.getElementById('input-title').value = data.title || "";
+        document.getElementById('input-summary').value = data.description || "";
+        document.getElementById('input-catch').value = data.catchphrase || "";
+        document.getElementById('input-genre-main').value = data.genreMain || "";
+        document.getElementById('input-genre-sub').value = data.genreSub || "";
+        
+        const setRadio = (name, val) => { const r = document.querySelector(`input[name="${name}"][value="${val}"]`); if(r) r.checked = true; };
+        setRadio("novel-status", data.status || "in-progress");
+        setRadio("novel-type", data.type || "original");
+        setRadio("ai-usage", data.aiUsage || "none");
+        const ratings = data.ratings || [];
+        document.querySelectorAll('input[name="rating"]').forEach(c => c.checked = ratings.includes(c.value));
+        updateCatchCounter(document.getElementById('input-catch'));
+    }
+
+    // --- Editor Toolbar & Chapter Functions (Existing) ---
     function initEditorToolbar() {
         const editorTab = document.getElementById('tab-editor');
         if(!editorTab) return;
@@ -548,7 +694,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="chapter-menu-btn" id="chapter-menu-toggle">≡</button>
                     <div id="chapter-menu-overlay" class="chapter-menu-overlay">
                         <div class="chapter-menu-item" onclick="setChapterMode('reorder')">原稿の並び替え</div>
-                        <div class="chapter-menu-item" onclick="alert('未実装です')">原稿のインポート</div>
                         <div class="chapter-menu-item" onclick="setChapterMode('delete')">原稿を削除する</div>
                         <div class="chapter-menu-item" onclick="setChapterMode('normal')">メニューを閉じる</div>
                     </div>
@@ -787,36 +932,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); }
     }
 
-    window.openWork = async function(id, initTab = 'tab-info') {
-        window.currentWorkId = id;
-        window.currentChapterId = null;
-        saveAppState('workspace');
-
-        const workDoc = await db.collection('works').doc(id).get();
-        if(!workDoc.exists) return;
-
-        const data = workDoc.data();
-        fillWorkInfo(data); 
-
-        if (data.content && data.content.length > 0) {
-            const chaptersSnap = await db.collection('works').doc(id).collection('chapters').get();
-            if (chaptersSnap.empty) {
-                await db.collection('works').doc(id).collection('chapters').add({
-                    title: "第1話",
-                    content: data.content,
-                    order: 1,
-                    updatedAt: new Date()
-                });
-                await db.collection('works').doc(id).update({ content: "" });
-            }
-        }
-
-        await loadChapters();
-        switchView('workspace');
-
-        activateTab(initTab);
-    };
-
     function loadChapters() {
         if(!window.currentWorkId) return Promise.resolve();
         const listEl = document.getElementById('chapter-list');
@@ -840,13 +955,10 @@ document.addEventListener('DOMContentLoaded', () => {
               if(chapters.length === 0) {
                   listEl.innerHTML = '<div style="padding:10px; color:#aaa;">章がありません</div>';
               } else {
-                  window.currentChapterList = chapters;
-
                   chapters.forEach((ch, index) => {
                       const item = document.createElement('div');
                       item.className = 'chapter-item';
                       item.setAttribute('data-id', ch.id);
-                      item.setAttribute('data-index', index);
                       
                       if(window.currentChapterId === ch.id) item.classList.add('active');
                       
@@ -888,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
     }
 
-    // --- Drag & Drop Logic (PC) ---
+    // --- Drag & Drop (Common) ---
     function addDragEvents(item) {
         item.addEventListener('dragstart', function(e) {
             window.dragSrcEl = this;
@@ -916,9 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Drag & Drop Logic (Mobile Touch) ---
     let touchSrcEl = null;
-    
     function handleTouchStart(e) {
         touchSrcEl = e.target.closest('.chapter-item');
         if(touchSrcEl) {
@@ -926,7 +1036,6 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault(); 
         }
     }
-    
     function handleTouchMove(e) {
         if(!touchSrcEl) return;
         e.preventDefault();
@@ -938,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', () => {
             swapNodes(touchSrcEl, targetItem);
         }
     }
-
     function handleTouchEnd(e) {
         if(touchSrcEl) {
             touchSrcEl.classList.remove('dragging');
@@ -946,19 +1054,16 @@ document.addEventListener('DOMContentLoaded', () => {
             touchSrcEl = null;
         }
     }
-
     function swapNodes(n1, n2) {
         const p1 = n1.parentNode;
         const p2 = n2.parentNode;
         if (p1 !== p2) return;
-        
         const temp = document.createElement("div");
         p1.insertBefore(temp, n1);
         p2.insertBefore(n1, n2);
         p1.insertBefore(n2, temp);
         p1.removeChild(temp);
     }
-
     async function updateOrderInDB() {
         const listEl = document.getElementById('chapter-list');
         const items = listEl.querySelectorAll('.chapter-item');
@@ -969,9 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const ref = db.collection('works').doc(window.currentWorkId).collection('chapters').doc(id);
             batch.update(ref, { order: index + 1 });
         });
-        
         await batch.commit();
-        console.log("Order updated");
     }
 
     async function deleteTargetChapter(chapterId) {
@@ -987,22 +1090,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function selectChapter(id, data) {
         window.currentChapterId = id;
         saveAppState('workspace');
-
         const content = data.content || "";
         document.getElementById('main-editor').value = content;
         window.lastContentLength = content.length;
-
         const titleInput = document.getElementById('chapter-title-input');
         if(titleInput) titleInput.value = data.title || "";
-
         updateCharCount();
-        
         const items = document.querySelectorAll('.chapter-item');
         items.forEach(el => {
             el.classList.remove('active');
             if(el.getAttribute('data-id') === id) el.classList.add('active');
         });
-        
         showMobileEditor();
     }
 
@@ -1010,14 +1108,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!window.currentWorkId) return;
         const snap = await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
         if(snap.size >= 1000) { alert("最大1000話までです。"); return; }
-
         const title = prompt("新しい章のタイトルを入力してください", `第${snap.size + 1}話`);
         if(title) {
             await db.collection('works').doc(window.currentWorkId).collection('chapters').add({
-                title: title,
-                content: "",
-                order: snap.size + 1,
-                updatedAt: new Date()
+                title: title, content: "", order: snap.size + 1, updatedAt: new Date()
             });
             loadChapters();
         }
@@ -1026,10 +1120,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function deleteCurrentChapter() {
         if(!window.currentWorkId || !window.currentChapterId) return;
         if(!confirm("本当にこの章を削除しますか？\n（削除すると元に戻せません）")) return;
-
         await db.collection('works').doc(window.currentWorkId)
             .collection('chapters').doc(window.currentChapterId).delete();
-        
         alert("削除しました");
         window.currentChapterId = null;
         document.getElementById('main-editor').value = "";
@@ -1052,22 +1144,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        await db.collection('works').doc(window.currentWorkId)
-          .collection('chapters').doc(window.currentChapterId)
-          .update({
-              title: title,
-              content: content,
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
+        // 履歴保存
+        const chRef = db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId);
+        await chRef.collection('history').add({
+            content: content,
+            savedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // 本体保存
+        await chRef.update({
+            title: title,
+            content: content,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
         saveDailyLogToFirestore();
 
+        // 文字数集計
         const snap = await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
         let totalPure = 0;
-        snap.forEach(doc => {
-            const d = doc.data();
-            totalPure += (d.content || "").replace(/\s/g, '').length;
-        });
+        snap.forEach(doc => { totalPure += (doc.data().content || "").replace(/\s/g, '').length; });
 
         await db.collection('works').doc(window.currentWorkId).update({
             totalChars: totalPure,
@@ -1077,44 +1173,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loadChapters(); 
         if(nextViewName) switchView(nextViewName);
         else if (showAlert) alert("保存しました");
-    }
-
-    function saveWorkInfo() {
-        if(!window.currentWorkId) return;
-        const selectedRatings = [];
-        document.querySelectorAll('input[name="rating"]:checked').forEach(c => selectedRatings.push(c.value));
-        const data = {
-            title: document.getElementById('input-title').value,
-            description: document.getElementById('input-summary').value,
-            catchphrase: document.getElementById('input-catch').value,
-            genreMain: document.getElementById('input-genre-main').value,
-            genreSub: document.getElementById('input-genre-sub').value,
-            status: document.querySelector('input[name="novel-status"]:checked')?.value || "in-progress",
-            type: document.querySelector('input[name="novel-type"]:checked')?.value || "original",
-            aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value || "none",
-            ratings: selectedRatings,
-            plot: document.getElementById('plot-editor').value,
-            characterNotes: document.getElementById('char-editor').value,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        db.collection('works').doc(window.currentWorkId).update(data);
-    }
-
-    function fillWorkInfo(data) {
-        document.getElementById('input-title').value = data.title || "";
-        document.getElementById('input-summary').value = data.description || "";
-        document.getElementById('input-catch').value = data.catchphrase || "";
-        document.getElementById('input-genre-main').value = data.genreMain || "";
-        document.getElementById('input-genre-sub').value = data.genreSub || "";
-        document.getElementById('plot-editor').value = data.plot || "";
-        document.getElementById('char-editor').value = data.characterNotes || "";
-        const setRadio = (name, val) => { const r = document.querySelector(`input[name="${name}"][value="${val}"]`); if(r) r.checked = true; };
-        setRadio("novel-status", data.status || "in-progress");
-        setRadio("novel-type", data.type || "original");
-        setRadio("ai-usage", data.aiUsage || "none");
-        const ratings = data.ratings || [];
-        document.querySelectorAll('input[name="rating"]').forEach(c => c.checked = ratings.includes(c.value));
-        updateCatchCounter(document.getElementById('input-catch'));
     }
 
     function initWorkListener() {
@@ -1144,7 +1202,6 @@ document.addEventListener('DOMContentLoaded', () => {
             worksData.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
         });
     }
-    function loadWorks() { initWorkListener(); }
 
     function createWorkItem(id, data) {
         const div = document.createElement('div');
@@ -1205,6 +1262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Memo Logic (Common & Workspace) ---
     function loadMemoList() {
         if(!window.currentUser) return;
         db.collection('memos').where('uid', '==', window.currentUser.uid).get().then(snap => {
@@ -1282,6 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Statistics ---
     function loadStats() {
         db.collection('works').where('uid', '==', window.currentUser.uid).get().then(snap => {
             let workCount = 0;
@@ -1320,10 +1379,14 @@ document.addEventListener('DOMContentLoaded', () => {
         loadDailyLog();
     }
     
-    function renderChart() {}
-
+    // --- Utils ---
     function escapeHtml(str) {
         if(!str) return "";
         return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));
     }
+    
+    // 履歴モーダルのリストにスタイル適用（スクロールバー対応）
+    const hList = document.getElementById('history-list');
+    if(hList) hList.style.cssText = "max-height: 40vh; overflow-y: auto; background:#111; border:1px solid #444; border-radius:4px;";
+
 });
