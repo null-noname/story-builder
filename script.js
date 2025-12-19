@@ -1,6 +1,5 @@
-/* Story Builder V0.22 script.js */
+/* Story Builder V0.23 script.js */
 
-// 画面読み込み完了後に実行することで、ボタン取得エラーを防ぐ
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Firebase Config ---
@@ -13,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
       appId: "1:763153451684:web:37a447d4cafb4abe41f431"
     };
 
-    // Firebase初期化チェック
     if (typeof firebase !== 'undefined' && !firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
     } else if (typeof firebase === 'undefined') {
@@ -25,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // グローバル変数をwindowに紐付け（外部からのアクセス用）
     window.currentUser = null;
     window.currentWorkId = null;
     window.writingChart = null;
@@ -42,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
 
-    // ログインボタン設定（存在チェック付き）
     const loginBtn = document.getElementById('google-login-btn');
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
@@ -53,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 認証状態の監視
     auth.onAuthStateChanged(user => {
         if (user) {
             window.currentUser = user;
@@ -67,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 画面切り替え関数
     window.switchView = function(name) {
         Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
         if (views[name]) {
@@ -79,7 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // イベントリスナー設定
     const bindClick = (id, handler) => {
         const el = document.getElementById(id);
         if(el) el.addEventListener('click', handler);
@@ -106,21 +99,18 @@ document.addEventListener('DOMContentLoaded', () => {
         else switchView(window.previousView);
     });
 
-    // フィルタ・ソート
     const sortEl = document.getElementById('sort-order');
     if(sortEl) sortEl.addEventListener('change', loadWorks);
     
     const filterEl = document.getElementById('filter-status');
     if(filterEl) filterEl.addEventListener('change', loadWorks);
 
-    // 文字数カウント
     const editorEl = document.getElementById('main-editor');
     if(editorEl) editorEl.addEventListener('input', updateCharCount);
 
     const catchEl = document.getElementById('input-catch');
     if(catchEl) catchEl.addEventListener('input', function() { updateCatchCounter(this); });
 
-    // タブ切り替え
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -170,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ★修正: 3枚目の画像のUIを再現
+    // ★修正: メタデータを縦並び（3行）に変更
     function createWorkItem(id, data) {
         const div = document.createElement('div');
         div.className = `work-item ${data.isPinned ? 'pinned' : ''}`;
@@ -181,16 +171,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
         };
 
-        // タイトル左の星アイコン（ピン留め時のみ表示）
         const titleStar = data.isPinned ? '<span style="color:var(--accent-green); margin-right:4px;">★</span>' : '';
-        // 星ボタン（中身）
         const pinBtnIcon = data.isPinned ? '★' : '☆';
 
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${titleStar}${escapeHtml(data.title || '無題')}</div>
                 <div class="work-meta">
-                    更新: ${formatDate(data.updatedAt)} <span style="margin-left:8px;">${data.totalChars || 0} 字</span>
+                    <div>作成日: ${formatDate(data.createdAt)}</div>
+                    <div>更新日: ${formatDate(data.updatedAt)}</div>
+                    <div>全 ${data.totalChars || 0} 字</div>
                 </div>
             </div>
             <div class="work-actions">
@@ -202,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return div;
     }
 
-    // 関数をwindowオブジェクトに登録（HTMLのonclickから呼ぶため）
     window.deleteWork = function(e, id) { e.stopPropagation(); if(confirm("削除しますか？")) db.collection('works').doc(id).delete().then(loadWorks); };
     window.togglePin = function(e, id, newState) { e.stopPropagation(); db.collection('works').doc(id).update({ isPinned: newState }).then(loadWorks); };
 
@@ -288,7 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Common Memo ---
     function loadMemoList() {
         if(!window.currentUser) return;
         db.collection('memos').where('uid', '==', window.currentUser.uid).get().then(snap => {
@@ -410,5 +398,4 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!str) return "";
         return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));
     }
-
-}); // End of DOMContentLoaded
+});

@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.22 */
+/* style.css - Story Builder V0.23 */
 
 :root {
     --bg-color: #202020; 
@@ -70,20 +70,20 @@ hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
 
 /* --- 作品カードUI修正 --- */
 .work-item {
-    background: #2a2a2a; /* 背景色 */
+    background: #2a2a2a;
     padding: 10px 12px;
     margin-bottom: 8px;
     border-radius: 8px;
     border: 1px solid #555;
-    border-left: 5px solid #fff; /* 通常は白線 */
+    border-left: 5px solid #fff;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    min-height: 64px;
+    min-height: 80px; /* 3行になるため高さを少し確保 */
 }
 .work-item.pinned {
-    border-left-color: var(--accent-green); /* ピン留めで緑線 */
+    border-left-color: var(--accent-green);
 }
 
 .work-info {
@@ -92,7 +92,7 @@ hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 3px;
+    gap: 5px; /* タイトルと詳細の隙間 */
 }
 
 .work-title {
@@ -103,11 +103,14 @@ hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
     align-items: center;
 }
 
+/* ★修正: メタデータを縦並びにするスタイル */
 .work-meta {
-    font-size: 12px;
-    color: #aaa; /* グレー */
+    font-size: 11px; /* 少し小さめに */
+    color: #aaa;
+    line-height: 1.4;
     display: flex;
-    align-items: center;
+    flex-direction: column; /* 縦積み */
+    gap: 0;
 }
 
 .work-actions {
@@ -116,22 +119,17 @@ hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
     align-items: center;
 }
 
-/* カード内ボタンのスタイル調整（画像3枚目に合わせる） */
 .btn-card-action {
     background: transparent;
-    border: 1px solid #666; /* 枠線あり */
+    border: 1px solid #666;
     color: #ddd;
     padding: 6px 12px;
     font-size: 12px;
     border-radius: 6px;
     transition: background 0.2s;
 }
-.btn-card-action:hover {
-    background: #333;
-}
-.btn-card-delete {
-    color: #ff8888; /* 削除は赤文字 */
-}
+.btn-card-action:hover { background: #333; }
+.btn-card-delete { color: #ff8888; }
 
 /* --- フォーム等 --- */
 .form-group { margin-bottom: 15px; }
@@ -185,7 +183,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     .diary-val { font-size: 16px; }
     .list-header { flex-direction: row; align-items: center; }
     .list-title { font-size: 18px; }
-    .work-item { padding: 8px 10px; }
+    .work-item { padding: 10px 12px; }
     .work-title { font-size: 16px; }
     input, textarea, select { font-size: 16px; } 
 }
