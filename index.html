@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Builder V0.11</title>
+    <title>Story Builder V0.12</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -116,7 +117,7 @@
                         </div>
                     </div>
 
-                    <button id="save-work-info-btn" class="btn-custom btn-full" style="padding:18px; font-size: 18px; margin-top: 10px;">作品情報を反映させる</button>
+                    <button id="save-work-info-btn" class="btn-custom btn-full" style="padding:18px; font-size: 18px; margin-top:10px;">作品情報を反映させる</button>
                 </div>
 
                 <div id="tab-editor" class="tab-content" style="display:none; flex:1; flex-direction:column;">
@@ -130,14 +131,56 @@
                 <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" class="main-textarea" style="height:100%;"></textarea></div>
             </div>
 
-            <div id="stats-view" style="display:none;">
-                <button id="back-from-stats" class="btn-custom">← 戻る</button>
-                <h2 style="color:var(--text-white); text-align:center;">執筆統計 (準備中)</h2>
+            <div id="stats-view" class="screen" style="display:none;">
+                <button id="back-from-stats" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">← 戻る</button>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <div style="font-size: 20px; font-weight:bold; color: var(--text-white);">執筆文字数の推移</div>
+                    <div style="display:flex; gap:8px;">
+                        <select id="stat-range" class="filter-select" style="width:100px;">
+                            <option value="7">過去7日間</option>
+                            <option value="30">1か月</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.2); padding:15px; border-radius:10px; margin-bottom: 20px; border: 1px solid #333;">
+                    <canvas id="writingChart" style="max-height:250px; width:100%;"></canvas>
+                </div>
+                
+                <div class="stats-card-row">
+                    <div class="stats-card">
+                        <div class="label">今日の文字数</div>
+                        <div class="value" id="stat-today">0<span class="unit">字</span></div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="label">過去7日間</div>
+                        <div class="value" id="stat-week">0<span class="unit">字</span></div>
+                    </div>
+                </div>
+                <div class="stats-card-row">
+                    <div class="stats-card">
+                        <div class="label">総制作作品数</div>
+                        <div class="value" id="stat-works">0<span class="unit">作品</span></div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="label">総キャラクター数</div>
+                        <div class="value" id="stat-chars">0<span class="unit">体</span></div>
+                    </div>
+                </div>
             </div>
-            <div id="memo-view" style="display:none;">
-                <button id="back-from-memo" class="btn-custom">← 戻る</button>
-                <h2 style="color:var(--text-white); text-align:center;">共通メモ (準備中)</h2>
+
+            <div id="memo-view" class="screen" style="display:none; height:100%; flex-direction:column;">
+                <button id="back-from-memo" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">← 戻る</button>
+                
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:10px;">
+                    <h2 style="font-size:20px; margin:0;">共通メモ</h2>
+                    <button id="save-common-memo-btn" class="btn-custom btn-small">保存</button>
+                </div>
+                
+                <textarea id="common-memo-editor" class="main-textarea" style="flex:1;" placeholder="作品をまたいで使えるアイデアやメモをここに..."></textarea>
             </div>
+
         </div>
     </div>
     <script src="script.js"></script>

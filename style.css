@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.11 */
+/* style.css - Story Builder V0.12 */
 
 :root {
     --bg-color: #202020; 
@@ -21,7 +21,6 @@ body {
     height: 100vh; overflow: hidden;
 }
 
-/* 共通レイアウト */
 .screen { display: flex; flex-direction: column; height: 100%; padding: 20px; }
 .container { max-width: 1200px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; height: 100%; }
 
@@ -35,7 +34,7 @@ body {
 
 hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 
-/* ボタンデザイン */
+/* ボタン */
 .btn-custom {
     background: var(--btn-bg); color: var(--text-white);
     border: 1px solid #555;
@@ -47,12 +46,12 @@ hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 .btn-full { width: 100%; height: 45px; margin-bottom: 10px; font-size: 16px; }
 .btn-small { padding: 4px 10px; font-size: 13px; }
 
-/* タブバー (ボタンをつなげて表示) */
+/* タブバー */
 .tab-bar { display: flex; gap: 2px; margin-bottom: 10px; }
 .tab-btn { flex: 1; border-radius: 4px 4px 0 0; }
 .tab-btn.active { background: var(--active-green); color: #fff; }
 
-/* ダッシュボードエリア */
+/* ダッシュボード */
 .dashboard-area { display: flex; gap: 20px; margin-bottom: 25px; height: 110px; }
 .diary-widget {
     background: var(--btn-bg); padding: 15px; border-radius: 12px; width: 320px;
@@ -73,7 +72,6 @@ hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 }
 .work-list-container { flex: 1; overflow-y: auto; padding-right: 5px; }
 
-/* 作品カード */
 .work-item {
     background: var(--btn-bg); padding: 15px; margin-bottom: 10px;
     border-radius: 8px; 
@@ -87,7 +85,7 @@ hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 .work-meta { font-size: 12px; color: var(--sub-text); }
 .work-actions { display: flex; gap: 8px; }
 
-/* 入力フォーム類 */
+/* 入力フォーム */
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; margin-bottom: 8px; color: var(--text-white); font-weight: bold; font-size: 16px; }
 
@@ -97,26 +95,32 @@ input, textarea, select.form-control {
     padding: 12px; border-radius: 4px; width: 100%; font-size: 14px;
     margin-bottom: 0;
 }
+.main-textarea { width: 100%; height: 60vh; background: #111; color: #fff; padding: 15px; font-size: 16px; line-height: 1.8; border: 1px solid #555; resize: none; }
 
-/* ★修正: コンパクトな選択肢をタブボタンと同じ配色に統一 */
-.compact-row { display: flex; gap: 5px; background: transparent; padding: 0; border: none; } /* 枠線を消してボタン独立風に */
+/* 選択肢 */
+.compact-row { display: flex; gap: 5px; background: transparent; padding: 0; border: none; }
 .compact-row label {
     flex: 1; text-align: center; padding: 10px 5px; cursor: pointer; font-size: 12px;
     border: 1px solid #555; border-radius: 4px; 
-    /* タブの通常状態に合わせる */
     background: var(--btn-bg); color: var(--text-white);
     transition: background 0.1s;
 }
 .compact-row label:hover { background: #333; }
 .compact-row input { display: none; }
-
-/* 選択時のスタイル (タブのアクティブ状態に合わせる: 濃い緑) */
 .compact-row label:has(input:checked) {
-    background: var(--active-green);
-    border-color: #555;
-    color: #fff;
-    font-weight: bold;
+    background: var(--active-green); border-color: #555; color: #fff; font-weight: bold;
 }
+
+/* ★統計カード (新規追加)★ */
+.stats-card-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.stats-card {
+    background: var(--btn-bg); border: 1px solid #555;
+    border-radius: 12px; padding: 15px; flex: 1;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.stats-card .label { font-size: 14px; color: var(--text-white); margin-bottom: 5px; }
+.stats-card .value { font-size: 26px; color: var(--accent-blue); font-weight: bold; text-align: right; }
+.stats-card .unit { font-size: 14px; color: var(--text-white); margin-left: 5px; font-weight: normal; }
 
 /* スクロールバー */
 ::-webkit-scrollbar { width: 8px; }
