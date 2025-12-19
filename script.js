@@ -1,8 +1,7 @@
-/* Story Builder V0.23 script.js */
+/* Story Builder V0.24 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- Firebase Config ---
     const firebaseConfig = {
       apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
       authDomain: "story-builder-app.firebaseapp.com",
@@ -15,8 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof firebase !== 'undefined' && !firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
     } else if (typeof firebase === 'undefined') {
-        console.error("Firebase SDK not loaded.");
-        alert("Firebaseの読み込みに失敗しました。画面をリロードしてください。");
+        alert("Firebaseの読み込みに失敗しました。リロードしてください。");
         return;
     }
 
@@ -43,9 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithRedirect(provider).catch((error) => {
-                alert("ログインエラー: " + error.message);
-            });
+            auth.signInWithRedirect(provider).catch((error) => alert("ログインエラー: " + error.message));
         });
     }
 
@@ -101,13 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const sortEl = document.getElementById('sort-order');
     if(sortEl) sortEl.addEventListener('change', loadWorks);
-    
     const filterEl = document.getElementById('filter-status');
     if(filterEl) filterEl.addEventListener('change', loadWorks);
-
     const editorEl = document.getElementById('main-editor');
     if(editorEl) editorEl.addEventListener('input', updateCharCount);
-
     const catchEl = document.getElementById('input-catch');
     if(catchEl) catchEl.addEventListener('input', function() { updateCatchCounter(this); });
 
@@ -121,8 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(contentEl) contentEl.style.display = (contentId === 'tab-editor') ? 'flex' : 'block';
         });
     });
-
-    // --- Functions ---
 
     async function createNewWork() {
         if (!window.currentUser) return;
@@ -145,11 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             listEl.innerHTML = '';
             let worksData = [];
             snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
-            
-            if(filterStatus !== 'all') {
-                worksData = worksData.filter(w => w.status === filterStatus);
-            }
-            
+            if(filterStatus !== 'all') worksData = worksData.filter(w => w.status === filterStatus);
             worksData.sort((a, b) => {
                 if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
                 const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
@@ -160,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ★修正: メタデータを縦並び（3行）に変更
+    // ★修正: HTML構造を変更して縦並びを強制
     function createWorkItem(id, data) {
         const div = document.createElement('div');
         div.className = `work-item ${data.isPinned ? 'pinned' : ''}`;
@@ -174,13 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleStar = data.isPinned ? '<span style="color:var(--accent-green); margin-right:4px;">★</span>' : '';
         const pinBtnIcon = data.isPinned ? '★' : '☆';
 
+        // work-meta-row クラスを使って、各行をdivで分ける
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${titleStar}${escapeHtml(data.title || '無題')}</div>
-                <div class="work-meta">
-                    <div>作成日: ${formatDate(data.createdAt)}</div>
-                    <div>更新日: ${formatDate(data.updatedAt)}</div>
-                    <div>全 ${data.totalChars || 0} 字</div>
+                <div class="work-meta-container">
+                    <div class="work-meta-row">作成日: ${formatDate(data.createdAt)}</div>
+                    <div class="work-meta-row">更新日: ${formatDate(data.updatedAt)}</div>
+                    <div class="work-meta-row">全 ${data.totalChars || 0} 字</div>
                 </div>
             </div>
             <div class="work-actions">
@@ -225,12 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveCurrentWork(nextViewName = null, showAlert = false) {
         if(!window.currentWorkId) return;
         const content = document.getElementById('main-editor').value;
-        
-        if(content.length > 20000) {
-            alert("文字数が上限(20,000字)を超えています。保存できません。");
-            return;
-        }
-
+        if(content.length > 20000) { alert("文字数が上限(20,000字)を超えています。"); return; }
         const selectedRatings = [];
         document.querySelectorAll('input[name="rating"]:checked').forEach(c => selectedRatings.push(c.value));
         const data = {
@@ -249,23 +232,16 @@ document.addEventListener('DOMContentLoaded', () => {
             totalChars: content.length,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
         db.collection('works').doc(window.currentWorkId).update(data).then(() => {
-            if(nextViewName) {
-                switchView(nextViewName);
-            } else if (showAlert) {
-                alert("保存しました");
-            }
+            if(nextViewName) switchView(nextViewName);
+            else if (showAlert) alert("保存しました");
         });
     }
 
     function updateCharCount() { 
         const text = document.getElementById('main-editor').value;
-        const total = text.length;
-        const pure = text.replace(/\s/g, '').length;
-        
-        document.getElementById('editor-char-count-total').textContent = total;
-        document.getElementById('editor-char-count-pure').textContent = pure;
+        document.getElementById('editor-char-count-total').textContent = text.length;
+        document.getElementById('editor-char-count-pure').textContent = text.replace(/\s/g, '').length;
     }
 
     function updateCatchCounter(el) {
@@ -289,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
             memos.forEach(d => container.appendChild(createMemoCard(d.id, d, 'memo')));
         });
     }
-
     function loadMemoListForWorkspace() {
         if(!window.currentUser) return;
         db.collection('memos').where('uid', '==', window.currentUser.uid).get().then(snap => {
@@ -322,17 +297,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteMemo = function(id, origin) {
         if(confirm("本当に削除しますか？")) {
-            db.collection('memos').doc(id).delete().then(() => {
-                if(origin === 'memo') loadMemoList();
-                else loadMemoListForWorkspace();
-            });
+            db.collection('memos').doc(id).delete().then(() => { if(origin === 'memo') loadMemoList(); else loadMemoListForWorkspace(); });
         }
     };
 
     window.openMemoEditor = function(id, fromView) {
-        window.editingMemoId = id;
-        window.previousView = fromView; 
-        
+        window.editingMemoId = id; window.previousView = fromView; 
         if(id) {
             db.collection('memos').doc(id).get().then(doc => {
                 if(doc.exists) {
@@ -343,8 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         } else {
-            document.getElementById('memo-editor-title').value = "";
-            document.getElementById('memo-editor-content').value = "";
+            document.getElementById('memo-editor-title').value = ""; document.getElementById('memo-editor-content').value = "";
             switchView('memoEditor');
         }
     };
@@ -352,17 +321,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveMemo() {
         const title = document.getElementById('memo-editor-title').value || "新規メモ";
         const content = document.getElementById('memo-editor-content').value;
-        const memoData = {
-            uid: window.currentUser.uid, title: title, content: content,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        const onComplete = () => { switchView(window.previousView); };
-
+        const memoData = { uid: window.currentUser.uid, title: title, content: content, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
         if(window.editingMemoId) {
-            db.collection('memos').doc(window.editingMemoId).update(memoData).then(onComplete);
+            db.collection('memos').doc(window.editingMemoId).update(memoData).then(() => switchView(window.previousView));
         } else {
             memoData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            db.collection('memos').add(memoData).then(onComplete);
+            db.collection('memos').add(memoData).then(() => switchView(window.previousView));
         }
     }
 
