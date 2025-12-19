@@ -1,4 +1,4 @@
-/* Story Builder V1.20 script.js - Part 1/3 */
+/* Story Builder V1.30 script.js - Part 1/3 */
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Config & State ---
     const firebaseConfig = {
@@ -31,8 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dailyHistory = [0,0,0,0,0,0,0];
     window.dragSrcEl = null;
     window.currentHistoryData = null;
-    // タイムライン編集用の一時データ
     window.tempTimelineData = [];
+    
+    // ★追加: 作品データの一時保存用（ソート高速化のため）
+    window.cachedWorksData = [];
 
     window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
 
@@ -159,31 +161,39 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCatchCounter(document.getElementById('input-catch'));
     }
 
+    // ★修正: データを一括取得してキャッシュする（ソート高速化）
     function initWorkListener() {
         if(window.unsubscribeWorks) window.unsubscribeWorks();
         if(!window.currentUser) return;
         
-        // ソートとフィルタのロジック修正
         window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid).onSnapshot(snap => {
-            const listEl = document.getElementById('work-list'); if(!listEl) return;
-            const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
-            const filterStatus = document.getElementById('filter-status').value;
-            
-            listEl.innerHTML = ''; 
-            let works = [];
-            snap.forEach(d => works.push({...d.data(), id:d.id}));
-            
-            if(filterStatus !== 'all') works = works.filter(w => w.status === filterStatus);
-            
-            works.sort((a,b) => {
-                if(a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
-                // 日付が存在しない場合のガードを追加
-                const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
-                const tB = b[sortKey] ? b[sortKey].toMillis() : 0;
-                return tB - tA;
-            });
-            works.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
+            window.cachedWorksData = [];
+            snap.forEach(d => window.cachedWorksData.push({...d.data(), id:d.id}));
+            renderWorkList(); // データ更新時に描画
         });
+    }
+
+    // ★追加: キャッシュされたデータを使って描画する（ソート・フィルタ反映）
+    window.renderWorkList = function() {
+        const listEl = document.getElementById('work-list'); if(!listEl) return;
+        const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
+        const filterStatus = document.getElementById('filter-status').value;
+        
+        listEl.innerHTML = '';
+        let works = [...window.cachedWorksData]; // 複製
+        
+        // フィルタ
+        if(filterStatus !== 'all') works = works.filter(w => w.status === filterStatus);
+        
+        // ソート
+        works.sort((a,b) => {
+            if(a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
+            const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
+            const tB = b[sortKey] ? b[sortKey].toMillis() : 0;
+            return tB - tA; // 降順
+        });
+        
+        works.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
     }
 
     function createWorkItem(id, data) {
@@ -194,7 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const pad=n=>n.toString().padStart(2,'0');
             return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
-        // 文字数を3段目に独立させて表示
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${data.isPinned?'<span style="color:#4caf50;margin-right:4px;">★</span>':''}${escapeHtml(data.title||'無題')}</div>
@@ -214,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete();};
     window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
 
-/* Story Builder V1.20 script.js - Part 2/3 */
+/* Story Builder V1.30 script.js - Part 2/3 */
 
     // --- Editor & Chapter ---
     window.initEditorToolbar = function() {
@@ -237,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {i:'置換',f:()=>window.openReplaceModal()},
             {i:'ﾙﾋﾞ',f:()=>window.insertRuby()},
             {i:'―',f:()=>window.insertDash()},
-            {i:'🕒',f:()=>window.openHistoryModal()} // ここ修正済
+            {i:'🕒',f:()=>window.openHistoryModal()}
         ];
         
         tools.forEach(t=>{if(t.s){const s=document.createElement('span');s.textContent='|';s.style.cssText="color:#555;margin:0 5px;";toolbar.appendChild(s);}else{const b=document.createElement('button');b.className='toolbar-btn';b.textContent=t.i;b.onclick=t.f;if(t.id)b.id=t.id;toolbar.appendChild(b);}});
@@ -333,9 +342,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
 
-/* Story Builder V1.40 script.js - Part 3/3 (Timeline Split UI) */
+/* Story Builder V1.30 script.js - Part 3/3 */
 
-    // --- Plot (Final UI Fix) ---
+    // --- Plot ---
     window.loadPlots = function() {
         const c=document.getElementById('plot-items-container'); if(!c||!window.currentWorkId)return;
         db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order','asc').get().then(snap=>{
@@ -344,22 +353,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d=doc.data(); const div=document.createElement('div');
                 const isTL = d.type === 'timeline';
                 div.className = 'plot-card';
-                // 表記変更: TL / メモ
-                // リスト表示: タイムラインの場合は中身を表示せず、タイトルのみのカードにする
-                const typeLabel = isTL ? 'TL' : 'メモ';
-                const labelColor = isTL ? '#ffb74d' : '#89b4fa';
-                
-                // プレビュー: メモのみ表示。TLは「日時と内容は表示させなくてOK」に従い非表示（またはタイトルのみ）
+                // TLならメモは表示しない
                 let previewHtml = "";
                 if(!isTL) {
                     previewHtml = `<div class="plot-card-preview" style="margin-top:5px;font-size:13px;color:#aaa;white-space:pre-wrap;max-height:60px;overflow:hidden;">${escapeHtml(d.content)}</div>`;
                 }
+                const label = isTL ? 'TL' : 'メモ';
+                const col = isTL ? '#ffb74d' : '#89b4fa';
 
                 div.innerHTML = `
                     <div class="plot-card-header" style="display:flex;justify-content:space-between;align-items:center;">
                         <div class="plot-card-title" style="font-weight:bold;color:${isTL?'#ddd':'#89b4fa'};">
                             ${escapeHtml(d.title||'無題')} 
-                            <span style="font-size:10px;color:${labelColor};border:1px solid ${labelColor};padding:1px 4px;border-radius:3px;margin-left:5px;">${typeLabel}</span>
+                            <span style="font-size:10px;color:${col};border:1px solid ${col};padding:1px 4px;border-radius:3px;margin-left:5px;">${label}</span>
                         </div>
                         <div class="plot-actions" style="display:flex;gap:5px;">
                             <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div>
@@ -377,12 +383,10 @@ document.addEventListener('DOMContentLoaded', () => {
         window.editingPlotId=id; 
         const t=document.getElementById('plot-edit-title'); const c=document.getElementById('plot-edit-content'); const ty=document.getElementById('plot-edit-type');
         
-        // ヘッダー
         const header = document.querySelector('#plot-edit-view .edit-overlay-header');
         header.innerHTML = `<button id="plot-edit-back" class="btn-custom btn-small">← 戻る</button><span style="font-weight:bold;">プロット編集</span><div style="width:50px;"></div>`;
         document.getElementById('plot-edit-back').onclick = () => document.getElementById('plot-edit-view').style.display='none';
 
-        // タイムラインエリア
         const body = document.querySelector('#plot-edit-view .edit-overlay-body');
         let tlArea = document.getElementById('plot-timeline-editor');
         if(!tlArea) {
@@ -390,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
             c.parentElement.insertBefore(tlArea, c.nextSibling);
         }
 
-        // フッター
         let footerBtnArea = document.getElementById('plot-footer-btns');
         if(!footerBtnArea) {
             footerBtnArea = document.createElement('div'); footerBtnArea.id = 'plot-footer-btns';
@@ -433,28 +436,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ★タイムラインUI: 日付と時間を上下に分割
+    // ★修正: プレースホルダー削除
     window.renderTimelineEditor = function() {
         const el = document.getElementById('plot-timeline-editor');
         if(window.tempTimelineData.length === 0) window.tempTimelineData.push({time:"", text:""});
         
         el.innerHTML = window.tempTimelineData.map((row, i) => {
-            // 保存された "日付 時間" 文字列を分割して表示
             let [datePart, timePart] = (row.time || "").split(' ');
-            if(!timePart) { timePart = ""; } // 時間がない場合
+            if(!timePart) { timePart = ""; }
 
             return `
             <div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden; min-height:60px;">
                 <div style="width:70px; border-right:1px solid #444; display:flex; flex-direction:column; background:#151515;">
                     <input type="text" class="tl-date-input" data-idx="${i}" value="${escapeHtml(datePart||'')}" 
-                        style="background:transparent; border:none; border-bottom:1px solid #333; color:#fff; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;" 
-                        placeholder="日付">
+                        style="background:transparent; border:none; border-bottom:1px solid #333; color:#fff; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;">
                     <input type="text" class="tl-time-input" data-idx="${i}" value="${escapeHtml(timePart||'')}" 
-                        style="background:transparent; border:none; color:#ddd; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;" 
-                        placeholder="時間">
+                        style="background:transparent; border:none; color:#ddd; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;">
                 </div>
                 <div style="flex:1; display:flex; align-items:center;">
-                    <textarea class="tl-text-input" data-idx="${i}" rows="1" placeholder="内容..."
+                    <textarea class="tl-text-input" data-idx="${i}" rows="1"
                         style="width:100%; background:transparent; border:none; color:#fff; resize:none; padding:10px; line-height:1.5; overflow:hidden; min-height:50px;">${escapeHtml(row.text)}</textarea>
                 </div>
                 <div style="width:32px; display:flex; flex-direction:column; background:#222; border-left:1px solid #444;">
@@ -465,7 +465,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
         }).join('') + `<button onclick="addTLRow()" class="btn-custom btn-full" style="margin-top:10px;">＋ 行を追加</button>`;
 
-        // 入力イベント: 日付と時間を結合して保存データ(time)にセット
         const updateTimeData = (idx) => {
             const d = el.querySelector(`.tl-date-input[data-idx="${idx}"]`).value;
             const t = el.querySelector(`.tl-time-input[data-idx="${idx}"]`).value;
@@ -474,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         el.querySelectorAll('.tl-date-input').forEach(e => e.oninput = (ev) => updateTimeData(ev.target.dataset.idx));
         el.querySelectorAll('.tl-time-input').forEach(e => e.oninput = (ev) => updateTimeData(ev.target.dataset.idx));
-        
         el.querySelectorAll('.tl-text-input').forEach(e => {
             autoResize(e);
             e.oninput = (ev) => {
@@ -484,11 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    function autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-    }
-
+    function autoResize(textarea) { textarea.style.height='auto'; textarea.style.height=textarea.scrollHeight+'px'; }
     window.addTLRow = () => { window.tempTimelineData.push({time:"", text:""}); renderTimelineEditor(); };
     window.deleteTLRow = (i) => { window.tempTimelineData.splice(i, 1); renderTimelineEditor(); };
     window.moveTLRow = (i, dir) => {
@@ -502,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let finalContent = "";
         if(ty === 'timeline') { finalContent = JSON.stringify(window.tempTimelineData); } 
         else { finalContent = document.getElementById('plot-edit-content').value; }
-        
         const d={title:t, content:finalContent, type:ty, updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
         if(window.editingPlotId) await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(d);
         else { const s=await db.collection('works').doc(window.currentWorkId).collection('plots').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('plots').add(d); }
@@ -511,7 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deletePlotItem = async function() { if(window.editingPlotId && confirm("削除しますか？")){ await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete(); document.getElementById('plot-edit-view').style.display='none'; loadPlots(); } };
     window.movePlot = async function(id, dir) { await moveItem('plots', id, dir); loadPlots(); };
 
-    // --- Stats & Utils (Unchanged) ---
+    // --- Stats & Others ---
     window.loadDailyLog = async function() {
         if(!window.currentUser) return;
         let p=[], l=[]; 
@@ -586,8 +579,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('plot-add-new-btn',()=>openPlotEditor(null)); bindClick('char-add-new-btn',()=>openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',saveCharItem); bindClick('char-edit-delete',deleteCharItem);
     
     document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.getAttribute('data-tab'))));
-    const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',initWorkListener);
-    const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',initWorkListener);
+    // ★修正: イベントリスナーを新しい描画関数に紐づけ
+    const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',renderWorkList);
+    const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',renderWorkList);
     const edEl=document.getElementById('main-editor');if(edEl)edEl.addEventListener('input',()=>{updateCharCount();trackDailyProgress();});
     const cEl=document.getElementById('input-catch');if(cEl)cEl.addEventListener('input',function(){updateCatchCounter(this);});
     const iconInput=document.getElementById('char-icon-input');
