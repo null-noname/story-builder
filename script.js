@@ -1,6 +1,6 @@
-/* Story Builder V0.20 script.js */
+/* Story Builder V0.21 script.js */
 
-// --- Firebase Config (そのまま) ---
+// --- Firebase Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
   authDomain: "story-builder-app.firebaseapp.com",
@@ -64,7 +64,12 @@ function switchView(name) {
 
 document.getElementById('diary-widget').addEventListener('click', () => switchView('stats'));
 document.getElementById('btn-common-memo').addEventListener('click', () => switchView('memo'));
-document.getElementById('back-to-top').addEventListener('click', () => { saveCurrentWork(true); });
+
+// ★修正: 戻るボタンは「TOPへ戻る」動作を伴う保存
+document.getElementById('back-to-top').addEventListener('click', () => { 
+    saveCurrentWork('top'); 
+});
+
 document.getElementById('back-from-stats').addEventListener('click', () => switchView('top'));
 document.getElementById('back-from-memo').addEventListener('click', () => switchView('top'));
 
@@ -93,7 +98,9 @@ function loadWorks() {
         let worksData = [];
         snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
         
-        if(filterStatus !== 'all') worksData = worksData.filter(w => w.status === filterStatus);
+        if(filterStatus !== 'all') {
+            worksData = worksData.filter(w => w.status === filterStatus);
+        }
         
         worksData.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
@@ -115,7 +122,6 @@ function createWorkItem(id, data) {
         return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
     };
 
-    // ★修正: スマホで見やすい縦並びレイアウトに変更
     div.innerHTML = `
         <div class="work-info" onclick="openWork('${id}')">
             <div class="work-title">${data.isPinned ? '★ ' : ''}${escapeHtml(data.title || '無題')}</div>
@@ -164,10 +170,16 @@ function fillWorkspace(data) {
     loadMemoListForWorkspace(); 
 }
 
-document.getElementById('save-work-info-btn').addEventListener('click', () => saveCurrentWork(true));
-document.getElementById('quick-save-btn').addEventListener('click', () => saveCurrentWork(false));
+// ★修正: リスナーに関数を正しく渡す（ここがバグの原因でした）
+// 作品情報の保存 (アラートなしで保存)
+document.getElementById('save-work-info-btn').addEventListener('click', () => saveCurrentWork());
+// 一時保存 (アラートありで保存)
+document.getElementById('quick-save-btn').addEventListener('click', () => saveCurrentWork(null, true));
 
-function saveCurrentWork(silent = false) {
+// 保存関数
+// nextViewName: 保存後に遷移する画面ID (nullなら遷移しない)
+// showAlert: アラートを出すかどうか
+function saveCurrentWork(nextViewName = null, showAlert = false) {
     if(!currentWorkId) return;
     const content = document.getElementById('main-editor').value;
     
@@ -196,13 +208,10 @@ function saveCurrentWork(silent = false) {
     };
     
     db.collection('works').doc(currentWorkId).update(data).then(() => {
-        if(silent) {
-            if(document.getElementById('workspace-view').style.display !== 'none' && event.target.id === 'back-to-top') {
-               switchView('top'); 
-            }
-        } else {
-            // silent=falseでも通知なしにする場合
-            // alert("保存しました"); 
+        if(nextViewName) {
+            switchView(nextViewName);
+        } else if (showAlert) {
+            alert("保存しました");
         }
     });
 }
@@ -225,8 +234,9 @@ function updateCharCount() {
 document.getElementById('input-catch').addEventListener('input', function() { updateCatchCounter(this); });
 function updateCatchCounter(el) {
     const remain = 35 - el.value.length;
+    // ★修正: c-count要素内を書き換える
     const c = document.getElementById('c-count');
-    c.textContent = `残り ${remain} 文字`;
+    c.textContent = `(残り${remain}文字)`;
     c.style.color = remain < 0 ? '#ff6b6b' : '#89b4fa';
 }
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -340,7 +350,9 @@ function saveMemo() {
 
 function loadStats() {
     db.collection('works').where('uid', '==', currentUser.uid).get().then(snap => {
-        document.getElementById('stat-works').innerHTML = `${snap.size}<span class="unit">作品</span>`;
+        let workCount = 0;
+        snap.forEach(d => { if(!d.data().isSystem) workCount++; });
+        document.getElementById('stat-works').innerHTML = `${workCount}<span class="unit">作品</span>`;
     });
 }
 function renderChart() {

@@ -30,11 +30,11 @@
                         <div class="diary-content">
                             <div class="diary-row">
                                 <span class="diary-label">今日</span>
-                                <span class="diary-val"><span id="widget-today-count">0</span><span class="unit">字</span></span>
+                                <span class="diary-val" id="widget-today-count">0<span class="unit">字</span></span>
                             </div>
                             <div class="diary-row">
                                 <span class="diary-label">7日間</span>
-                                <span class="diary-val"><span id="widget-weekly-count">0</span><span class="unit">字</span></span>
+                                <span class="diary-val" id="widget-weekly-count">0<span class="unit">字</span></span>
                             </div>
                         </div>
                     </div>
@@ -64,7 +64,7 @@
             </div>
 
             <div id="workspace-view" style="display:none; height:100%; flex-direction:column;">
-                <button id="back-to-top" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">保存して戻る</button>
+                <button id="back-to-top" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">保存</button>
                 <div class="tab-bar">
                     <button class="btn-custom tab-btn active" data-tab="tab-info">作品情報</button>
                     <button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button>
@@ -77,9 +77,10 @@
                     <div class="form-group"><label>タイトル</label><input type="text" id="input-title"></div>
                     <div class="form-group"><label>あらすじ</label><textarea id="input-summary" rows="4"></textarea></div>
                     <div class="form-group">
-                        <label>キャッチコピー</label>
+                        <label style="display:flex; justify-content:space-between;">
+                            キャッチコピー <span id="c-count" style="font-weight:normal; color:var(--accent-blue); font-size:0.9em;">(残り35文字)</span>
+                        </label>
                         <input type="text" id="input-catch" maxlength="35">
-                        <div id="c-count" style="text-align:right; font-size:14px; color:var(--accent-blue);">残り 35 文字</div>
                     </div>
                     <div style="display:flex; gap:10px; margin-bottom:20px;">
                         <div style="flex:1;"><label>メインジャンル</label><input type="text" id="input-genre-main"></div>
@@ -117,7 +118,7 @@
             <div id="stats-view" class="screen scrollable" style="display:none;">
                 <button id="back-from-stats" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">← 戻る</button>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <div style="font-size: 20px; font-weight:bold; color: var(--text-white);">執筆推移</div>
+                    <div style="font-size: 20px; font-weight:bold; color: var(--text-white);">執筆文字数の推移</div>
                     <select id="stat-range" class="filter-select" style="width:100px;"><option value="7">7日間</option><option value="30">1か月</option></select>
                 </div>
                 <div style="background: rgba(0,0,0,0.2); padding:10px; border-radius:10px; margin-bottom: 20px; border: 1px solid #333; min-height: 200px;">
