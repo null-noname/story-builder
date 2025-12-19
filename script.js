@@ -1,4 +1,4 @@
-/* Story Builder V0.29 script.js */
+/* Story Builder V0.30 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingMemoId = null; 
     window.previousView = 'top';
     window.charCountMode = 'total'; 
+    
+    // リスナー解除用関数を保持
+    window.unsubscribeWorks = null;
 
     const views = {
         top: document.getElementById('top-view'),
@@ -52,8 +55,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if(loginScreen) loginScreen.style.display = 'none';
             if(mainApp) mainApp.style.display = 'block';
             
-            // ★追加: リロード前の状態を復元
-            await restoreAppState();
+            // ★修正: リロード復帰処理
+            const lastView = localStorage.getItem('sb_last_view');
+            if (lastView === 'workspace') {
+                const lastWork = localStorage.getItem('sb_last_work');
+                const lastChapter = localStorage.getItem('sb_last_chapter');
+                const lastTab = localStorage.getItem('sb_last_tab') || 'tab-editor';
+                
+                if (lastWork) {
+                    // 作品を開き、完了後に章を選択
+                    await openWork(lastWork, lastTab);
+                    if (lastChapter) {
+                        // 少し待ってから章を選択（リスト生成待ち）
+                        setTimeout(() => {
+                            const item = document.querySelector(`.chapter-item[data-id="${lastChapter}"]`);
+                            if(item) item.click();
+                        }, 500);
+                    }
+                } else {
+                    switchView('top');
+                }
+            } else if (lastView) {
+                switchView(lastView);
+            } else {
+                switchView('top');
+            }
+
         } else {
             window.currentUser = null;
             if(loginScreen) loginScreen.style.display = 'flex';
@@ -61,40 +88,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ★追加: 状態保存機能
+    // 状態保存
     function saveAppState(viewName) {
         if(!viewName) return;
         localStorage.setItem('sb_last_view', viewName);
         if(window.currentWorkId) localStorage.setItem('sb_last_work', window.currentWorkId);
         if(window.currentChapterId) localStorage.setItem('sb_last_chapter', window.currentChapterId);
-        
-        // 現在のアクティブタブも保存
         const activeTab = document.querySelector('.tab-btn.active');
         if(activeTab) localStorage.setItem('sb_last_tab', activeTab.getAttribute('data-tab'));
-    }
-
-    // ★追加: 状態復元機能
-    async function restoreAppState() {
-        const lastView = localStorage.getItem('sb_last_view');
-        const lastWork = localStorage.getItem('sb_last_work');
-        const lastChapter = localStorage.getItem('sb_last_chapter');
-        const lastTab = localStorage.getItem('sb_last_tab');
-
-        if (lastView === 'workspace' && lastWork) {
-            // ワークスペースへの復帰試行
-            await openWork(lastWork, lastTab); // タブ指定で開く
-            if(lastChapter) {
-                // 章のロードを待ってから選択したいが、簡易的にIDセット
-                // loadChapters内で自動選択されるロジックと競合しないよう調整
-                // ここではwindow.currentChapterIdにはセットせず、loadChapters完了後に選択するような仕組みが必要
-                // 今回はシンプルに、loadChaptersが呼ばれた後に自動選択させるため、グローバル変数に入れておく
-                window.pendingChapterId = lastChapter; 
-            }
-        } else if (lastView) {
-            switchView(lastView);
-        } else {
-            switchView('top');
-        }
     }
 
     window.switchView = function(name) {
@@ -102,14 +103,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (views[name]) {
             views[name].style.display = 'flex';
             if(name === 'top') {
-                loadWorks();
-                window.currentWorkId = null; // TOPに戻ったらクリア
+                initWorkListener(); // リアルタイム監視開始
+                window.currentWorkId = null;
+            } else {
+                // TOP以外では監視解除（無駄な通信削減）
+                if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
             }
+            
             if(name === 'memo') loadMemoList();
             if(name === 'stats') { loadStats(); renderChart(); }
             if(name === 'workspace') loadMemoListForWorkspace(); 
             
-            saveAppState(name); // 画面切り替え時に保存
+            saveAppState(name);
         }
     };
 
@@ -139,9 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const sortEl = document.getElementById('sort-order');
-    if(sortEl) sortEl.addEventListener('change', loadWorks);
+    if(sortEl) sortEl.addEventListener('change', initWorkListener); // ソート変更時もリスナー再設定
     const filterEl = document.getElementById('filter-status');
-    if(filterEl) filterEl.addEventListener('change', loadWorks);
+    if(filterEl) filterEl.addEventListener('change', initWorkListener);
+    
     const editorEl = document.getElementById('main-editor');
     if(editorEl) editorEl.addEventListener('input', updateCharCount);
     const catchEl = document.getElementById('input-catch');
@@ -155,22 +161,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const contentId = btn.getAttribute('data-tab');
             const contentEl = document.getElementById(contentId);
             if(contentEl) contentEl.style.display = (contentId === 'tab-editor') ? 'flex' : 'block';
-            
-            saveAppState('workspace'); // タブ切り替えも保存
+            saveAppState('workspace');
         });
     });
 
-    // --- Editor Toolbar & Chapter UI Init ---
     function initEditorToolbar() {
         const editorTab = document.getElementById('tab-editor');
         if(!editorTab) return;
 
         editorTab.innerHTML = ''; 
         editorTab.style.flexDirection = 'row'; 
-        // スマホ用クラス初期化
         editorTab.classList.remove('mobile-editor-active');
 
-        // 左カラム: 章リスト
+        // サイドバー
         const sidebar = document.createElement('div');
         sidebar.className = 'chapter-sidebar';
         sidebar.innerHTML = `
@@ -179,17 +182,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="btn-custom btn-small" id="add-chapter-btn" style="padding:2px 8px;">＋</button>
             </div>
             <div id="chapter-list" class="chapter-list scrollable"></div>
-            <div class="sidebar-footer">
-                <small id="total-work-chars">合計: 0文字</small>
-            </div>
+            <div class="sidebar-footer"><small id="total-work-chars">合計: 0文字</small></div>
         `;
         editorTab.appendChild(sidebar);
 
-        // 右カラム: エディタエリア
+        // メインエリア
         const mainArea = document.createElement('div');
         mainArea.className = 'editor-main-area';
         
-        // ツールバー
+        // ヘッダー
         const header = document.createElement('div');
         header.className = 'editor-header';
         
@@ -197,9 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
         toolbar.className = 'editor-toolbar';
         
         const tools = [
-            // ★追加: スマホ用「一覧へ戻る」ボタン
-            { id: 'btn-mobile-back', icon: '🔙', action: showMobileChapterList, mobileOnly: true },
-            { spacer: true, mobileOnly: true },
             { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
@@ -215,12 +213,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if(t.spacer) {
                 const sp = document.createElement('div');
                 sp.style.width = '10px'; sp.style.flexShrink = '0';
-                if(t.mobileOnly) sp.classList.add('mobile-only'); // CSSで制御
                 toolbar.appendChild(sp);
             } else {
                 const btn = document.createElement('button');
                 btn.className = 'toolbar-btn';
-                if(t.mobileOnly) btn.classList.add('mobile-only');
                 if(t.id) btn.id = t.id;
                 btn.textContent = t.icon;
                 btn.onclick = t.action;
@@ -228,16 +224,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // 文字数表示
         const counter = document.createElement('div');
         counter.className = 'char-count-display';
         counter.id = 'editor-char-counter';
         counter.onclick = toggleCharCountMode;
         counter.textContent = '0文字';
 
+        // ★修正: 戻るボタン（🔙）を文字数の右横に配置
+        const backBtn = document.createElement('button');
+        backBtn.className = 'toolbar-btn mobile-only';
+        backBtn.textContent = '🔙';
+        backBtn.style.marginLeft = '8px';
+        backBtn.onclick = showMobileChapterList;
+
         header.appendChild(toolbar);
         header.appendChild(counter);
+        header.appendChild(backBtn); // 右端に追加
 
-        // エディタ本体
         const editorContainer = document.createElement('div');
         editorContainer.id = 'editor-container';
         editorContainer.style.cssText = "flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;";
@@ -260,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('main-editor').addEventListener('input', updateCharCount);
     }
 
-    // ★追加: スマホ用画面切り替えロジック
     function showMobileEditor() {
         const editorTab = document.getElementById('tab-editor');
         if(window.innerWidth <= 600 && editorTab) {
@@ -301,7 +304,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!parent) return;
         const ruby = prompt("ふりがなを入力してください");
         if(!ruby) return;
-        insertTextAtCursor(`|${parent}《${ruby}》`);
+        // ★修正: ルビ記号を全角縦線に変更
+        insertTextAtCursor(`｜${parent}《${ruby}》`);
     }
 
     function insertDash() { insertTextAtCursor('――'); }
@@ -310,8 +314,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.charCountMode = (window.charCountMode === 'total') ? 'pure' : 'total';
         updateCharCount();
     }
-
-    // --- Work & Chapter Management ---
 
     async function createNewWork() {
         if (!window.currentUser) return;
@@ -324,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try { 
             const doc = await db.collection('works').add(newWork); 
             await db.collection('works').doc(doc.id).collection('chapters').add({
-                title: "第1話", // ★修正: 自動移行という文字を削除
+                title: "第1話", // ★修正: シンプルなタイトル
                 content: "",
                 order: 1,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -333,11 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); }
     }
 
-    // initTab: 初期表示するタブID (リロード復帰用)
+    // openWorkはPromiseを返す（await対応）
     window.openWork = async function(id, initTab = 'tab-info') {
         window.currentWorkId = id;
         window.currentChapterId = null;
-        saveAppState('workspace'); // 開いた時点で保存
+        saveAppState('workspace');
 
         const workDoc = await db.collection('works').doc(id).get();
         if(!workDoc.exists) return;
@@ -350,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const chaptersSnap = await db.collection('works').doc(id).collection('chapters').get();
             if (chaptersSnap.empty) {
                 await db.collection('works').doc(id).collection('chapters').add({
-                    title: "第1話", // ★修正
+                    title: "第1話",
                     content: data.content,
                     order: 1,
                     updatedAt: new Date()
@@ -359,10 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        loadChapters();
+        // 章リスト読み込み完了を待つ
+        await loadChapters();
         switchView('workspace');
 
-        // 指定タブを開く
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
         const targetBtn = document.querySelector(`.tab-btn[data-tab="${initTab}"]`);
@@ -372,11 +374,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function loadChapters() {
-        if(!window.currentWorkId) return;
+        if(!window.currentWorkId) return Promise.resolve();
         const listEl = document.getElementById('chapter-list');
         listEl.innerHTML = '<div style="padding:10px; color:#aaa;">読み込み中...</div>';
 
-        db.collection('works').doc(window.currentWorkId).collection('chapters')
+        return db.collection('works').doc(window.currentWorkId).collection('chapters')
           .orderBy('order', 'asc')
           .get().then(snap => {
               listEl.innerHTML = '';
@@ -396,6 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   chapters.forEach(ch => {
                       const item = document.createElement('div');
                       item.className = 'chapter-item';
+                      item.setAttribute('data-id', ch.id); // リロード復帰用にIDを属性付与
                       if(window.currentChapterId === ch.id) item.classList.add('active');
                       
                       const title = document.createElement('span');
@@ -411,48 +414,24 @@ document.addEventListener('DOMContentLoaded', () => {
                       item.onclick = () => selectChapter(ch.id, ch);
                       listEl.appendChild(item);
                   });
-                  
-                  // 自動選択ロジック（リロード復帰または先頭）
-                  if (window.pendingChapterId) {
-                      const target = chapters.find(c => c.id === window.pendingChapterId);
-                      if(target) {
-                          selectChapter(target.id, target);
-                          if(window.innerWidth <= 600) showMobileEditor(); // スマホならエディタ表示
-                      }
-                      window.pendingChapterId = null;
-                  } else if (!window.currentChapterId && chapters.length > 0) {
-                      // 初回ロード時はあえてselectChapterを呼ばず、リスト表示のままにする（PCなら呼んでもいいがスマホ考慮）
-                      // PCの場合は先頭を選んでおくと親切
-                      if(window.innerWidth > 600) {
-                          selectChapter(chapters[0].id, chapters[0]);
-                      }
-                  }
               }
           });
     }
 
     function selectChapter(id, data) {
         window.currentChapterId = id;
-        saveAppState('workspace'); // 選択した章も保存
+        saveAppState('workspace');
 
         document.getElementById('main-editor').value = data.content || "";
         updateCharCount();
         
-        // ハイライト更新
         const items = document.querySelectorAll('.chapter-item');
-        items.forEach(el => el.classList.remove('active'));
-        // 簡易的に再ロードせず、クリックされた要素が特定できないため、再ロードはしない
-        // 本来はelementを渡すべきだが、今回はloadChaptersで再描画が一番確実
-        // ただ、スマホ遷移のためにここで画面切り替えを行う
+        items.forEach(el => {
+            el.classList.remove('active');
+            if(el.getAttribute('data-id') === id) el.classList.add('active');
+        });
+        
         showMobileEditor();
-
-        // ハイライトのため再描画（少し非効率だがバグが少ない）
-        // ただしユーザー操作のレスポンスを良くするため、loadChaptersは呼ばずに済ませたいが、
-        // 既存の仕組み上、loadChaptersを呼んで再構築するのが無難
-        // ここでは、再描画せずに済むように工夫はしないでおく（リクエスト優先）
-        // ★修正: リスト再描画はせず、見た目だけ変えたいが、DOM要素への参照がないので
-        // 一旦loadChaptersを呼ぶ（一瞬ちらつくが許容）
-        loadChapters();
     }
 
     async function addNewChapter() {
@@ -490,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
               content: content,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           }).then(() => {
-              loadChapters();
+              loadChapters(); // リストの文字数更新
               if(nextViewName) switchView(nextViewName);
               else if (showAlert) alert("保存しました");
           });
@@ -534,18 +513,27 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCatchCounter(document.getElementById('input-catch'));
     }
 
-    function loadWorks() {
+    // ★修正: リアルタイムリスナーによる作品リスト取得
+    function initWorkListener() {
+        if(window.unsubscribeWorks) window.unsubscribeWorks(); // 既存のリスナーがあれば解除
         if (!window.currentUser) return;
+
         const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
         const filterStatus = document.getElementById('filter-status').value;
         
-        db.collection('works').where('uid', '==', window.currentUser.uid).get().then(snapshot => {
+        let query = db.collection('works').where('uid', '==', window.currentUser.uid);
+        // Firestoreの複合クエリ制限回避のため、ソートはJS側で行う方針（またはインデックス作成が必要）
+        // ここでは全件取得してJSでフィルタ・ソートする安全策をとる
+        
+        window.unsubscribeWorks = query.onSnapshot(snapshot => {
             const listEl = document.getElementById('work-list');
             if(!listEl) return;
             listEl.innerHTML = '';
             let worksData = [];
             snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
+            
             if(filterStatus !== 'all') worksData = worksData.filter(w => w.status === filterStatus);
+            
             worksData.sort((a, b) => {
                 if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
                 const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
@@ -555,6 +543,8 @@ document.addEventListener('DOMContentLoaded', () => {
             worksData.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
         });
     }
+    // 後方互換のためloadWorksも定義しておくが、実際はinitWorkListenerを使う
+    function loadWorks() { initWorkListener(); }
 
     function createWorkItem(id, data) {
         const div = document.createElement('div');
@@ -587,8 +577,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return div;
     }
 
-    window.deleteWork = function(e, id) { e.stopPropagation(); if(confirm("削除しますか？")) db.collection('works').doc(id).delete().then(loadWorks); };
-    window.togglePin = function(e, id, newState) { e.stopPropagation(); db.collection('works').doc(id).update({ isPinned: newState }).then(loadWorks); };
+    window.deleteWork = function(e, id) { e.stopPropagation(); if(confirm("削除しますか？")) db.collection('works').doc(id).delete(); };
+    window.togglePin = function(e, id, newState) { e.stopPropagation(); db.collection('works').doc(id).update({ isPinned: newState }); };
 
     function updateCharCount() { 
         const text = document.getElementById('main-editor').value;

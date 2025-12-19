@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.29 */
+/* style.css - Story Builder V0.30 */
 
 :root {
     --bg-color: #202020; 
@@ -238,7 +238,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .toolbar-btn:hover { background: #555; }
 .toolbar-btn:active { transform: scale(0.95); }
 
-/* モバイルのみ表示する要素（デフォルトは非表示） */
+/* モバイルのみ表示する要素 */
 .mobile-only { display: none !important; }
 
 .char-count-display {
@@ -318,44 +318,37 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     .list-header { flex-direction: row; align-items: center; }
     .work-item { padding: 10px 12px; }
     
-    /* モバイルでは章一覧とエディタを切り替える */
     #tab-editor { 
         flex-direction: column !important; 
         position: relative; 
-        overflow: hidden; /* 横スクロール防止 */
+        overflow: hidden; 
     }
 
-    /* デフォルト：章一覧を表示 */
     .chapter-sidebar {
         width: 100%;
         height: 100%;
         margin-right: 0;
         margin-bottom: 0;
-        display: flex; /* 表示 */
+        display: flex; 
     }
     .editor-main-area {
-        display: none; /* 初期は非表示 */
+        display: none; 
     }
 
-    /* エディタモード時：章一覧を隠してエディタを表示 */
-    .mobile-editor-active .chapter-sidebar {
-        display: none;
-    }
-    .mobile-editor-active .editor-main-area {
-        display: flex;
-        height: 100%;
-    }
+    /* エディタモード */
+    .mobile-editor-active .chapter-sidebar { display: none; }
+    .mobile-editor-active .editor-main-area { display: flex; height: 100%; }
 
-    /* モバイル専用ボタンを表示 */
+    /* モバイル専用ボタン */
     .mobile-only { display: block !important; }
 
-    /* ★修正: ツールバーボタンを小さくして溢れ防止 */
+    /* ボタンサイズ縮小 */
     .toolbar-btn {
-        font-size: 14px; /* 小さく */
+        font-size: 14px; 
         padding: 4px 6px;
     }
     .char-count-display {
-        font-size: 10px; /* 文字数も小さく */
+        font-size: 10px; 
         min-width: 50px;
     }
 }
