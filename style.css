@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.21 */
+/* style.css - Story Builder V0.22 */
 
 :root {
     --bg-color: #202020; 
@@ -11,7 +11,6 @@
     --danger-red: #d32f2f;
     --input-bg: #1a1a1a;
     --border-color: #555;
-    /* アプリで見やすいフォント */
     --font-ui: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     --font-editor: "MS Gothic", "MS ゴシック", monospace; 
 }
@@ -35,13 +34,13 @@ body {
 }
 hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
 
-/* ボタン */
+/* ボタン共通 */
 .btn-custom {
     background: var(--btn-bg); color: var(--text-white);
     border: 1px solid #555; padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 6px;
 }
 .btn-custom:active, .btn-custom.active { background: var(--active-green) !important; }
-/* ★修正: 反映ボタンの中央揃えを確実に */
+
 .btn-full { width: 100%; height: 42px; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; justify-content: center; }
 .btn-small { padding: 5px 12px; font-size: 12px; }
 
@@ -58,9 +57,7 @@ hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
 .diary-content { display: flex; flex-direction: column; gap: 5px; }
 .diary-row { display: flex; justify-content: space-between; align-items: baseline; }
 .diary-label { font-size: 13px; color: #aaa; }
-/* ★修正: 数字は青く */
 .diary-val { font-size: 18px; font-weight: bold; color: var(--accent-blue); }
-/* ★修正: 単位は白く */
 .diary-val .unit { font-size: 12px; color: var(--text-white); margin-left: 2px; }
 
 .top-buttons { width: 140px; display: flex; flex-direction: column; gap: 5px; }
@@ -71,33 +68,72 @@ hr { border: 0; border-top: 1px solid #444; margin: 10px 0; width: 100%; }
 .filter-select { background: var(--input-bg); color: #fff; border: 1px solid #555; padding: 6px; border-radius: 4px; font-size: 13px; }
 .work-list-container { flex: 1; overflow-y: auto; padding-bottom: 20px; }
 
-/* ★修正: 作品カードを横並び・スリム化 */
+/* --- 作品カードUI修正 --- */
 .work-item {
-    background: #2a2a2a; padding: 8px 12px; margin-bottom: 8px;
-    border-radius: 8px; border: 1px solid #444;
-    border-left: 4px solid #fff;
-    display: flex; /* 横並びにする */
-    flex-direction: row; 
+    background: #2a2a2a; /* 背景色 */
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    border: 1px solid #555;
+    border-left: 5px solid #fff; /* 通常は白線 */
+    display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    min-height: 64px;
 }
-/* ★修正: ピン留めの色を緑に */
-.work-item.pinned { border-left-color: var(--accent-green); }
-
-.work-info { 
-    cursor: pointer; 
-    flex: 1; /* 余白を埋める */
-}
-.work-title { font-size: 17px; font-weight: bold; color: #fff; margin-bottom: 2px; }
-.work-meta { font-size: 12px; color: #aaa; line-height: 1.4; }
-
-/* ★修正: ボタン類を右端に配置 */
-.work-actions { 
-    display: flex; gap: 8px; 
-    justify-content: flex-end; 
-    margin-top: 0; /* マージン削除 */
+.work-item.pinned {
+    border-left-color: var(--accent-green); /* ピン留めで緑線 */
 }
 
+.work-info {
+    cursor: pointer;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+}
+
+.work-title {
+    font-size: 17px;
+    font-weight: bold;
+    color: #fff;
+    display: flex;
+    align-items: center;
+}
+
+.work-meta {
+    font-size: 12px;
+    color: #aaa; /* グレー */
+    display: flex;
+    align-items: center;
+}
+
+.work-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* カード内ボタンのスタイル調整（画像3枚目に合わせる） */
+.btn-card-action {
+    background: transparent;
+    border: 1px solid #666; /* 枠線あり */
+    color: #ddd;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+.btn-card-action:hover {
+    background: #333;
+}
+.btn-card-delete {
+    color: #ff8888; /* 削除は赤文字 */
+}
+
+/* --- フォーム等 --- */
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 6px; color: #ddd; font-size: 14px; font-weight: bold; }
 input, textarea, select.form-control {
@@ -140,7 +176,6 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     background: #2a2a2a; border: 1px solid #444; padding: 15px; border-radius: 8px; flex: 1;
     display: flex; flex-direction: column; align-items: center;
 }
-/* ★修正: 統計カードの数値青、単位白 */
 .stats-card .value { font-size: 24px; font-weight: bold; color: var(--accent-blue); }
 .stats-card .unit { font-size: 14px; color: var(--text-white); margin-left: 2px; font-weight: normal; }
 
