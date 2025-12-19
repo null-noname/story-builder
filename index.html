@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ストーリービルダー</title>
-    <link rel="stylesheet" href="style.css?v=0.58">
+    <link rel="stylesheet" href="style.css?v=0.60">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -71,7 +71,6 @@
                     <button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button>
                     <button class="btn-custom tab-btn" data-tab="tab-plot">プロット</button>
                     <button class="btn-custom tab-btn" data-tab="tab-char">登場人物</button>
-                    <button class="btn-custom tab-btn" data-tab="tab-settings">設定</button>
                     <button class="btn-custom tab-btn" data-tab="tab-common-memo">共通メモ</button> 
                 </div>
 
@@ -98,35 +97,13 @@
                 <div id="tab-editor" class="tab-content" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
                     </div>
 
-                <div id="tab-plot" class="tab-content" style="display:none; flex:1;"><textarea id="plot-editor" class="main-textarea" style="height:100%;"></textarea></div>
-                <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" class="main-textarea" style="height:100%;"></textarea></div>
-                
-                <div id="tab-settings" class="tab-content" style="display:none; flex:1; overflow-y:auto;">
-                    <div class="settings-section">
-                        <h3>執筆エディタ設定</h3>
-                        <div class="setting-row">
-                            <label>文字サイズ: <span id="val-editor-font">16</span>px</label>
-                            <input type="range" id="set-editor-font" min="10" max="30" step="1">
-                        </div>
-                        <div class="setting-row">
-                            <label>行間: <span id="val-editor-line">1.8</span></label>
-                            <input type="range" id="set-editor-line" min="1.0" max="3.0" step="0.1">
-                        </div>
-                    </div>
-                    <div class="settings-section">
-                        <h3>プレビュー設定 (閲覧・PDF)</h3>
-                        <div class="setting-row">
-                            <label>文字サイズ: <span id="val-preview-font">18</span>px</label>
-                            <input type="range" id="set-preview-font" min="10" max="40" step="1">
-                        </div>
-                        <div class="setting-row">
-                            <label>行間: <span id="val-preview-line">2.0</span></label>
-                            <input type="range" id="set-preview-line" min="1.0" max="3.0" step="0.1">
-                        </div>
-                    </div>
-                    <button id="save-settings-btn" class="btn-custom btn-full btn-green" style="margin-top:20px;">設定を保存</button>
+                <div id="tab-plot" class="tab-content" style="display:none; flex:1; flex-direction:column;">
+                    <button id="plot-add-btn" class="memo-add-btn" style="margin-bottom:10px;">＋ 新しいプロットを追加</button>
+                    <div id="plot-list-container" class="scrollable" style="flex:1;"></div>
                 </div>
 
+                <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" class="main-textarea" style="height:100%;"></textarea></div>
+                
                 <div id="tab-common-memo" class="tab-content" style="display:none; flex:1; flex-direction:column;">
                     <button id="ws-add-new-memo-btn" class="memo-add-btn" style="margin-bottom:10px;">＋ 新しいメモを追加</button>
                     <div id="ws-memo-list-container" class="scrollable" style="flex:1;"></div>
@@ -208,78 +185,45 @@
         </div>
     </div>
 
+    <div id="plot-editor-modal" class="preview-modal" style="display:none;">
+        <div class="preview-toolbar">
+            <button id="plot-close-btn" class="btn-custom">閉じる</button>
+            <div style="color:#fff; font-weight:bold;">プロット編集</div>
+            <button id="plot-save-btn" class="btn-green">保存</button>
+        </div>
+        <div style="padding:15px; display:flex; flex-direction:column; height:100%; background:var(--bg-color);">
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <input type="text" id="plot-input-title" placeholder="タイトル" style="flex:1; font-weight:bold;">
+                <select id="plot-input-type" class="filter-select" style="width:120px;">
+                    <option value="memo">メモ</option>
+                    <option value="timeline">タイムライン</option>
+                </select>
+            </div>
+            <textarea id="plot-input-content" class="main-textarea" style="flex:1; height:100%;" placeholder="プロット内容..."></textarea>
+            <button id="plot-delete-btn" class="btn-red" style="margin-top:10px; align-self:flex-start;">このプロットを削除</button>
+        </div>
+    </div>
+
     <div id="editor-settings-modal" class="settings-modal-overlay" style="display:none;">
         <div class="settings-modal-card">
             <div class="settings-header">字間・行間の設定</div>
             <div class="settings-desc">お好みの画面設定が可能です。</div>
-            
-            <div class="settings-row">
-                <label>文字の間隔</label>
-                <div class="settings-input-group">
-                    <input type="number" id="es-letter-spacing" step="0.1" value="0">
-                    <span>倍</span>
-                </div>
-            </div>
-            <div class="settings-row">
-                <label>行の間隔</label>
-                <div class="settings-input-group">
-                    <input type="number" id="es-line-height" step="0.1" value="1.8">
-                    <span>倍</span>
-                </div>
-            </div>
-            <div class="settings-row">
-                <label>文章の幅</label>
-                <div class="settings-input-group">
-                    <input type="number" id="es-width" value="100">
-                    <span>%</span>
-                </div>
-            </div>
-            <div class="settings-row">
-                <label>フォントサイズ</label>
-                <div class="settings-input-group">
-                    <input type="number" id="es-font-size" value="16">
-                    <span>Pt</span>
-                </div>
-            </div>
-
-            <div class="settings-footer">
-                <button id="es-cancel" class="settings-btn-cancel">キャンセル</button>
-                <button id="es-save" class="settings-btn-save">変更する</button>
-            </div>
+            <div class="settings-row"><label>文字の間隔</label><div class="settings-input-group"><input type="number" id="es-letter-spacing" step="0.1" value="0"><span>倍</span></div></div>
+            <div class="settings-row"><label>行の間隔</label><div class="settings-input-group"><input type="number" id="es-line-height" step="0.1" value="1.8"><span>倍</span></div></div>
+            <div class="settings-row"><label>文章の幅</label><div class="settings-input-group"><input type="number" id="es-width" value="100"><span>%</span></div></div>
+            <div class="settings-row"><label>フォントサイズ</label><div class="settings-input-group"><input type="number" id="es-font-size" value="16"><span>Pt</span></div></div>
+            <div class="settings-footer"><button id="es-cancel" class="settings-btn-cancel">キャンセル</button><button id="es-save" class="settings-btn-save">変更する</button></div>
         </div>
     </div>
 
     <div id="preview-settings-modal" class="settings-modal-overlay" style="display:none;">
         <div class="settings-modal-card">
             <div class="settings-header">原稿の設定</div>
-            <div class="settings-desc">縦書きプレビューで表示する文字数のレイアウトや原稿用紙換算での文字数を設定できます。</div>
-            
-            <div class="settings-row-col">
-                <label>縦の文字数</label>
-                <div class="settings-input-group-left">
-                    <input type="number" id="ps-vertical-chars" min="16" max="50" value="20">
-                    <span>字 (16~50字)</span>
-                </div>
-            </div>
-            <div class="settings-row-col">
-                <label>1ページあたりの行数</label>
-                <div class="settings-input-group-left">
-                    <input type="number" id="ps-lines-page" min="16" max="40" value="20">
-                    <span>行 (16~40行)</span>
-                </div>
-            </div>
-            <div class="settings-row-col">
-                <label>文字サイズの倍率</label>
-                <div class="settings-input-group-left">
-                    <input type="number" id="ps-font-scale" step="0.1" min="0.8" max="1.5" value="1">
-                    <span>倍 (0.8~1.5倍)</span>
-                </div>
-            </div>
-
-            <div class="settings-footer">
-                <button id="ps-cancel" class="settings-btn-cancel">キャンセル</button>
-                <button id="ps-save" class="settings-btn-save">保存する</button>
-            </div>
+            <div class="settings-desc">縦書きプレビュー設定</div>
+            <div class="settings-row-col"><label>縦の文字数</label><div class="settings-input-group-left"><input type="number" id="ps-vertical-chars" min="16" max="50" value="20"><span>字 (16~50字)</span></div></div>
+            <div class="settings-row-col"><label>1ページあたりの行数</label><div class="settings-input-group-left"><input type="number" id="ps-lines-page" min="16" max="40" value="20"><span>行 (16~40行)</span></div></div>
+            <div class="settings-row-col"><label>文字サイズの倍率</label><div class="settings-input-group-left"><input type="number" id="ps-font-scale" step="0.1" min="0.8" max="1.5" value="1"><span>倍 (0.8~1.5倍)</span></div></div>
+            <div class="settings-footer"><button id="ps-cancel" class="settings-btn-cancel">キャンセル</button><button id="ps-save" class="settings-btn-save">保存する</button></div>
         </div>
     </div>
 
@@ -287,23 +231,12 @@
         <div class="settings-modal-card">
             <div class="settings-header">置換</div>
             <div class="settings-desc">検索する文字と置換後の文字を入力してください。</div>
-            
-            <div class="settings-row-col">
-                <label>検索する文字</label>
-                <input type="text" id="replace-search-input" class="form-control" style="width:100%; text-align:left;" placeholder="検索文字...">
-            </div>
-            <div class="settings-row-col">
-                <label>置換後の文字</label>
-                <input type="text" id="replace-target-input" class="form-control" style="width:100%; text-align:left;" placeholder="置換文字...">
-            </div>
-
-            <div class="settings-footer">
-                <button id="replace-cancel-btn" class="settings-btn-cancel">キャンセル</button>
-                <button id="replace-execute-btn" class="settings-btn-save">すべて置換</button>
-            </div>
+            <div class="settings-row-col"><label>検索する文字</label><input type="text" id="replace-search-input" class="form-control" style="width:100%; text-align:left;" placeholder="検索文字..."></div>
+            <div class="settings-row-col"><label>置換後の文字</label><input type="text" id="replace-target-input" class="form-control" style="width:100%; text-align:left;" placeholder="置換文字..."></div>
+            <div class="settings-footer"><button id="replace-cancel-btn" class="settings-btn-cancel">キャンセル</button><button id="replace-execute-btn" class="settings-btn-save">すべて置換</button></div>
         </div>
     </div>
 
-    <script src="script.js?v=0.58"></script>
+    <script src="script.js?v=0.60"></script>
 </body>
 </html>
