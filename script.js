@@ -1,4 +1,4 @@
-/* Story Builder V0.35 script.js */
+/* Story Builder V0.37 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.previousView = 'top';
     window.charCountMode = 'total'; 
     window.unsubscribeWorks = null;
+    window.chapterListMode = 'normal'; // normal, reorder, delete
     
     window.lastContentLength = 0;
     window.todayAddedCount = 0;
@@ -272,7 +273,16 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar.className = 'chapter-sidebar';
         sidebar.innerHTML = `
             <div class="sidebar-header">
-                <span style="font-weight:bold;">話一覧</span>
+                <div style="display:flex; align-items:center;">
+                    <span style="font-weight:bold;">話一覧</span>
+                    <button class="chapter-menu-btn" id="chapter-menu-toggle">≡</button>
+                    <div id="chapter-menu-overlay" class="chapter-menu-overlay">
+                        <div class="chapter-menu-item" onclick="setChapterMode('reorder')">原稿の並び替え</div>
+                        <div class="chapter-menu-item" onclick="alert('未実装です')">原稿のインポート</div>
+                        <div class="chapter-menu-item" onclick="setChapterMode('delete')">原稿を削除する</div>
+                        <div class="chapter-menu-item" onclick="setChapterMode('normal')">メニューを閉じる</div>
+                    </div>
+                </div>
                 <button class="btn-custom btn-small" id="add-chapter-btn" style="padding:2px 8px;">＋</button>
             </div>
             <div id="chapter-list" class="chapter-list scrollable"></div>
@@ -283,6 +293,18 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         editorTab.appendChild(sidebar);
 
+        // ハンバーガーメニュー制御
+        document.getElementById('chapter-menu-toggle').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const ov = document.getElementById('chapter-menu-overlay');
+            ov.style.display = (ov.style.display === 'flex') ? 'none' : 'flex';
+        });
+        document.addEventListener('click', () => {
+            const ov = document.getElementById('chapter-menu-overlay');
+            if(ov) ov.style.display = 'none';
+        });
+
+        // 以下、エディタ本体生成
         const mainArea = document.createElement('div');
         mainArea.className = 'editor-main-area';
         
@@ -300,7 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const toolbar = document.createElement('div');
         toolbar.className = 'editor-toolbar';
         
-        // 📖 ⚙ ｜ 縦 置換 ﾙﾋﾞ ―
         const tools = [
             { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
@@ -349,19 +370,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const footerRow = document.createElement('div');
         footerRow.className = 'editor-footer-row';
 
-        // 左: 削除
         const deleteChapterBtn = document.createElement('button');
         deleteChapterBtn.className = 'btn-custom btn-small btn-red'; 
         deleteChapterBtn.textContent = '削除'; 
         deleteChapterBtn.onclick = deleteCurrentChapter;
 
-        // 右: 操作グループ
         const rightGroup = document.createElement('div');
         rightGroup.style.display = 'flex';
         rightGroup.style.gap = '8px';
         rightGroup.style.alignItems = 'center';
 
-        // ◀️ ▶️
         const undoBtn = document.createElement('button');
         undoBtn.className = 'toolbar-btn-footer';
         undoBtn.textContent = '◀️';
@@ -378,18 +396,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if(ed) { ed.focus(); document.execCommand('redo'); }
         };
 
-        // 区切り線
         const sep = document.createElement('span');
         sep.style.color = '#555';
         sep.textContent = '|';
 
-        // スマホ用戻るボタン (mobileOnlyクラス付与)
         const backBtn = document.createElement('button');
         backBtn.className = 'toolbar-btn-footer mobile-only';
         backBtn.textContent = '🔙';
         backBtn.onclick = showMobileChapterList;
 
-        // 保存ボタン
         const saveBtn = document.createElement('button');
         saveBtn.className = 'btn-custom btn-small';
         saveBtn.id = 'quick-save-btn';
@@ -415,6 +430,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('add-chapter-btn').addEventListener('click', addNewChapter);
         document.getElementById('sidebar-toggle-close').addEventListener('click', toggleSidebar);
     }
+
+    // グローバル関数化
+    window.setChapterMode = function(mode) {
+        window.chapterListMode = mode;
+        loadChapters(); // リスト再描画
+    };
 
     function toggleSidebar() {
         const sidebar = document.getElementById('chapter-sidebar');
@@ -558,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
               if(chapters.length === 0) {
                   listEl.innerHTML = '<div style="padding:10px; color:#aaa;">章がありません</div>';
               } else {
-                  chapters.forEach(ch => {
+                  chapters.forEach((ch, index) => {
                       const item = document.createElement('div');
                       item.className = 'chapter-item';
                       item.setAttribute('data-id', ch.id);
@@ -568,18 +589,73 @@ document.addEventListener('DOMContentLoaded', () => {
                       title.className = 'chapter-list-title';
                       title.textContent = ch.title || "無題";
                       
-                      const count = document.createElement('span');
-                      count.className = 'chapter-list-count';
-                      const chPure = (ch.content || "").replace(/\s/g, '').length;
-                      count.textContent = `(${chPure}字)`;
-
                       item.appendChild(title);
-                      item.appendChild(count);
+
+                      // モードによる分岐
+                      if(window.chapterListMode === 'reorder') {
+                          const btnGroup = document.createElement('div');
+                          const upBtn = document.createElement('button');
+                          upBtn.textContent = '↑'; upBtn.className = 'chapter-reorder-btn';
+                          upBtn.onclick = (e) => { e.stopPropagation(); moveChapter(ch.id, chapters, index, -1); };
+                          
+                          const downBtn = document.createElement('button');
+                          downBtn.textContent = '↓'; downBtn.className = 'chapter-reorder-btn';
+                          downBtn.onclick = (e) => { e.stopPropagation(); moveChapter(ch.id, chapters, index, 1); };
+
+                          btnGroup.appendChild(upBtn);
+                          btnGroup.appendChild(downBtn);
+                          item.appendChild(btnGroup);
+                      } else if (window.chapterListMode === 'delete') {
+                          const delIcon = document.createElement('span');
+                          delIcon.textContent = '🗑️';
+                          delIcon.className = 'chapter-delete-icon';
+                          delIcon.onclick = (e) => { e.stopPropagation(); deleteTargetChapter(ch.id); };
+                          item.appendChild(delIcon);
+                      } else {
+                          // normal
+                          const count = document.createElement('span');
+                          count.className = 'chapter-list-count';
+                          const chPure = (ch.content || "").replace(/\s/g, '').length;
+                          count.textContent = `(${chPure}字)`;
+                          item.appendChild(count);
+                      }
+
+                      // 通常クリック
                       item.onclick = () => selectChapter(ch.id, ch);
                       listEl.appendChild(item);
                   });
               }
           });
+    }
+
+    async function moveChapter(id, allChapters, index, direction) {
+        if(direction === -1 && index === 0) return; // 先頭は上へ行けない
+        if(direction === 1 && index === allChapters.length - 1) return; // 末尾は下へ行けない
+
+        const targetIndex = index + direction;
+        const currentCh = allChapters[index];
+        const swapCh = allChapters[targetIndex];
+
+        // 順番(order)を入れ替え
+        const batch = db.batch();
+        const currentRef = db.collection('works').doc(window.currentWorkId).collection('chapters').doc(currentCh.id);
+        const swapRef = db.collection('works').doc(window.currentWorkId).collection('chapters').doc(swapCh.id);
+
+        batch.update(currentRef, { order: swapCh.order });
+        batch.update(swapRef, { order: currentCh.order });
+
+        await batch.commit();
+        loadChapters();
+    }
+
+    async function deleteTargetChapter(chapterId) {
+        if(!confirm("本当にこの章を削除しますか？")) return;
+        await db.collection('works').doc(window.currentWorkId).collection('chapters').doc(chapterId).delete();
+        if(window.currentChapterId === chapterId) {
+            window.currentChapterId = null;
+            document.getElementById('main-editor').value = "";
+        }
+        loadChapters();
     }
 
     function selectChapter(id, data) {

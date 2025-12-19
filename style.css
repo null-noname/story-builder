@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.36 */
+/* style.css - Story Builder V0.37 */
 
 :root {
     --bg-color: #202020; 
@@ -243,10 +243,10 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     background: transparent;
     border: none;
     color: #fff;
-    font-size: 18px; /* 16px -> 18px (上と統一) */
+    font-size: 18px; 
     cursor: pointer;
-    padding: 4px 8px; /* 6px 12px -> 4px 8px (上と統一) */
-    border-radius: 4px; /* 6px -> 4px */
+    padding: 4px 8px; 
+    border-radius: 4px; 
 }
 .toolbar-btn-footer:hover { background: #555; }
 
@@ -313,6 +313,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     justify-content: space-between;
     align-items: center;
     font-size: 14px;
+    position: relative; /* メニュー配置用 */
 }
 .chapter-list {
     flex: 1;
@@ -343,6 +344,54 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     white-space: nowrap;
     font-size: 0.8em;
     color: #888;
+}
+
+/* 章操作メニュー */
+.chapter-menu-btn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+.chapter-menu-overlay {
+    position: absolute;
+    top: 40px;
+    left: 10px;
+    width: 200px;
+    background: #333;
+    border: 1px solid #555;
+    border-radius: 6px;
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+.chapter-menu-item {
+    padding: 10px;
+    color: #fff;
+    cursor: pointer;
+    border-bottom: 1px solid #444;
+    font-size: 14px;
+}
+.chapter-menu-item:hover { background: #444; }
+.chapter-menu-item:last-child { border-bottom: none; }
+
+.chapter-reorder-btn {
+    background: #444;
+    border: 1px solid #666;
+    color: #fff;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 2px;
+    cursor: pointer;
+}
+.chapter-delete-icon {
+    font-size: 16px;
+    cursor: pointer;
+    margin-left: 5px;
 }
 
 .sidebar-footer {
