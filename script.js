@@ -37,15 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dailyHistory = [0,0,0,0,0,0,0]; 
     window.dragSrcEl = null; 
 
-    // 設定の初期値
-    window.userSettings = {
-        editorFontSize: 16,
-        editorLineHeight: 1.8,
-        previewFontSize: 18,
-        previewLineHeight: 2.0
-    };
-    
-    // アプリ設定（端末保存用）
+    // 設定初期値
     window.appSettings = {
         edLetterSpacing: 0,
         edLineHeight: 1.8,
@@ -71,8 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider)
-                .catch((error) => alert("ログインエラー: " + error.message));
+            auth.signInWithPopup(provider).catch((error) => alert("ログインエラー: " + error.message));
         });
     }
 
@@ -83,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(mainApp) mainApp.style.display = 'block';
             
             await loadDailyLog();
-            loadLocalSettings(); // 設定読み込み
+            loadLocalSettings(); 
 
             const lastView = localStorage.getItem('sb_last_view');
             if (lastView === 'workspace') {
@@ -167,6 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('es-save', saveEditorSettings);
     bindClick('ps-cancel', () => document.getElementById('preview-settings-modal').style.display = 'none');
     bindClick('ps-save', savePreviewSettings);
+
+    // 置換モーダルボタン
+    bindClick('replace-cancel-btn', () => document.getElementById('replace-modal').style.display = 'none');
+    bindClick('replace-execute-btn', executeReplace);
 
     initEditorToolbar();
 
@@ -271,6 +266,48 @@ document.addEventListener('DOMContentLoaded', () => {
         r.setProperty('--ed-width', window.appSettings.edWidth + '%');
     }
 
+    // --- Replace Logic ---
+    function openReplaceModal() {
+        document.getElementById('replace-search-input').value = "";
+        document.getElementById('replace-target-input').value = "";
+        document.getElementById('replace-modal').style.display = 'flex';
+    }
+
+    function executeReplace() {
+        const searchVal = document.getElementById('replace-search-input').value;
+        const replaceVal = document.getElementById('replace-target-input').value;
+        
+        if (!searchVal) {
+            alert("検索する文字を入力してください");
+            return;
+        }
+
+        const editor = document.getElementById('main-editor');
+        const original = editor.value;
+        
+        // エスケープ処理付き正規表現で一括置換
+        const regex = new RegExp(escapeRegExp(searchVal), 'g');
+        const count = (original.match(regex) || []).length;
+        
+        if(count === 0) {
+            alert("該当する文字が見つかりませんでした");
+            return;
+        }
+
+        const replaced = original.replace(regex, replaceVal);
+        editor.value = replaced;
+        
+        updateCharCount();
+        trackDailyProgress();
+        
+        alert(`${count}件 置換しました`);
+        document.getElementById('replace-modal').style.display = 'none';
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     // --- Preview Logic ---
     function showPreview() {
         const editor = document.getElementById('main-editor');
@@ -281,23 +318,22 @@ document.addEventListener('DOMContentLoaded', () => {
         let text = editor.value;
         text = escapeHtml(text).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
         
-        // ★修正: ルビの正規表現
-        // 1. |親文字《ルビ》 (指定あり)
+        // ★修正: ルビ
+        // 1. |親文字《ルビ》
         text = text.replace(/[\|｜]([^《]+?)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-        // 2. 漢字《ルビ》 (自動判定: 漢字,々,〆,ヵ,ヶの連続)
-        text = text.replace(/([一-龠々〆ヵヶ]+)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+        // 2. 漢字《ルビ》
+        text = text.replace(/([\u4E00-\u9FFF\u3005\u30F6\u30F5]+)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
 
         content.innerHTML = text;
         modal.style.display = 'flex';
         applyPreviewLayout();
-        updatePreviewModeButton(); // ボタン表記更新
+        updatePreviewModeButton();
     }
 
     function applyPreviewLayout() {
         const r = document.documentElement.style;
         const baseSize = 18 * parseFloat(window.appSettings.prFontScale);
         r.setProperty('--pr-font-size', baseSize + 'px');
-        
         const height = baseSize * parseInt(window.appSettings.prVerticalChars);
         r.setProperty('--pr-height', height + 'px');
     }
@@ -309,16 +345,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function togglePreviewMode() {
         const content = document.getElementById('preview-content');
         content.classList.toggle('vertical-mode');
-        updatePreviewModeButton(); // ボタン表記更新
+        updatePreviewModeButton();
     }
 
     function updatePreviewModeButton() {
         const content = document.getElementById('preview-content');
         const btn = document.getElementById('preview-mode-btn');
         if(content.classList.contains('vertical-mode')) {
-            btn.textContent = "横読み"; // 今は縦なので「横読み」に変更可能
+            btn.textContent = "横読み"; 
         } else {
-            btn.textContent = "縦読み"; // 今は横なので「縦読み」に変更可能
+            btn.textContent = "縦読み"; 
         }
     }
 
@@ -476,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { icon: '⚙️', action: openEditorSettings }, 
             { spacer: true, label: '|' },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
-            { icon: '置換', action: () => alert('置換機能（未実装）') },
+            { icon: '置換', action: openReplaceModal }, 
             { icon: 'ﾙﾋﾞ', action: insertRuby },
             { icon: '―', action: insertDash }
         ];

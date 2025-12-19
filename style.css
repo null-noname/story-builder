@@ -199,9 +199,9 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     width: auto; max-width: none; margin: 0 auto;
 }
 
-/* ルビの調整 */
+/* ★修正: ルビの色を本文と同じにする */
 ruby { font-family: inherit; }
-rt { font-size: 0.5em; color: var(--accent-blue); user-select: none; }
+rt { font-size: 0.5em; color: inherit; user-select: none; }
 
 /* 設定モーダル共通 */
 .settings-modal-overlay {
