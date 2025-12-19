@@ -1,4 +1,4 @@
-/* Story Builder V0.24 script.js */
+/* Story Builder V0.25 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -80,8 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('back-from-stats', () => switchView('top'));
     bindClick('back-from-memo', () => switchView('top'));
     bindClick('create-new-work-btn', createNewWork);
-    bindClick('save-work-info-btn', () => saveCurrentWork());
-    bindClick('quick-save-btn', () => saveCurrentWork(null, true));
+    bindClick('save-work-info-btn', () => saveCurrentWork()); // 作品情報はサイレント保存
+    // ★修正: 一時保存もサイレント保存に変更（第2引数をfalseまたは省略）
+    bindClick('quick-save-btn', () => saveCurrentWork(null, false)); 
     bindClick('toggle-writing-mode', () => {
         const editor = document.getElementById('main-editor');
         if(editor) editor.classList.toggle('vertical-mode');
@@ -147,21 +148,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ★修正: HTML構造を変更して縦並びを強制
     function createWorkItem(id, data) {
         const div = document.createElement('div');
         div.className = `work-item ${data.isPinned ? 'pinned' : ''}`;
         
+        // ★修正: 時間まで表示するように変更
         const formatDate = (ts) => {
             if(!ts) return '-';
             const d = new Date(ts.toDate());
-            return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+            const pad = n => n.toString().padStart(2, '0');
+            return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
 
         const titleStar = data.isPinned ? '<span style="color:var(--accent-green); margin-right:4px;">★</span>' : '';
         const pinBtnIcon = data.isPinned ? '★' : '☆';
 
-        // work-meta-row クラスを使って、各行をdivで分ける
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${titleStar}${escapeHtml(data.title || '無題')}</div>
@@ -286,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="memo-title">${escapeHtml(data.title)}</span>
                 <div class="memo-controls">
                     <button class="memo-btn" onclick="openMemoEditor('${id}', '${originView}')">✎ 編集</button>
-                    <button class="memo-btn memo-btn-green-icon" onclick="deleteMemo('${id}', '${originView}')">-</button>
+                    <button class="memo-btn memo-btn-delete" onclick="deleteMemo('${id}', '${originView}')">-</button>
                 </div>
             </div>
             <div class="memo-divider"></div>
