@@ -1,4 +1,4 @@
-/* Story Builder V0.32 script.js */
+/* Story Builder V0.33 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -28,11 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.previousView = 'top';
     window.charCountMode = 'total'; 
     window.unsubscribeWorks = null;
-
-    // ★追加: 執筆カウント用変数
-    window.lastContentLength = 0; // 直前の文字数
-    window.todayAddedCount = 0;   // 今日書いた文字数（セッション内累積）
-    window.pendingLogSave = null; // 保存タイマー
+    
+    // 執筆記録・グラフ用
+    window.lastContentLength = 0;
+    window.todayAddedCount = 0;
+    window.pendingLogSave = null;
+    window.writingChart = null; // Chartインスタンス
+    window.dailyHistory = [0,0,0,0,0,0,0]; // 過去7日分データ
 
     const views = {
         top: document.getElementById('top-view'),
@@ -58,8 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if(loginScreen) loginScreen.style.display = 'none';
             if(mainApp) mainApp.style.display = 'block';
             
-            // 日記データの読み込み
-            loadDailyLog();
+            // データ読み込み
+            await loadDailyLog();
 
             const lastView = localStorage.getItem('sb_last_view');
             if (lastView === 'workspace') {
@@ -106,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             views[name].style.display = 'flex';
             if(name === 'top') {
                 initWorkListener();
-                loadDailyLog(); // TOPに戻ったときも最新の日記データを再取得
+                loadDailyLog(); 
                 window.currentWorkId = null;
             } else {
                 if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
@@ -132,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('back-from-memo', () => switchView('top'));
     bindClick('create-new-work-btn', createNewWork);
     bindClick('save-work-info-btn', () => saveWorkInfo());
-    bindClick('quick-save-btn', () => saveCurrentChapter(null, false)); 
+    // quick-saveは動的生成のためinitEditorToolbar内で設定
     
     initEditorToolbar();
 
@@ -150,7 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterEl = document.getElementById('filter-status');
     if(filterEl) filterEl.addEventListener('change', initWorkListener);
     
-    // ★修正: 入力イベントで日記カウントと文字数カウントを両方呼ぶ
     const editorEl = document.getElementById('main-editor');
     if(editorEl) {
         editorEl.addEventListener('input', () => {
@@ -173,60 +174,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Daily Log Logic ---
-    // 今日の日付IDを取得 (YYYY-MM-DD)
+    // --- Daily Log & Graph Logic ---
     function getTodayId() {
         const d = new Date();
         return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
     }
 
-    // 日記データの読み込み・表示更新
-    function loadDailyLog() {
+    async function loadDailyLog() {
         if(!window.currentUser) return;
         const todayId = getTodayId();
-        const docId = `${window.currentUser.uid}_${todayId}`;
-
-        // 今日の分
-        db.collection('daily_logs').doc(docId).get().then(doc => {
-            let count = 0;
-            if(doc.exists) {
-                count = doc.data().count || 0;
-            }
-            window.todayAddedCount = count; // グローバル変数を同期
-            updateDailyWidgetUI(count);
-        });
-
-        // 過去7日間（簡易実装：個別に取得して合算）
-        // ※本来はクエリで行うが、docId指定で7回ループして取得
-        let weeklyTotal = 0;
-        let loadedDays = 0;
-        for(let i=0; i<7; i++) {
+        
+        // 過去7日分のデータを取得して配列に入れる
+        let promises = [];
+        let labels = [];
+        for(let i=6; i>=0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+            const label = `${d.getMonth()+1}/${d.getDate()}`;
+            labels.push(label);
             const logId = `${window.currentUser.uid}_${dateStr}`;
-            db.collection('daily_logs').doc(logId).get().then(doc => {
-                if(doc.exists) weeklyTotal += (doc.data().count || 0);
-                loadedDays++;
-                if(loadedDays === 7) {
-                    const wEl = document.getElementById('widget-weekly-count');
-                    if(wEl) wEl.innerHTML = `${weeklyTotal}<span class="unit">字</span>`;
-                    const statWeek = document.getElementById('stat-week');
-                    if(statWeek) statWeek.innerHTML = `${weeklyTotal}<span class="unit">字</span>`;
-                }
-            });
+            promises.push(db.collection('daily_logs').doc(logId).get());
         }
-    }
 
-    function updateDailyWidgetUI(count) {
-        const el = document.getElementById('widget-today-count');
-        if(el) el.innerHTML = `${count}<span class="unit">字</span>`;
+        const snapshots = await Promise.all(promises);
+        let weeklyTotal = 0;
+        window.dailyHistory = snapshots.map(doc => {
+            const val = doc.exists ? (doc.data().count || 0) : 0;
+            weeklyTotal += val;
+            return val;
+        });
+
+        // 今日の分をグローバル変数にセット（配列の最後）
+        window.todayAddedCount = window.dailyHistory[6];
         
-        const statToday = document.getElementById('stat-today');
-        if(statToday) statToday.innerHTML = `${count}<span class="unit">字</span>`;
+        updateDailyWidgetUI(window.todayAddedCount, weeklyTotal);
+        
+        // グラフ更新用のデータを保持（stats画面が開かれたら使う）
+        window.graphLabels = labels;
     }
 
-    // 執筆量の計測（入力イベント毎に呼び出し）
+    function updateDailyWidgetUI(today, weekly) {
+        const tEl = document.getElementById('widget-today-count');
+        if(tEl) tEl.innerHTML = `${today}<span class="unit">字</span>`;
+        const wEl = document.getElementById('widget-weekly-count');
+        if(wEl) wEl.innerHTML = `${weekly}<span class="unit">字</span>`;
+        
+        const stToday = document.getElementById('stat-today');
+        if(stToday) stToday.innerHTML = `${today}<span class="unit">字</span>`;
+        const stWeek = document.getElementById('stat-week');
+        if(stWeek) stWeek.innerHTML = `${weekly}<span class="unit">字</span>`;
+    }
+
     function trackDailyProgress() {
         const editor = document.getElementById('main-editor');
         if(!editor) return;
@@ -234,17 +233,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentLen = editor.value.length;
         const diff = currentLen - window.lastContentLength;
 
-        // 増えた場合のみ加算（削除は無視）
         if (diff > 0) {
             window.todayAddedCount += diff;
-            updateDailyWidgetUI(window.todayAddedCount);
+            // 配列の今日の分も更新
+            window.dailyHistory[6] = window.todayAddedCount;
             
-            // Firestoreへの保存をデバウンス（3秒間隔）
+            // UI更新
+            updateDailyWidgetUI(window.todayAddedCount, calculateWeeklyTotal());
+            
+            // ★修正: グラフがあればリアルタイム更新
+            if(window.writingChart) {
+                window.writingChart.data.datasets[0].data = window.dailyHistory;
+                window.writingChart.update();
+            }
+
             if(window.pendingLogSave) clearTimeout(window.pendingLogSave);
             window.pendingLogSave = setTimeout(saveDailyLogToFirestore, 3000);
         }
         
-        window.lastContentLength = currentLen; // 次回比較用に更新
+        window.lastContentLength = currentLen;
+    }
+
+    function calculateWeeklyTotal() {
+        return window.dailyHistory.reduce((a, b) => a + b, 0);
     }
 
     function saveDailyLogToFirestore() {
@@ -270,7 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
         editorTab.style.flexDirection = 'row'; 
         editorTab.classList.remove('mobile-editor-active');
 
+        // サイドバー
         const sidebar = document.createElement('div');
+        sidebar.id = 'chapter-sidebar'; // ID追加（開閉用）
         sidebar.className = 'chapter-sidebar';
         sidebar.innerHTML = `
             <div class="sidebar-header">
@@ -278,7 +291,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="btn-custom btn-small" id="add-chapter-btn" style="padding:2px 8px;">＋</button>
             </div>
             <div id="chapter-list" class="chapter-list scrollable"></div>
-            <div class="sidebar-footer"><small id="total-work-chars">合計: 0文字</small></div>
+            <div class="sidebar-footer">
+                <small id="total-work-chars">合計: 0文字</small>
+                <button id="sidebar-toggle-close" class="sidebar-toggle-btn">◀</button>
+            </div>
         `;
         editorTab.appendChild(sidebar);
 
@@ -288,6 +304,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const header = document.createElement('div');
         header.className = 'editor-header';
         
+        // ★修正: サイドバー展開ボタン（デフォルト非表示）
+        const openSidebarBtn = document.createElement('button');
+        openSidebarBtn.id = 'sidebar-toggle-open';
+        openSidebarBtn.className = 'sidebar-toggle-open-btn';
+        openSidebarBtn.textContent = '▶';
+        openSidebarBtn.style.display = 'none';
+        openSidebarBtn.onclick = toggleSidebar;
+        header.appendChild(openSidebarBtn);
+
         const toolbar = document.createElement('div');
         toolbar.className = 'editor-toolbar';
         
@@ -340,22 +365,49 @@ document.addEventListener('DOMContentLoaded', () => {
         editorContainer.style.cssText = "flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;";
         editorContainer.innerHTML = `<textarea id="main-editor" class="main-textarea" style="width:100%; height:100%; border:none;" placeholder="章を選択するか、新しい章を追加してください..."></textarea>`;
 
+        // フッター（保存ボタン等）
+        const footerRow = document.createElement('div');
+        footerRow.style.cssText = "display:flex; justify-content:flex-end; gap:10px; margin-top:5px; align-items:center;";
+
+        // ★修正: 章削除ボタン
+        const deleteChapterBtn = document.createElement('button');
+        deleteChapterBtn.className = 'btn-custom btn-small btn-red'; // 赤いボタン
+        deleteChapterBtn.textContent = '章を削除';
+        deleteChapterBtn.onclick = deleteCurrentChapter;
+
         const saveBtn = document.createElement('button');
         saveBtn.className = 'btn-custom btn-small';
         saveBtn.id = 'quick-save-btn';
-        saveBtn.style.marginTop = '5px';
         saveBtn.textContent = '一時保存';
         saveBtn.onclick = () => saveCurrentChapter(null, false);
+
+        footerRow.appendChild(deleteChapterBtn);
+        footerRow.appendChild(saveBtn);
 
         mainArea.appendChild(header);
         mainArea.appendChild(titleRow);
         mainArea.appendChild(editorContainer);
-        mainArea.appendChild(saveBtn);
+        mainArea.appendChild(footerRow);
 
         editorTab.appendChild(mainArea);
 
         document.getElementById('add-chapter-btn').addEventListener('click', addNewChapter);
-        // 入力イベントは別途設定済み
+        document.getElementById('sidebar-toggle-close').addEventListener('click', toggleSidebar);
+    }
+
+    // ★修正: サイドバーの開閉処理
+    function toggleSidebar() {
+        const sidebar = document.getElementById('chapter-sidebar');
+        const openBtn = document.getElementById('sidebar-toggle-open');
+        if(sidebar) {
+            sidebar.classList.toggle('collapsed');
+            // 閉じたらopenボタンを表示、開いたら隠す
+            if(sidebar.classList.contains('collapsed')) {
+                if(openBtn) openBtn.style.display = 'block';
+            } else {
+                if(openBtn) openBtn.style.display = 'none';
+            }
+        }
     }
 
     function showMobileEditor() {
@@ -390,9 +442,8 @@ document.addEventListener('DOMContentLoaded', () => {
         editor.value = val.substring(0, start) + text + val.substring(end);
         editor.selectionStart = editor.selectionEnd = start + text.length;
         editor.focus();
-        
         updateCharCount();
-        trackDailyProgress(); // 挿入もカウント対象
+        trackDailyProgress();
     }
 
     function insertRuby() {
@@ -516,11 +567,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.currentChapterId = id;
         saveAppState('workspace');
 
-        // エディタにセット
         const content = data.content || "";
         document.getElementById('main-editor').value = content;
-        
-        // ★修正: 直前の文字数を記録（ここから増減を監視）
         window.lastContentLength = content.length;
 
         const titleInput = document.getElementById('chapter-title-input');
@@ -554,6 +602,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ★修正: 章削除機能
+    async function deleteCurrentChapter() {
+        if(!window.currentWorkId || !window.currentChapterId) return;
+        if(!confirm("本当にこの章を削除しますか？\n（削除すると元に戻せません）")) return;
+
+        await db.collection('works').doc(window.currentWorkId)
+            .collection('chapters').doc(window.currentChapterId).delete();
+        
+        alert("削除しました");
+        window.currentChapterId = null;
+        document.getElementById('main-editor').value = "";
+        
+        // モバイルならリストに戻る
+        showMobileChapterList();
+        
+        loadChapters();
+    }
+
     async function saveCurrentChapter(nextViewName = null, showAlert = false) {
         if(!window.currentWorkId || !window.currentChapterId) {
             if(nextViewName) switchView(nextViewName);
@@ -569,7 +635,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 章保存
         await db.collection('works').doc(window.currentWorkId)
           .collection('chapters').doc(window.currentChapterId)
           .update({
@@ -578,10 +643,8 @@ document.addEventListener('DOMContentLoaded', () => {
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           });
 
-        // 日記も確実に保存
         saveDailyLogToFirestore();
 
-        // 作品全体の合計更新
         const snap = await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
         let totalPure = 0;
         snap.forEach(doc => {
@@ -803,28 +866,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadStats() {
+        // 作品数等はここで集計
         db.collection('works').where('uid', '==', window.currentUser.uid).get().then(snap => {
             let workCount = 0;
-            snap.forEach(d => { 
-                const data = d.data();
-                if(!data.isSystem) workCount++; 
-            });
+            snap.forEach(d => { if(!d.data().isSystem) workCount++; });
             const el = document.getElementById('stat-works');
             if(el) el.innerHTML = `${workCount}<span class="unit">作品</span>`;
         });
         
+        // グラフ復活
         const canvas = document.getElementById('writingChart');
         if(canvas) {
+            canvas.style.display = 'block'; // 表示
+            if(canvas.parentNode.querySelector('div')) canvas.parentNode.querySelector('div').remove(); // メッセージ削除
+            
             const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            canvas.style.display = 'none';
-            if(canvas.parentNode) canvas.parentNode.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">データ蓄積中...</div>';
+            if (window.writingChart) window.writingChart.destroy();
+            window.writingChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: window.graphLabels || ['','','','','','','今日'],
+                    datasets: [{ 
+                        data: window.dailyHistory || [0,0,0,0,0,0,0], 
+                        backgroundColor: '#89b4fa', 
+                        borderRadius: 4 
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: '#444' }, ticks: { color: '#aaa' } }, 
+                        x: { grid: { display: false }, ticks: { color: '#aaa' } } 
+                    }
+                }
+            });
         }
-        
         loadDailyLog();
     }
     
-    function renderChart() {}
+    function renderChart() {} // 上記loadStatsで統合
 
     function escapeHtml(str) {
         if(!str) return "";

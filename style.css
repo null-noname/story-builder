@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.31 */
+/* style.css - Story Builder V0.33 */
 
 :root {
     --bg-color: #202020; 
@@ -253,7 +253,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 }
 .char-count-display:hover { background: #444; }
 
-/* ★追加: サブタイトル入力欄 */
+/* 章タイトル入力欄 */
 .chapter-title-row {
     margin-bottom: 5px;
     flex-shrink: 0;
@@ -270,7 +270,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 }
 .chapter-title-input:focus { border-color: var(--accent-blue); }
 
-/* 2カラムレイアウト */
+/* 2カラムレイアウト（章リスト + エディタ） */
 .chapter-sidebar {
     width: 250px;
     border-right: 1px solid #444;
@@ -279,7 +279,17 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     margin-right: 10px;
     background: #1a1a1a;
     border-radius: 4px;
+    transition: width 0.3s ease, margin 0.3s ease; /* アニメーション */
+    position: relative;
 }
+/* ★修正: サイドバー畳み込み時のスタイル */
+.chapter-sidebar.collapsed {
+    width: 0;
+    margin-right: 0;
+    overflow: hidden;
+    border: none;
+}
+
 .sidebar-header {
     padding: 8px;
     background: #2a2a2a;
@@ -292,6 +302,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .chapter-list {
     flex: 1;
     overflow-y: auto;
+    min-width: 250px; /* 中身が潰れないように */
 }
 .chapter-item {
     padding: 10px;
@@ -308,10 +319,35 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .sidebar-footer {
     padding: 8px;
     border-top: 1px solid #444;
-    text-align: center;
+    display: flex; /* 横並び */
+    justify-content: space-between; /* 両端配置 */
+    align-items: center;
     font-size: 12px;
     color: #aaa;
+    min-width: 250px; /* 中身保持 */
 }
+
+/* サイドバー開閉ボタン */
+.sidebar-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 5px;
+}
+.sidebar-toggle-btn:hover { color: #fff; }
+
+.sidebar-toggle-open-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 8px;
+    margin-right: 5px; /* ツールバーとの間隔 */
+}
+.sidebar-toggle-open-btn:hover { color: #fff; }
 
 .editor-main-area {
     flex: 1;
@@ -348,18 +384,25 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
         margin-bottom: 0;
         display: flex; 
     }
+    /* モバイルでは畳み込みクラスの影響を受けないようにリセット */
+    .chapter-sidebar.collapsed {
+        width: 100%; 
+        overflow: auto;
+    }
+    /* モバイルではPC用の開閉ボタンを隠す */
+    .sidebar-toggle-btn, .sidebar-toggle-open-btn {
+        display: none !important;
+    }
+
     .editor-main-area {
         display: none; 
     }
 
-    /* エディタモード */
     .mobile-editor-active .chapter-sidebar { display: none; }
     .mobile-editor-active .editor-main-area { display: flex; height: 100%; }
 
-    /* モバイル専用ボタン */
     .mobile-only { display: block !important; }
 
-    /* ボタンサイズ縮小 */
     .toolbar-btn {
         font-size: 14px; 
         padding: 4px 6px;
