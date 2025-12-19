@@ -1,4 +1,4 @@
-/* Story Builder V0.17 script.js */
+/* Story Builder V0.18 script.js */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -69,7 +69,6 @@ document.getElementById('back-to-top').addEventListener('click', () => {
 document.getElementById('back-from-stats').addEventListener('click', () => switchView('top'));
 document.getElementById('back-from-memo').addEventListener('click', () => switchView('top'));
 
-// ★修正: リスナーを追加してソート・フィルタを機能させる
 document.getElementById('sort-order').addEventListener('change', loadWorks);
 document.getElementById('filter-status').addEventListener('change', loadWorks);
 
@@ -95,12 +94,10 @@ function loadWorks() {
         let worksData = [];
         snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
         
-        // ★修正: フィルタリング
         if(filterStatus !== 'all') {
             worksData = worksData.filter(w => w.status === filterStatus);
         }
         
-        // ソート
         worksData.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
             const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
@@ -159,13 +156,21 @@ function fillWorkspace(data) {
     loadMemoListForWorkspace(); 
 }
 
-document.getElementById('save-work-info-btn').addEventListener('click', () => saveCurrentWork(false));
-document.getElementById('quick-save-btn').addEventListener('click', () => saveCurrentWork(false));
+// 作品情報の保存 (Reflect Work Info)
+document.getElementById('save-work-info-btn').addEventListener('click', () => saveCurrentWork(true)); // true=popupなし
+document.getElementById('quick-save-btn').addEventListener('click', () => saveCurrentWork(false)); // 執筆画面の一時保存はアラートあってもいいが、統一するならここもtrue
 
-// ★修正: silent引数を追加し、戻るボタンの時はアラートなしで遷移
+// ★修正: silent引数でポップアップ制御
 function saveCurrentWork(silent = false) {
     if(!currentWorkId) return;
     const content = document.getElementById('main-editor').value;
+    
+    // 文字数上限チェック (2万字)
+    if(content.length > 20000) {
+        alert("文字数が上限(20,000字)を超えています。保存できません。");
+        return;
+    }
+
     const selectedRatings = [];
     document.querySelectorAll('input[name="rating"]:checked').forEach(c => selectedRatings.push(c.value));
     const data = {
@@ -187,14 +192,34 @@ function saveCurrentWork(silent = false) {
     
     db.collection('works').doc(currentWorkId).update(data).then(() => {
         if(silent) {
-            switchView('top'); // 戻る動作
+            // ポップアップなしで戻る（戻るボタン押下時など）
+            if(document.getElementById('workspace-view').style.display !== 'none' && event.target.id === 'back-to-top') {
+               switchView('top'); 
+            }
         } else {
             alert("保存しました");
         }
     });
 }
+
+// ★追加: 縦書き/横書き切り替え
+document.getElementById('toggle-writing-mode').addEventListener('click', () => {
+    const editor = document.getElementById('main-editor');
+    editor.classList.toggle('vertical-mode');
+});
+
+// ★修正: 詳細文字数カウント
 document.getElementById('main-editor').addEventListener('input', updateCharCount);
-function updateCharCount() { document.getElementById('editor-char-count').textContent = document.getElementById('main-editor').value.length; }
+function updateCharCount() { 
+    const text = document.getElementById('main-editor').value;
+    const total = text.length;
+    // 空白・改行を除く
+    const pure = text.replace(/\s/g, '').length;
+    
+    document.getElementById('editor-char-count-total').textContent = total;
+    document.getElementById('editor-char-count-pure').textContent = pure;
+}
+
 document.getElementById('input-catch').addEventListener('input', function() { updateCatchCounter(this); });
 function updateCatchCounter(el) {
     const remain = 35 - el.value.length;
@@ -224,7 +249,6 @@ function loadMemoList() {
         container.innerHTML = '';
         let memos = [];
         snap.forEach(doc => { memos.push({ ...doc.data(), id: doc.id }); });
-        
         memos.sort((a, b) => {
             const tA = a.updatedAt ? a.updatedAt.toMillis() : 0;
             const tB = b.updatedAt ? b.updatedAt.toMillis() : 0;
@@ -242,7 +266,6 @@ function loadMemoListForWorkspace() {
         container.innerHTML = '';
         let memos = [];
         snap.forEach(doc => { memos.push({ ...doc.data(), id: doc.id }); });
-        
         memos.sort((a, b) => {
             const tA = a.updatedAt ? a.updatedAt.toMillis() : 0;
             const tB = b.updatedAt ? b.updatedAt.toMillis() : 0;
@@ -298,7 +321,6 @@ window.openMemoEditor = function(id, fromView) {
     }
 };
 
-// ボタン処理
 document.getElementById('memo-editor-save').addEventListener('click', saveMemo);
 document.getElementById('memo-editor-cancel').addEventListener('click', () => switchView(previousView));
 document.getElementById('memo-editor-delete').addEventListener('click', () => {
@@ -314,9 +336,7 @@ function saveMemo() {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    const onComplete = () => {
-        switchView(previousView);
-    };
+    const onComplete = () => { switchView(previousView); };
 
     if(editingMemoId) {
         db.collection('memos').doc(editingMemoId).update(memoData).then(onComplete);
