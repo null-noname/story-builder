@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ストーリービルダー</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -23,12 +23,19 @@
             <div id="top-view" style="display:block; height:100%; display:flex; flex-direction:column;">
                 <h1 class="app-title">ストーリービルダー</h1>
                 <hr>
+                
                 <div class="dashboard-area">
                     <div id="diary-widget" class="diary-widget">
-                        <div class="diary-title">執筆日記 (本日)</div>
+                        <div class="diary-title">執筆日記</div>
                         <div class="diary-content">
-                            <div>今日の文字数<br><span id="widget-today-count" class="diary-val">0</span> 字</div>
-                            <div>過去7日間<br><span id="widget-weekly-count" class="diary-val">0</span> 字</div>
+                            <div class="diary-row">
+                                <span class="diary-label">今日</span>
+                                <span class="diary-val"><span id="widget-today-count">0</span><span class="unit">字</span></span>
+                            </div>
+                            <div class="diary-row">
+                                <span class="diary-label">7日間</span>
+                                <span class="diary-val"><span id="widget-weekly-count">0</span><span class="unit">字</span></span>
+                            </div>
                         </div>
                     </div>
                     <div class="top-buttons">
@@ -36,9 +43,10 @@
                         <button id="btn-common-memo" class="btn-custom btn-full">共通メモ</button>
                     </div>
                 </div>
+
                 <div class="list-header">
                     <div class="list-title">作品リスト</div>
-                    <div style="display: flex; gap: 10px;">
+                    <div class="filter-group">
                         <select id="sort-order" class="filter-select">
                             <option value="updated">更新順</option>
                             <option value="created">作成順</option>
@@ -51,11 +59,12 @@
                         </select>
                     </div>
                 </div>
+                
                 <div id="work-list" class="work-list-container"></div>
             </div>
 
             <div id="workspace-view" style="display:none; height:100%; flex-direction:column;">
-                <button id="back-to-top" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">保存</button>
+                <button id="back-to-top" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">保存して戻る</button>
                 <div class="tab-bar">
                     <button class="btn-custom tab-btn active" data-tab="tab-info">作品情報</button>
                     <button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button>
@@ -64,31 +73,30 @@
                     <button class="btn-custom tab-btn" data-tab="tab-common-memo">共通メモ</button> 
                 </div>
 
-                <div id="tab-info" class="tab-content active" style="overflow-y: auto; padding-right: 10px;">
+                <div id="tab-info" class="tab-content active" style="overflow-y: auto; padding-right: 5px;">
                     <div class="form-group"><label>タイトル</label><input type="text" id="input-title"></div>
                     <div class="form-group"><label>あらすじ</label><textarea id="input-summary" rows="4"></textarea></div>
                     <div class="form-group">
-                        <label>キャッチコピー（最大35文字）</label>
+                        <label>キャッチコピー</label>
                         <input type="text" id="input-catch" maxlength="35">
-                        <div id="c-count" style="text-align:right; font-size:16px; font-weight: bold; color:var(--accent-blue); margin-top: 5px;">残り 35 文字</div>
+                        <div id="c-count" style="text-align:right; font-size:14px; color:var(--accent-blue);">残り 35 文字</div>
                     </div>
                     <div style="display:flex; gap:10px; margin-bottom:20px;">
-                        <div style="flex:1;"><label style="font-weight: bold; color:var(--text-white); margin-bottom:8px; display:block;">メインジャンル</label><input type="text" id="input-genre-main"></div>
-                        <div style="flex:1;"><label style="font-weight: bold; color:var(--text-white); margin-bottom:8px; display:block;">サブジャンル</label><input type="text" id="input-genre-sub"></div>
+                        <div style="flex:1;"><label>メインジャンル</label><input type="text" id="input-genre-main"></div>
+                        <div style="flex:1;"><label>サブジャンル</label><input type="text" id="input-genre-sub"></div>
                     </div>
                     <div class="form-group"><label>制作ステータス</label><div class="compact-row"><label><input type="radio" name="novel-status" value="in-progress" checked><span>制作中</span></label><label><input type="radio" name="novel-status" value="completed"><span>完了</span></label><label><input type="radio" name="novel-status" value="suspended"><span>中断</span></label></div></div>
                     <div class="form-group"><label>作品種別</label><div class="compact-row"><label><input type="radio" name="novel-type" value="original" checked><span>オリジナル</span></label><label><input type="radio" name="novel-type" value="derivative"><span>二次創作</span></label></div></div>
                     <div class="form-group"><label>レーティング</label><div class="compact-row"><label><input type="checkbox" name="rating" value="none"><span>なし</span></label><label><input type="checkbox" name="rating" value="sexual"><span>性描写</span></label><label><input type="checkbox" name="rating" value="violence"><span>暴力</span></label><label><input type="checkbox" name="rating" value="cruel"><span>残酷</span></label></div></div>
-                    <div class="form-group"><label>AI利用について</label><div class="compact-row"><label><input type="radio" name="ai-usage" value="none" checked><span>なし</span></label><label><input type="radio" name="ai-usage" value="support"><span>補助利用</span></label><label><input type="radio" name="ai-usage" value="partial"><span>一部本文(50%以下)</span></label><label><input type="radio" name="ai-usage" value="full"><span>本文利用(50%以上)</span></label></div></div>
-                    <button id="save-work-info-btn" class="btn-custom btn-full" style="padding:18px; font-size: 18px; margin-top:10px;">作品情報を反映させる</button>
+                    <div class="form-group"><label>AI利用について</label><div class="compact-row"><label><input type="radio" name="ai-usage" value="none" checked><span>なし</span></label><label><input type="radio" name="ai-usage" value="support"><span>補助利用</span></label><label><input type="radio" name="ai-usage" value="partial"><span>一部本文</span></label><label><input type="radio" name="ai-usage" value="full"><span>本文利用</span></label></div></div>
+                    <button id="save-work-info-btn" class="btn-custom btn-full" style="padding:15px; margin-top:20px; font-size: 16px;">作品情報を反映させる</button>
                 </div>
 
                 <div id="tab-editor" class="tab-content" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#333; padding:5px; border-radius:4px; flex-shrink:0;">
                         <button id="toggle-writing-mode" class="btn-custom btn-small">縦書き切替</button>
                         <div style="color:#ccc; font-size:12px; text-align:right;">
-                            総文字数: <b id="editor-char-count-total" style="color:#fff;">0</b> 字 / 
-                            正味: <b id="editor-char-count-pure" style="color:#89b4fa;">0</b> 字
+                            総:<b id="editor-char-count-total" style="color:#fff;">0</b> / 正味:<b id="editor-char-count-pure" style="color:#89b4fa;">0</b>
                         </div>
                     </div>
                     <div id="editor-container" style="flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;">
@@ -109,12 +117,10 @@
             <div id="stats-view" class="screen scrollable" style="display:none;">
                 <button id="back-from-stats" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">← 戻る</button>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <div style="font-size: 20px; font-weight:bold; color: var(--text-white);">執筆文字数の推移</div>
-                    <div style="display:flex; gap:8px;">
-                        <select id="stat-range" class="filter-select" style="width:100px;"><option value="7">過去7日間</option><option value="30">1か月</option></select>
-                    </div>
+                    <div style="font-size: 20px; font-weight:bold; color: var(--text-white);">執筆推移</div>
+                    <select id="stat-range" class="filter-select" style="width:100px;"><option value="7">7日間</option><option value="30">1か月</option></select>
                 </div>
-                <div style="background: rgba(0,0,0,0.2); padding:15px; border-radius:10px; margin-bottom: 20px; border: 1px solid #333; min-height: 250px;">
+                <div style="background: rgba(0,0,0,0.2); padding:10px; border-radius:10px; margin-bottom: 20px; border: 1px solid #333; min-height: 200px;">
                     <canvas id="writingChart" style="max-height:250px; width:100%;"></canvas>
                 </div>
                 <div class="stats-card-row">
@@ -142,10 +148,10 @@
                     </div>
                 </div>
                 
-                <label style="color:#fff; font-weight:bold; margin-bottom:5px;">タイトル</label>
+                <label style="margin-bottom:5px;">タイトル</label>
                 <input type="text" id="memo-editor-title" placeholder="新規メモ" style="font-weight:bold; font-size:1.2em; margin-bottom:15px;">
                 
-                <label style="color:#fff; font-weight:bold; margin-bottom:5px;">内容</label>
+                <label style="margin-bottom:5px;">内容</label>
                 <textarea id="memo-editor-content" class="main-textarea" style="flex:1; height:auto;" placeholder="内容を入力..."></textarea>
             </div>
 

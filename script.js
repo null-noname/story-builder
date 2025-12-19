@@ -1,6 +1,6 @@
-/* Story Builder V0.19 script.js */
+/* Story Builder V0.20 script.js */
 
-// --- Firebase Config ---
+// --- Firebase Config (そのまま) ---
 const firebaseConfig = {
   apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
   authDomain: "story-builder-app.firebaseapp.com",
@@ -32,15 +32,11 @@ const views = {
 const loginScreen = document.getElementById('login-screen');
 const mainApp = document.getElementById('main-app');
 
-// ★修正: アプリ(WebView)対応のため、signInWithRedirectを使用
 document.getElementById('google-login-btn').addEventListener('click', () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithRedirect(provider).catch(error => {
-        alert("Login Error: " + error.message);
-    });
+    auth.signInWithRedirect(provider).catch(alert);
 });
 
-// Redirect後の処理も AuthStateChanged で拾われる
 auth.onAuthStateChanged(user => {
     if (user) {
         currentUser = user;
@@ -68,9 +64,7 @@ function switchView(name) {
 
 document.getElementById('diary-widget').addEventListener('click', () => switchView('stats'));
 document.getElementById('btn-common-memo').addEventListener('click', () => switchView('memo'));
-document.getElementById('back-to-top').addEventListener('click', () => { 
-    saveCurrentWork(true); 
-});
+document.getElementById('back-to-top').addEventListener('click', () => { saveCurrentWork(true); });
 document.getElementById('back-from-stats').addEventListener('click', () => switchView('top'));
 document.getElementById('back-from-memo').addEventListener('click', () => switchView('top'));
 
@@ -99,9 +93,7 @@ function loadWorks() {
         let worksData = [];
         snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
         
-        if(filterStatus !== 'all') {
-            worksData = worksData.filter(w => w.status === filterStatus);
-        }
+        if(filterStatus !== 'all') worksData = worksData.filter(w => w.status === filterStatus);
         
         worksData.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
@@ -116,11 +108,22 @@ function loadWorks() {
 function createWorkItem(id, data) {
     const div = document.createElement('div');
     div.className = `work-item ${data.isPinned ? 'pinned' : ''}`;
-    const formatDate = (ts) => ts ? new Date(ts.toDate()).toLocaleString() : '-';
+    
+    const formatDate = (ts) => {
+        if(!ts) return '-';
+        const d = new Date(ts.toDate());
+        return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+    };
+
+    // ★修正: スマホで見やすい縦並びレイアウトに変更
     div.innerHTML = `
         <div class="work-info" onclick="openWork('${id}')">
             <div class="work-title">${data.isPinned ? '★ ' : ''}${escapeHtml(data.title || '無題')}</div>
-            <div class="work-meta">更新: ${formatDate(data.updatedAt)} | 全 ${data.totalChars || 0} 字</div>
+            <div class="work-meta">
+                作成日: ${formatDate(data.createdAt)}<br>
+                更新日: ${formatDate(data.updatedAt)}<br>
+                全 ${data.totalChars || 0} 字
+            </div>
         </div>
         <div class="work-actions">
             <button class="btn-custom btn-small" onclick="openWork('${id}')">編集</button>
@@ -198,7 +201,8 @@ function saveCurrentWork(silent = false) {
                switchView('top'); 
             }
         } else {
-            alert("保存しました");
+            // silent=falseでも通知なしにする場合
+            // alert("保存しました"); 
         }
     });
 }
@@ -235,8 +239,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
-// --- Common Memo Logic ---
-
+// --- Common Memo ---
 document.getElementById('add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'memo'));
 document.getElementById('ws-add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'workspace'));
 
@@ -247,11 +250,7 @@ function loadMemoList() {
         container.innerHTML = '';
         let memos = [];
         snap.forEach(doc => { memos.push({ ...doc.data(), id: doc.id }); });
-        memos.sort((a, b) => {
-            const tA = a.updatedAt ? a.updatedAt.toMillis() : 0;
-            const tB = b.updatedAt ? b.updatedAt.toMillis() : 0;
-            return tB - tA;
-        });
+        memos.sort((a, b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
         memos.forEach(d => container.appendChild(createMemoCard(d.id, d, 'memo')));
     });
 }
@@ -264,11 +263,7 @@ function loadMemoListForWorkspace() {
         container.innerHTML = '';
         let memos = [];
         snap.forEach(doc => { memos.push({ ...doc.data(), id: doc.id }); });
-        memos.sort((a, b) => {
-            const tA = a.updatedAt ? a.updatedAt.toMillis() : 0;
-            const tB = b.updatedAt ? b.updatedAt.toMillis() : 0;
-            return tB - tA;
-        });
+        memos.sort((a, b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
         memos.forEach(d => container.appendChild(createMemoCard(d.id, d, 'workspace')));
     });
 }
@@ -333,7 +328,6 @@ function saveMemo() {
         uid: currentUser.uid, title: title, content: content,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-
     const onComplete = () => { switchView(previousView); };
 
     if(editingMemoId) {
@@ -344,7 +338,6 @@ function saveMemo() {
     }
 }
 
-// --- Stats Logic ---
 function loadStats() {
     db.collection('works').where('uid', '==', currentUser.uid).get().then(snap => {
         document.getElementById('stat-works').innerHTML = `${snap.size}<span class="unit">作品</span>`;
