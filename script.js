@@ -1,4 +1,4 @@
-/* Story Builder V1.30 script.js - Part 1/3 */
+/* Story Builder V1.40 script.js - Part 1/3 */
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Config & State ---
     const firebaseConfig = {
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.currentHistoryData = null;
     window.tempTimelineData = [];
     
-    // ★追加: 作品データの一時保存用（ソート高速化のため）
+    // 作品リスト用キャッシュ
     window.cachedWorksData = [];
 
     window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
@@ -81,9 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
         if (views[name]) {
             views[name].style.display = 'flex';
-            if(name === 'top') { initWorkListener(); loadDailyLog(); window.currentWorkId = null; }
-            else if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks=null; }
-            
+            if(name === 'top') { 
+                // TOPに戻るたびにリスナーを再設定せず、初回のみまたは必要時のみにする
+                if(!window.unsubscribeWorks) initWorkListener();
+                else renderWorkList(); // 既存データで再描画
+                loadDailyLog(); 
+                window.currentWorkId = null; 
+            }
             if(name === 'memo') loadMemoList();
             if(name === 'stats') loadStats();
             if(name === 'workspace') loadMemoListForWorkspace();
@@ -103,6 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 3. Work Management ---
     window.openWork = async function(id, initTab='tab-info') {
         window.currentWorkId = id; window.currentChapterId = null; saveAppState('workspace');
+        // ★修正: 「保存して戻る」ボタンの表記を「戻る」に変更
+        const backBtn = document.getElementById('back-to-top');
+        if(backBtn) backBtn.textContent = "戻る";
+
         const workDoc = await db.collection('works').doc(id).get();
         if(!workDoc.exists) return;
         fillWorkInfo(workDoc.data());
@@ -131,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); }
     };
 
+    // ★修正: 保存したらエディタ画面に飛ぶ
     window.saveWorkInfo = function() {
         if(!window.currentWorkId) return;
         const ratings=[]; document.querySelectorAll('input[name="rating"]:checked').forEach(c=>ratings.push(c.value));
@@ -146,7 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ratings: ratings,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        db.collection('works').doc(window.currentWorkId).update(data).then(()=>alert("保存しました"));
+        db.collection('works').doc(window.currentWorkId).update(data).then(()=>{
+            // 保存後にエディタタブへ移動
+            activateTab('tab-editor');
+        });
     };
 
     function fillWorkInfo(data) {
@@ -161,36 +173,34 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCatchCounter(document.getElementById('input-catch'));
     }
 
-    // ★修正: データを一括取得してキャッシュする（ソート高速化）
+    // ★修正: リスナーは一度だけ登録し、ソートはローカルで行う（消失バグ対策）
     function initWorkListener() {
-        if(window.unsubscribeWorks) window.unsubscribeWorks();
+        if(window.unsubscribeWorks) return; // 既に登録済みなら何もしない
         if(!window.currentUser) return;
         
         window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid).onSnapshot(snap => {
             window.cachedWorksData = [];
             snap.forEach(d => window.cachedWorksData.push({...d.data(), id:d.id}));
-            renderWorkList(); // データ更新時に描画
+            renderWorkList();
         });
     }
 
-    // ★追加: キャッシュされたデータを使って描画する（ソート・フィルタ反映）
+    // ★修正: 描画関数を分離して呼び出しやすく
     window.renderWorkList = function() {
         const listEl = document.getElementById('work-list'); if(!listEl) return;
-        const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
+        const sortKey = document.getElementById('sort-order').value; // updated | created
         const filterStatus = document.getElementById('filter-status').value;
         
         listEl.innerHTML = '';
-        let works = [...window.cachedWorksData]; // 複製
+        let works = [...window.cachedWorksData];
         
-        // フィルタ
         if(filterStatus !== 'all') works = works.filter(w => w.status === filterStatus);
         
-        // ソート
         works.sort((a,b) => {
             if(a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
-            const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
-            const tB = b[sortKey] ? b[sortKey].toMillis() : 0;
-            return tB - tA; // 降順
+            const tA = (sortKey==='created' ? a.createdAt : a.updatedAt)?.toMillis() || 0;
+            const tB = (sortKey==='created' ? b.createdAt : b.updatedAt)?.toMillis() || 0;
+            return tB - tA;
         });
         
         works.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
@@ -204,13 +214,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const pad=n=>n.toString().padStart(2,'0');
             return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
+        // 文字数を独立行に配置
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${data.isPinned?'<span style="color:#4caf50;margin-right:4px;">★</span>':''}${escapeHtml(data.title||'無題')}</div>
                 <div class="work-meta-container">
                     <div class="work-meta-row">作成: ${fmt(data.createdAt)}</div>
                     <div class="work-meta-row">更新: ${fmt(data.updatedAt)}</div>
-                    <div class="work-meta-row" style="color:#89b4fa; font-weight:bold;">${data.totalChars||0} 字</div>
+                    <div class="work-meta-row" style="color:#89b4fa; font-weight:bold; margin-top:2px;">${data.totalChars||0} 字</div>
                 </div>
             </div>
             <div class="work-actions">
@@ -223,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete();};
     window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
 
-/* Story Builder V1.30 script.js - Part 2/3 */
+/* Story Builder V1.40 script.js - Part 2/3 */
 
     // --- Editor & Chapter ---
     window.initEditorToolbar = function() {
@@ -258,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleRow=document.createElement('div'); titleRow.className='chapter-title-row'; titleRow.innerHTML=`<textarea id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル" rows="1"></textarea>`;
         const edCon=document.createElement('div'); edCon.id='editor-container'; edCon.style.cssText="flex:1;position:relative;border:1px solid #555;background:#111;overflow:hidden;"; edCon.innerHTML=`<textarea id="main-editor" class="main-textarea" style="width:100%;height:100%;border:none;" placeholder="本文..."></textarea>`;
         const footer=document.createElement('div'); footer.className='editor-footer-row';
+        // フッター内の「戻る」ボタンなども配置
         footer.innerHTML=`<button class="btn-custom btn-small btn-red" id="del-ch-btn">削除</button><div style="display:flex;gap:8px;align-items:center;"><button class="toolbar-btn-footer" id="undo-btn">◀️</button><button class="toolbar-btn-footer" id="redo-btn">▶️</button><span style="color:#555;">|</span><button class="toolbar-btn-footer mobile-only" id="back-list-btn">🔙</button><button class="btn-custom btn-small" id="quick-save-btn">保存</button></div>`;
 
         mainArea.appendChild(header); mainArea.appendChild(titleRow); mainArea.appendChild(edCon); mainArea.appendChild(footer);
@@ -342,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
 
-/* Story Builder V1.30 script.js - Part 3/3 */
+/* Story Builder V1.40 script.js - Part 3/3 */
 
     // --- Plot ---
     window.loadPlots = function() {
@@ -353,7 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d=doc.data(); const div=document.createElement('div');
                 const isTL = d.type === 'timeline';
                 div.className = 'plot-card';
-                // TLならメモは表示しない
                 let previewHtml = "";
                 if(!isTL) {
                     previewHtml = `<div class="plot-card-preview" style="margin-top:5px;font-size:13px;color:#aaa;white-space:pre-wrap;max-height:60px;overflow:hidden;">${escapeHtml(d.content)}</div>`;
@@ -436,7 +447,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ★修正: プレースホルダー削除
     window.renderTimelineEditor = function() {
         const el = document.getElementById('plot-timeline-editor');
         if(window.tempTimelineData.length === 0) window.tempTimelineData.push({time:"", text:""});
@@ -572,16 +582,21 @@ document.addEventListener('DOMContentLoaded', () => {
     window.activateTab=(id)=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.style.display='none');const b=document.querySelector(`.tab-btn[data-tab="${id}"]`);if(b)b.classList.add('active');const c=document.getElementById(id);if(c)c.style.display=id==='tab-editor'?'flex':'block';if(id==='tab-plot')loadPlots();if(id==='tab-char')loadCharacters();if(id==='tab-common-memo')loadMemoListForWorkspace();saveAppState('workspace');};
 
     // Events
-    bindClick('diary-widget',()=>switchView('stats')); bindClick('btn-common-memo',()=>switchView('memo')); bindClick('back-to-top',()=>saveCurrentChapter('top')); bindClick('back-from-stats',()=>switchView('top')); bindClick('back-from-memo',()=>switchView('top')); bindClick('create-new-work-btn',createNewWork); bindClick('save-work-info-btn',saveWorkInfo);
+    bindClick('diary-widget',()=>switchView('stats')); bindClick('btn-common-memo',()=>switchView('memo')); 
+    // ★修正: 「保存して戻る」ボタンのIDのまま、中身の挙動を switchView('top') に変更
+    bindClick('back-to-top',()=>switchView('top'));
+    bindClick('back-from-stats',()=>switchView('top')); bindClick('back-from-memo',()=>switchView('top')); bindClick('create-new-work-btn',createNewWork); bindClick('save-work-info-btn',saveWorkInfo);
     bindClick('preview-close-btn',closePreview); bindClick('preview-mode-btn',togglePreviewMode); bindClick('preview-setting-btn',openPreviewSettings); bindClick('history-close-btn',()=>document.getElementById('history-modal').style.display='none'); bindClick('history-restore-btn',restoreHistory);
     bindClick('es-cancel',()=>document.getElementById('editor-settings-modal').style.display='none'); bindClick('es-save',saveEditorSettings); bindClick('ps-cancel',()=>document.getElementById('preview-settings-modal').style.display='none'); bindClick('ps-save',savePreviewSettings); bindClick('replace-cancel-btn',()=>document.getElementById('replace-modal').style.display='none'); bindClick('replace-execute-btn',executeReplace);
     bindClick('add-new-memo-btn',()=>openMemoEditor(null,'memo')); bindClick('ws-add-new-memo-btn',()=>openMemoEditor(null,'workspace')); bindClick('memo-editor-save',saveMemo); bindClick('memo-editor-cancel',()=>switchView(window.previousView)); bindClick('memo-editor-delete',()=>deleteMemo(window.editingMemoId,window.previousView));
     bindClick('plot-add-new-btn',()=>openPlotEditor(null)); bindClick('char-add-new-btn',()=>openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',saveCharItem); bindClick('char-edit-delete',deleteCharItem);
     
     document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.getAttribute('data-tab'))));
-    // ★修正: イベントリスナーを新しい描画関数に紐づけ
+    
+    // ★修正: ソート/フィルタのchangeイベントで renderWorkList を呼ぶように修正
     const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',renderWorkList);
     const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',renderWorkList);
+    
     const edEl=document.getElementById('main-editor');if(edEl)edEl.addEventListener('input',()=>{updateCharCount();trackDailyProgress();});
     const cEl=document.getElementById('input-catch');if(cEl)cEl.addEventListener('input',function(){updateCatchCounter(this);});
     const iconInput=document.getElementById('char-icon-input');
