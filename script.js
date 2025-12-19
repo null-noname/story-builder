@@ -1,4 +1,4 @@
-/* Story Builder V0.25 script.js */
+/* Story Builder V0.26 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.writingChart = null;
     window.editingMemoId = null; 
     window.previousView = 'top';
+    window.charCountMode = 'total'; // 'total' (総文字数) or 'pure' (全文字数/正味)
 
     const views = {
         top: document.getElementById('top-view'),
@@ -80,13 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('back-from-stats', () => switchView('top'));
     bindClick('back-from-memo', () => switchView('top'));
     bindClick('create-new-work-btn', createNewWork);
-    bindClick('save-work-info-btn', () => saveCurrentWork()); // 作品情報はサイレント保存
-    // ★修正: 一時保存もサイレント保存に変更（第2引数をfalseまたは省略）
+    bindClick('save-work-info-btn', () => saveCurrentWork());
     bindClick('quick-save-btn', () => saveCurrentWork(null, false)); 
-    bindClick('toggle-writing-mode', () => {
-        const editor = document.getElementById('main-editor');
-        if(editor) editor.classList.toggle('vertical-mode');
-    });
+    
+    // ★修正: 執筆画面のツールバー初期化
+    initEditorToolbar();
+
     bindClick('add-new-memo-btn', () => openMemoEditor(null, 'memo'));
     bindClick('ws-add-new-memo-btn', () => openMemoEditor(null, 'workspace'));
     bindClick('memo-editor-save', saveMemo);
@@ -115,6 +115,102 @@ document.addEventListener('DOMContentLoaded', () => {
             if(contentEl) contentEl.style.display = (contentId === 'tab-editor') ? 'flex' : 'block';
         });
     });
+
+    // --- Editor Toolbar Functions ---
+    function initEditorToolbar() {
+        // 既存のボタンレイアウトをJSで書き換える（HTMLを変更せずJSで構築）
+        const editorTab = document.getElementById('tab-editor');
+        if(!editorTab) return;
+
+        // 既存のヘッダーバーを探して中身をリセット
+        let header = editorTab.querySelector('.editor-header');
+        if(!header) {
+            header = document.createElement('div');
+            header.className = 'editor-header';
+            editorTab.insertBefore(header, editorTab.firstChild);
+            // 古いトグルボタンなどは削除（HTML側で残っていてもここでクリア）
+            const oldHeader = editorTab.querySelector('div[style*="background:#333"]');
+            if(oldHeader) oldHeader.remove(); 
+        }
+        header.innerHTML = '';
+
+        // ツールバー（左側）
+        const toolbar = document.createElement('div');
+        toolbar.className = 'editor-toolbar';
+        
+        const tools = [
+            { icon: '👁️', action: () => alert('プレビュー機能（未実装）') },
+            { icon: '⚙️', action: () => alert('設定画面（未実装）') },
+            { icon: '🔄', action: toggleVerticalMode }, // 縦書き切替
+            { icon: '🔍', action: () => alert('置換機能（未実装）') },
+            { spacer: true },
+            { icon: '🇷', action: insertRuby }, // ルビ
+            { icon: '—', action: insertDash }, // ダッシュ
+            { icon: '↩️', action: () => document.execCommand('undo') },
+            { icon: '↪️', action: () => document.execCommand('redo') }
+        ];
+
+        tools.forEach(t => {
+            if(t.spacer) {
+                const sp = document.createElement('div');
+                sp.style.width = '10px';
+                sp.style.flexShrink = '0';
+                toolbar.appendChild(sp);
+            } else {
+                const btn = document.createElement('button');
+                btn.className = 'toolbar-btn';
+                btn.textContent = t.icon;
+                btn.onclick = t.action;
+                toolbar.appendChild(btn);
+            }
+        });
+
+        // 文字数表示（右側）
+        const counter = document.createElement('div');
+        counter.className = 'char-count-display';
+        counter.id = 'editor-char-counter';
+        counter.onclick = toggleCharCountMode;
+        counter.textContent = '総文字数: 0';
+
+        header.appendChild(toolbar);
+        header.appendChild(counter);
+    }
+
+    function toggleVerticalMode() {
+        const editor = document.getElementById('main-editor');
+        if(editor) editor.classList.toggle('vertical-mode');
+    }
+
+    function insertTextAtCursor(text) {
+        const editor = document.getElementById('main-editor');
+        if (!editor) return;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const val = editor.value;
+        editor.value = val.substring(0, start) + text + val.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + text.length;
+        editor.focus();
+        updateCharCount();
+    }
+
+    function insertRuby() {
+        const parent = prompt("親文字を入力してください");
+        if(!parent) return;
+        const ruby = prompt("ふりがなを入力してください");
+        if(!ruby) return;
+        insertTextAtCursor(`|${parent}《${ruby}》`);
+    }
+
+    function insertDash() {
+        insertTextAtCursor('――');
+    }
+
+    function toggleCharCountMode() {
+        window.charCountMode = (window.charCountMode === 'total') ? 'pure' : 'total';
+        updateCharCount();
+    }
+
+    // ---
 
     async function createNewWork() {
         if (!window.currentUser) return;
@@ -152,7 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const div = document.createElement('div');
         div.className = `work-item ${data.isPinned ? 'pinned' : ''}`;
         
-        // ★修正: 時間まで表示するように変更
         const formatDate = (ts) => {
             if(!ts) return '-';
             const d = new Date(ts.toDate());
@@ -239,10 +334,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ★修正: 文字数カウントのモード切替対応
     function updateCharCount() { 
         const text = document.getElementById('main-editor').value;
-        document.getElementById('editor-char-count-total').textContent = text.length;
-        document.getElementById('editor-char-count-pure').textContent = text.replace(/\s/g, '').length;
+        const counter = document.getElementById('editor-char-counter');
+        if(!counter) return;
+
+        if (window.charCountMode === 'total') {
+            counter.textContent = `総文字数: ${text.length}`;
+            counter.style.color = '#fff'; // 白
+        } else {
+            const pure = text.replace(/\s/g, '').length;
+            counter.textContent = `全文字数: ${pure}`;
+            counter.style.color = '#89b4fa'; // 青
+        }
     }
 
     function updateCatchCounter(el) {
@@ -287,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="memo-title">${escapeHtml(data.title)}</span>
                 <div class="memo-controls">
                     <button class="memo-btn" onclick="openMemoEditor('${id}', '${originView}')">✎ 編集</button>
-                    <button class="memo-btn memo-btn-delete" onclick="deleteMemo('${id}', '${originView}')">-</button>
+                    <button class="memo-btn memo-btn-delete" onclick="deleteMemo('${id}', '${originView}')">削除</button>
                 </div>
             </div>
             <div class="memo-divider"></div>
