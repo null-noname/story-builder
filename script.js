@@ -1,4 +1,4 @@
-/* Story Builder V0.38 script.js */
+/* Story Builder V0.40 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.pendingLogSave = null;
     window.writingChart = null; 
     window.dailyHistory = [0,0,0,0,0,0,0]; 
-    window.dragSrcEl = null; // ドラッグ中の要素
+    window.dragSrcEl = null; 
 
     const views = {
         top: document.getElementById('top-view'),
@@ -47,11 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
 
+    // ★ログイン修正: Redirect -> Popup
     const loginBtn = document.getElementById('google-login-btn');
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithRedirect(provider).catch((error) => alert("ログインエラー: " + error.message));
+            auth.signInWithPopup(provider) // ポップアップに変更
+                .catch((error) => alert("ログインエラー: " + error.message));
         });
     }
 
@@ -135,6 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('create-new-work-btn', createNewWork);
     bindClick('save-work-info-btn', () => saveWorkInfo());
     
+    // プレビュー操作
+    bindClick('preview-close-btn', closePreview);
+    bindClick('preview-mode-btn', togglePreviewMode);
+
     initEditorToolbar();
 
     bindClick('add-new-memo-btn', () => openMemoEditor(null, 'memo'));
@@ -172,6 +178,32 @@ document.addEventListener('DOMContentLoaded', () => {
             saveAppState('workspace');
         });
     });
+
+    // --- Preview Functions ---
+    function showPreview() {
+        const editor = document.getElementById('main-editor');
+        const modal = document.getElementById('preview-modal');
+        const content = document.getElementById('preview-content');
+        if(!editor || !modal || !content) return;
+
+        // 簡易テキスト整形: 改行を<br>、スペースを&nbsp;に
+        let text = editor.value;
+        text = escapeHtml(text).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
+        // ルビ表示の簡易変換 |親文字《ふりがな》 -> <ruby>親文字<rt>ふりがな</rt></ruby>
+        text = text.replace(/｜(.*?《.*?》)/g, '$1').replace(/([^\x01-\x7E]+)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+
+        content.innerHTML = text;
+        modal.style.display = 'flex';
+    }
+
+    function closePreview() {
+        document.getElementById('preview-modal').style.display = 'none';
+    }
+
+    function togglePreviewMode() {
+        const content = document.getElementById('preview-content');
+        content.classList.toggle('vertical-mode');
+    }
 
     // --- Daily Log & Graph Logic ---
     function getTodayId() {
@@ -325,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toolbar.className = 'editor-toolbar';
         
         const tools = [
-            { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
+            { icon: '📖', action: showPreview }, // プレビュー実行
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
             { spacer: true, label: '|' },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
@@ -432,10 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('sidebar-toggle-close').addEventListener('click', toggleSidebar);
     }
 
-    // モード切替
     window.setChapterMode = function(mode) {
         window.chapterListMode = mode;
-        loadChapters(); // リスト再描画
+        loadChapters(); 
     };
 
     function toggleSidebar() {
@@ -580,7 +611,6 @@ document.addEventListener('DOMContentLoaded', () => {
               if(chapters.length === 0) {
                   listEl.innerHTML = '<div style="padding:10px; color:#aaa;">章がありません</div>';
               } else {
-                  // --- 並び替え完了時に保存するための配列をメモリに保持 ---
                   window.currentChapterList = chapters;
 
                   chapters.forEach((ch, index) => {
@@ -597,30 +627,24 @@ document.addEventListener('DOMContentLoaded', () => {
                       item.appendChild(title);
 
                       if(window.chapterListMode === 'reorder') {
-                          // 並び替えハンドル
-                          item.setAttribute('draggable', 'true'); // PC用
+                          item.setAttribute('draggable', 'true'); 
                           const handle = document.createElement('span');
                           handle.textContent = '||';
                           handle.className = 'drag-handle';
-                          // スマホ用タッチイベント
                           handle.addEventListener('touchstart', handleTouchStart, {passive: false});
                           handle.addEventListener('touchmove', handleTouchMove, {passive: false});
                           handle.addEventListener('touchend', handleTouchEnd);
                           
                           item.appendChild(handle);
-                          
-                          // PC用ドラッグイベント
                           addDragEvents(item);
                           
                       } else if (window.chapterListMode === 'delete') {
-                          // 削除アイコン
                           const delIcon = document.createElement('span');
                           delIcon.textContent = '🗑️';
                           delIcon.className = 'chapter-delete-icon';
                           delIcon.onclick = (e) => { e.stopPropagation(); deleteTargetChapter(ch.id); };
                           item.appendChild(delIcon);
                       } else {
-                          // 通常: 文字数表示
                           const count = document.createElement('span');
                           count.className = 'chapter-list-count';
                           const chPure = (ch.content || "").replace(/\s/g, '').length;
@@ -652,9 +676,8 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('drop', function(e) {
             if (e.stopPropagation) e.stopPropagation();
             if (window.dragSrcEl !== this) {
-                // DOM上で入れ替え
                 swapNodes(window.dragSrcEl, this);
-                updateOrderInDB(); // DB保存
+                updateOrderInDB(); 
             }
             return false;
         });
@@ -690,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e) {
         if(touchSrcEl) {
             touchSrcEl.classList.remove('dragging');
-            updateOrderInDB(); // DB保存
+            updateOrderInDB(); 
             touchSrcEl = null;
         }
     }
@@ -700,7 +723,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const p2 = n2.parentNode;
         if (p1 !== p2) return;
         
-        // 単純な入れ替えロジック
         const temp = document.createElement("div");
         p1.insertBefore(temp, n1);
         p2.insertBefore(n1, n2);
@@ -720,7 +742,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         await batch.commit();
-        // コンソールで確認用
         console.log("Order updated");
     }
 
