@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Builder V0.10</title>
+    <title>Story Builder V0.11</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -48,6 +48,7 @@
                             <option value="all">すべて</option>
                             <option value="in-progress">制作中</option>
                             <option value="completed">制作完了</option>
+                            <option value="suspended">中断</option>
                         </select>
                     </div>
                 </div>
@@ -74,8 +75,8 @@
                         <div id="c-count" style="text-align:right; font-size:16px; font-weight: bold; color:var(--accent-blue); margin-top: 5px;">残り 35 文字</div>
                     </div>
                     <div style="display:flex; gap:10px; margin-bottom:20px;">
-                        <div style="flex:1;"><label style="font-weight: bold; color:var(--gold); margin-bottom:8px; display:block;">メインジャンル</label><input type="text" id="input-genre-main"></div>
-                        <div style="flex:1;"><label style="font-weight: bold; color:var(--gold); margin-bottom:8px; display:block;">サブジャンル</label><input type="text" id="input-genre-sub"></div>
+                        <div style="flex:1;"><label style="font-weight: bold; color:var(--text-white); margin-bottom:8px; display:block;">メインジャンル</label><input type="text" id="input-genre-main"></div>
+                        <div style="flex:1;"><label style="font-weight: bold; color:var(--text-white); margin-bottom:8px; display:block;">サブジャンル</label><input type="text" id="input-genre-sub"></div>
                     </div>
                     
                     <div class="form-group">
@@ -96,7 +97,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label>レーティング（複数選択可）</label>
+                        <label>レーティング</label>
                         <div class="compact-row">
                             <label><input type="checkbox" name="rating" value="none"><span>なし</span></label>
                             <label><input type="checkbox" name="rating" value="sexual"><span>性描写</span></label>
@@ -115,7 +116,7 @@
                         </div>
                     </div>
 
-                    <button id="save-work-info-btn" class="btn-custom btn-full" style="padding:18px; font-size: 18px; border-color:var(--gold);">作品情報を反映させる</button>
+                    <button id="save-work-info-btn" class="btn-custom btn-full" style="padding:18px; font-size: 18px; margin-top: 10px;">作品情報を反映させる</button>
                 </div>
 
                 <div id="tab-editor" class="tab-content" style="display:none; flex:1; flex-direction:column;">
@@ -131,11 +132,11 @@
 
             <div id="stats-view" style="display:none;">
                 <button id="back-from-stats" class="btn-custom">← 戻る</button>
-                <h2 style="color:var(--gold); text-align:center;">執筆統計 (準備中)</h2>
+                <h2 style="color:var(--text-white); text-align:center;">執筆統計 (準備中)</h2>
             </div>
             <div id="memo-view" style="display:none;">
                 <button id="back-from-memo" class="btn-custom">← 戻る</button>
-                <h2 style="color:var(--gold); text-align:center;">共通メモ (準備中)</h2>
+                <h2 style="color:var(--text-white); text-align:center;">共通メモ (準備中)</h2>
             </div>
         </div>
     </div>
