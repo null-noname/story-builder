@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Builder V0.16</title>
+    <title>Story Builder V0.17</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -55,7 +55,7 @@
             </div>
 
             <div id="workspace-view" style="display:none; height:100%; flex-direction:column;">
-                <button id="back-to-top" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">← 戻る</button>
+                <button id="back-to-top" class="btn-custom" style="align-self: flex-start; margin-bottom:15px;">保存</button>
                 <div class="tab-bar">
                     <button class="btn-custom tab-btn active" data-tab="tab-info">作品情報</button>
                     <button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button>
@@ -125,10 +125,10 @@
 
             <div id="memo-editor-view" class="screen" style="display:none; height:100%; flex-direction:column;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <button id="memo-editor-cancel" class="btn-custom">キャンセル</button>
+                    <button id="memo-editor-delete" class="btn-red">削除</button>
                     <div style="display:flex; gap:10px;">
-                        <button id="memo-editor-delete" class="btn-red">削除</button>
                         <button id="memo-editor-save" class="btn-green">保存</button>
+                        <button id="memo-editor-cancel" class="btn-custom">キャンセル</button>
                     </div>
                 </div>
                 

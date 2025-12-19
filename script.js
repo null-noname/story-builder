@@ -63,9 +63,15 @@ function switchView(name) {
 
 document.getElementById('diary-widget').addEventListener('click', () => switchView('stats'));
 document.getElementById('btn-common-memo').addEventListener('click', () => switchView('memo'));
-document.getElementById('back-to-top').addEventListener('click', () => { saveCurrentWork(); switchView('top'); });
+document.getElementById('back-to-top').addEventListener('click', () => { 
+    saveCurrentWork(true); // true = silent (popupなし)
+});
 document.getElementById('back-from-stats').addEventListener('click', () => switchView('top'));
 document.getElementById('back-from-memo').addEventListener('click', () => switchView('top'));
+
+// ★修正: リスナーを追加してソート・フィルタを機能させる
+document.getElementById('sort-order').addEventListener('change', loadWorks);
+document.getElementById('filter-status').addEventListener('change', loadWorks);
 
 // --- Work Management ---
 document.getElementById('create-new-work-btn').addEventListener('click', async () => {
@@ -89,8 +95,12 @@ function loadWorks() {
         let worksData = [];
         snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
         
-        if(filterStatus !== 'all') worksData = worksData.filter(w => w.status === filterStatus);
+        // ★修正: フィルタリング
+        if(filterStatus !== 'all') {
+            worksData = worksData.filter(w => w.status === filterStatus);
+        }
         
+        // ソート
         worksData.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
             const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
@@ -149,9 +159,11 @@ function fillWorkspace(data) {
     loadMemoListForWorkspace(); 
 }
 
-document.getElementById('save-work-info-btn').addEventListener('click', saveCurrentWork);
-document.getElementById('quick-save-btn').addEventListener('click', saveCurrentWork);
-function saveCurrentWork() {
+document.getElementById('save-work-info-btn').addEventListener('click', () => saveCurrentWork(false));
+document.getElementById('quick-save-btn').addEventListener('click', () => saveCurrentWork(false));
+
+// ★修正: silent引数を追加し、戻るボタンの時はアラートなしで遷移
+function saveCurrentWork(silent = false) {
     if(!currentWorkId) return;
     const content = document.getElementById('main-editor').value;
     const selectedRatings = [];
@@ -172,7 +184,14 @@ function saveCurrentWork() {
         totalChars: content.length,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-    db.collection('works').doc(currentWorkId).update(data).then(() => alert("保存しました"));
+    
+    db.collection('works').doc(currentWorkId).update(data).then(() => {
+        if(silent) {
+            switchView('top'); // 戻る動作
+        } else {
+            alert("保存しました");
+        }
+    });
 }
 document.getElementById('main-editor').addEventListener('input', updateCharCount);
 function updateCharCount() { document.getElementById('editor-char-count').textContent = document.getElementById('main-editor').value.length; }
@@ -250,12 +269,11 @@ function createMemoCard(id, data, originView) {
     return div;
 }
 
-// ★修正: 削除確認メッセージを修正し、削除後に元の画面に戻る（リスト更新）
 window.deleteMemo = function(id, origin) {
     if(confirm("本当に削除しますか？")) {
         db.collection('memos').doc(id).delete().then(() => {
-            // リスト画面(origin)に切り替える（リロード効果）
-            switchView(origin);
+            if(origin === 'memo') loadMemoList();
+            else loadMemoListForWorkspace();
         });
     }
 };
@@ -280,6 +298,7 @@ window.openMemoEditor = function(id, fromView) {
     }
 };
 
+// ボタン処理
 document.getElementById('memo-editor-save').addEventListener('click', saveMemo);
 document.getElementById('memo-editor-cancel').addEventListener('click', () => switchView(previousView));
 document.getElementById('memo-editor-delete').addEventListener('click', () => {
@@ -296,7 +315,6 @@ function saveMemo() {
     };
 
     const onComplete = () => {
-        // ★修正: 保存後、自動的に前の画面に戻る
         switchView(previousView);
     };
 
