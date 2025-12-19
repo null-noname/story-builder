@@ -1,4 +1,4 @@
-/* Story Builder V0.57 script.js */
+/* Story Builder V0.58 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -338,7 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
               snap.forEach((doc, index) => {
                   const data = doc.data();
                   const date = data.savedAt ? new Date(data.savedAt.toDate()) : new Date();
-                  // 秒まで表示
                   const label = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
                   
                   const item = document.createElement('div');
@@ -388,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // ★即座にDBに保存して確定させる
             await saveCurrentChapter(null, false);
-            alert("復元しました");
+            // ポップアップ削除
         }
     }
 

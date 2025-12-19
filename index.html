@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ストーリービルダー</title>
-    <link rel="stylesheet" href="style.css?v=0.55">
+    <link rel="stylesheet" href="style.css?v=0.58">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -197,7 +197,7 @@
             <div style="color:#fff; font-weight:bold;">執筆履歴・バックアップ</div>
             <button id="history-restore-btn" class="btn-green">この内容で復元</button>
         </div>
-        <div style="flex:1; display:flex; height: 100%; overflow:hidden;">
+        <div class="history-container">
             <div class="history-sidebar">
                 <div class="history-list-header">保存日時</div>
                 <div id="history-list" class="history-list"></div>
@@ -304,6 +304,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=0.55"></script>
+    <script src="script.js?v=0.58"></script>
 </body>
 </html>
