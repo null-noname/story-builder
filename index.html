@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Builder V0.14</title>
+    <title>Story Builder V0.15</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -91,8 +91,8 @@
                 <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" class="main-textarea" style="height:100%;"></textarea></div>
                 
                 <div id="tab-common-memo" class="tab-content" style="display:none; flex:1; flex-direction:column;">
-                    <div style="padding:10px; color:#aaa;">※編集はTOP画面の共通メモから行えます（参照用）</div>
-                    <div id="ws-common-memo-list" style="overflow-y:auto; flex:1;"></div>
+                    <button id="ws-add-new-memo-btn" class="memo-add-btn" style="margin-bottom:10px;">＋ 新しいメモを追加</button>
+                    <div id="ws-memo-list-container" class="scrollable" style="flex:1;"></div>
                 </div>
             </div>
 
@@ -123,16 +123,17 @@
                 <div id="memo-list-container" class="scrollable" style="flex:1;"></div>
             </div>
 
-            <div id="memo-edit-modal" class="modal-overlay">
-                <div class="modal-content">
-                    <h3 style="margin:0; color:#fff;">メモ編集</h3>
-                    <input type="text" id="memo-edit-title" placeholder="タイトル" style="font-weight:bold; color:#8bc34a;">
-                    <textarea id="memo-edit-content" rows="8" placeholder="内容"></textarea>
-                    <div style="display:flex; justify-content:flex-end; gap:10px;">
-                        <button id="memo-modal-cancel" class="btn-custom">キャンセル</button>
-                        <button id="memo-modal-save" class="btn-custom" style="border-color:var(--accent-green); color:var(--accent-green);">保存</button>
-                    </div>
+            <div id="memo-editor-view" class="screen" style="display:none; height:100%; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <button id="memo-editor-back" class="btn-green">＜ 戻る</button>
+                    <button id="memo-editor-delete" class="btn-red">削除</button>
                 </div>
+                
+                <label style="color:#fff; font-weight:bold; margin-bottom:5px;">タイトル</label>
+                <input type="text" id="memo-editor-title" placeholder="新規メモ" style="font-weight:bold; font-size:1.2em; margin-bottom:15px;">
+                
+                <label style="color:#fff; font-weight:bold; margin-bottom:5px;">内容</label>
+                <textarea id="memo-editor-content" class="main-textarea" style="flex:1; height:auto;" placeholder="内容を入力..."></textarea>
             </div>
 
         </div>

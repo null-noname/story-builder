@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.14 */
+/* style.css - Story Builder V0.15 */
 
 :root {
     --bg-color: #202020; 
@@ -7,7 +7,8 @@
     --text-white: #e0e0e0;
     --sub-text: #aaaaaa;
     --accent-blue: #89b4fa;
-    --accent-green: #4caf50; /* メモ用の明るい緑 */
+    --accent-green: #4caf50; /* 明るい緑 */
+    --danger-red: #d32f2f; /* 削除ボタンの赤 */
     --input-bg: #1a1a1a;
     --border-color: #555;
     --font-main: "MS Gothic", "MS ゴシック", "Courier New", monospace;
@@ -23,32 +24,37 @@ body {
 }
 
 .screen { display: flex; flex-direction: column; height: 100%; padding: 20px; }
-/* ★修正: 統計画面などをスクロール可能にするためのクラス */
 .scrollable { overflow-y: auto; }
-
 .container { max-width: 1200px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; height: 100%; }
 
 /* タイトル */
-.app-title {
-    font-size: 32px; color: var(--bg-color);
-    -webkit-text-stroke: 1px var(--text-white);
-    margin: 0 0 10px 0;
-    text-shadow: 1px 1px 0 var(--text-white);
-}
-
+.app-title { font-size: 32px; color: var(--bg-color); -webkit-text-stroke: 1px var(--text-white); margin: 0 0 10px 0; text-shadow: 1px 1px 0 var(--text-white); }
 hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 
-/* ボタン */
+/* 基本ボタン */
 .btn-custom {
     background: var(--btn-bg); color: var(--text-white);
-    border: 1px solid #555;
-    padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 4px;
+    border: 1px solid #555; padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 4px;
     transition: background 0.1s;
 }
 .btn-custom:hover { background: #333; }
 .btn-custom:active, .btn-custom.active { background: var(--active-green) !important; color: #fff; }
 .btn-full { width: 100%; height: 45px; margin-bottom: 10px; font-size: 16px; }
 .btn-small { padding: 4px 10px; font-size: 13px; }
+
+/* ★特別ボタン (メモ編集用) */
+.btn-green {
+    background-color: var(--accent-green); color: #fff; border: none;
+    padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 4px;
+}
+.btn-green:hover { background-color: #388e3c; }
+
+.btn-red {
+    background-color: var(--danger-red); color: #fff; border: none;
+    padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 4px;
+}
+.btn-red:hover { background-color: #b71c1c; }
+
 
 /* タブバー */
 .tab-bar { display: flex; gap: 2px; margin-bottom: 10px; flex-shrink: 0; }
@@ -75,13 +81,9 @@ hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
     padding: 5px; border-radius: 4px; width: 130px; height: 35px; cursor: pointer;
 }
 .work-list-container { flex: 1; overflow-y: auto; padding-right: 5px; }
-
 .work-item {
-    background: var(--btn-bg); padding: 15px; margin-bottom: 10px;
-    border-radius: 8px; 
-    border-left: 5px solid var(--text-white);
-    display: flex; justify-content: space-between; align-items: center;
-    border: 1px solid #333;
+    background: var(--btn-bg); padding: 15px; margin-bottom: 10px; border-radius: 8px; 
+    border-left: 5px solid var(--text-white); display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
 }
 .work-item.pinned { border-left-color: #ff4444; }
 .work-info { flex: 1; cursor: pointer; }
@@ -92,12 +94,9 @@ hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 /* 入力フォーム */
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; margin-bottom: 8px; color: var(--text-white); font-weight: bold; font-size: 16px; }
-
 input, textarea, select.form-control {
-    background: var(--input-bg); color: var(--text-white);
-    border: 1px solid #666;
-    padding: 12px; border-radius: 4px; width: 100%; font-size: 14px;
-    margin-bottom: 0;
+    background: var(--input-bg); color: var(--text-white); border: 1px solid #666;
+    padding: 12px; border-radius: 4px; width: 100%; font-size: 14px; margin-bottom: 0;
 }
 .main-textarea { width: 100%; height: 60vh; background: #111; color: #fff; padding: 15px; font-size: 16px; line-height: 1.8; border: 1px solid #555; resize: none; }
 
@@ -105,83 +104,40 @@ input, textarea, select.form-control {
 .compact-row { display: flex; gap: 5px; background: transparent; padding: 0; border: none; }
 .compact-row label {
     flex: 1; text-align: center; padding: 10px 5px; cursor: pointer; font-size: 12px;
-    border: 1px solid #555; border-radius: 4px; 
-    background: var(--btn-bg); color: var(--text-white);
-    transition: background 0.1s;
+    border: 1px solid #555; border-radius: 4px; background: var(--btn-bg); color: var(--text-white); transition: background 0.1s;
 }
 .compact-row label:hover { background: #333; }
 .compact-row input { display: none; }
-.compact-row label:has(input:checked) {
-    background: var(--active-green); border-color: #555; color: #fff; font-weight: bold;
-}
+.compact-row label:has(input:checked) { background: var(--active-green); border-color: #555; color: #fff; font-weight: bold; }
 
 /* 統計カード */
 .stats-card-row { display: flex; gap: 10px; margin-bottom: 10px; flex-shrink: 0; }
 .stats-card {
-    background: var(--btn-bg); border: 1px solid #555;
-    border-radius: 12px; padding: 15px; flex: 1;
+    background: var(--btn-bg); border: 1px solid #555; border-radius: 12px; padding: 15px; flex: 1;
     display: flex; flex-direction: column; justify-content: center;
 }
 .stats-card .label { font-size: 14px; color: var(--text-white); margin-bottom: 5px; }
 .stats-card .value { font-size: 26px; color: var(--accent-blue); font-weight: bold; text-align: right; }
 .stats-card .unit { font-size: 14px; color: var(--text-white); margin-left: 5px; font-weight: normal; }
 
-/* ★共通メモリストのUI★ */
+/* メモリストUI */
 .memo-add-btn {
-    background-color: #1b5e20; /* 濃い緑 */
-    color: #fff; font-weight: bold; font-size: 1.2em;
-    width: 100%; padding: 12px; margin-bottom: 20px;
-    border: 1px solid #2e7d32; border-radius: 4px; cursor: pointer;
-    text-align: center;
+    background-color: #1b5e20; color: #fff; font-weight: bold; font-size: 1.2em;
+    width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #2e7d32; border-radius: 4px; cursor: pointer; text-align: center;
 }
 .memo-add-btn:hover { background-color: #2e7d32; }
-
 .memo-card {
-    background: #111; border: 1px solid #333; border-radius: 6px;
-    padding: 10px 15px; margin-bottom: 15px;
-    display: flex; flex-direction: column;
+    background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px 15px; margin-bottom: 15px; display: flex; flex-direction: column;
 }
-
-.memo-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 8px;
-}
-.memo-title {
-    color: #8bc34a; /* 明るい緑 */
-    font-weight: bold; font-size: 1.2em;
-}
-.memo-controls {
-    display: flex; gap: 5px;
-}
+.memo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.memo-title { color: #8bc34a; font-weight: bold; font-size: 1.2em; }
+.memo-controls { display: flex; gap: 5px; }
 .memo-btn {
-    background: #333; border: 1px solid #555; color: #fff;
-    padding: 4px 10px; border-radius: 3px; font-size: 0.9em; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+    background: #333; border: 1px solid #555; color: #fff; padding: 4px 10px; border-radius: 3px; font-size: 0.9em; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
-.memo-btn-green-icon {
-    background: #1b5e20; border: 1px solid #2e7d32; color: #fff;
-    width: 30px; padding: 0; font-weight: bold;
-}
-
-.memo-divider {
-    border: 0; border-top: 1px dashed #555;
-    margin: 5px 0 10px 0; width: 100%;
-}
-.memo-text {
-    color: #fff; font-size: 1em; line-height: 1.5; white-space: pre-wrap;
-}
-
-/* メモ編集モーダル */
-.modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8); z-index: 999;
-    display: none; justify-content: center; align-items: center;
-}
-.modal-content {
-    background: #202020; padding: 20px; border: 1px solid #555;
-    width: 90%; max-width: 600px; border-radius: 8px;
-    display: flex; flex-direction: column; gap: 10px;
-}
+.memo-btn-green-icon { background: #1b5e20; border: 1px solid #2e7d32; color: #fff; width: 30px; padding: 0; font-weight: bold; }
+.memo-divider { border: 0; border-top: 1px dashed #555; margin: 5px 0 10px 0; width: 100%; }
+.memo-text { color: #fff; font-size: 1em; line-height: 1.5; white-space: pre-wrap; max-height: 100px; overflow: hidden; text-overflow: ellipsis; }
 
 /* スクロールバー */
 ::-webkit-scrollbar { width: 8px; }

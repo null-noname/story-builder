@@ -1,4 +1,4 @@
-/* Story Builder V0.14 script.js */
+/* Story Builder V0.15 script.js */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -19,13 +19,15 @@ const auth = firebase.auth();
 let currentUser = null;
 let currentWorkId = null;
 let writingChart = null;
-let editingMemoId = null; // メモ編集用ID
+let editingMemoId = null; 
+let previousView = 'top'; // メモ編集からの戻り先
 
 const views = {
     top: document.getElementById('top-view'),
     workspace: document.getElementById('workspace-view'),
     stats: document.getElementById('stats-view'),
-    memo: document.getElementById('memo-view')
+    memo: document.getElementById('memo-view'),
+    memoEditor: document.getElementById('memo-editor-view')
 };
 const loginScreen = document.getElementById('login-screen');
 const mainApp = document.getElementById('main-app');
@@ -55,7 +57,6 @@ function switchView(name) {
         if(name === 'top') loadWorks();
         if(name === 'memo') loadMemoList();
         if(name === 'stats') { loadStats(); renderChart(); }
-        // ワークスペース内のメモタブが開かれたとき用
         if(name === 'workspace') loadMemoListForWorkspace(); 
     }
 }
@@ -96,7 +97,6 @@ function loadWorks() {
             const tB = b[sortKey] ? b[sortKey].toMillis() : 0;
             return tB - tA;
         });
-
         worksData.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
     });
 }
@@ -138,22 +138,19 @@ function fillWorkspace(data) {
     document.getElementById('main-editor').value = data.content || "";
     document.getElementById('plot-editor').value = data.plot || "";
     document.getElementById('char-editor').value = data.characterNotes || "";
-
     const setRadio = (name, val) => { const r = document.querySelector(`input[name="${name}"][value="${val}"]`); if(r) r.checked = true; };
     setRadio("novel-status", data.status || "in-progress");
     setRadio("novel-type", data.type || "original");
     setRadio("ai-usage", data.aiUsage || "none");
     const ratings = data.ratings || [];
     document.querySelectorAll('input[name="rating"]').forEach(c => c.checked = ratings.includes(c.value));
-    
     updateCharCount();
     updateCatchCounter(document.getElementById('input-catch'));
-    loadMemoListForWorkspace(); // ワークスペース用メモ更新
+    loadMemoListForWorkspace(); 
 }
 
 document.getElementById('save-work-info-btn').addEventListener('click', saveCurrentWork);
 document.getElementById('quick-save-btn').addEventListener('click', saveCurrentWork);
-
 function saveCurrentWork() {
     if(!currentWorkId) return;
     const content = document.getElementById('main-editor').value;
@@ -177,7 +174,6 @@ function saveCurrentWork() {
     };
     db.collection('works').doc(currentWorkId).update(data).then(() => alert("保存しました"));
 }
-
 document.getElementById('main-editor').addEventListener('input', updateCharCount);
 function updateCharCount() { document.getElementById('editor-char-count').textContent = document.getElementById('main-editor').value.length; }
 document.getElementById('input-catch').addEventListener('input', function() { updateCatchCounter(this); });
@@ -187,7 +183,6 @@ function updateCatchCounter(el) {
     c.textContent = `残り ${remain} 文字`;
     c.style.color = remain < 0 ? '#ff6b6b' : '#89b4fa';
 }
-
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -198,52 +193,44 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
-// --- Common Memo Logic (New List UI) ---
+// --- Common Memo Logic (Full Editor UI) ---
 
-// メモ追加
-document.getElementById('add-new-memo-btn').addEventListener('click', () => {
-    openMemoModal(); // 新規作成モード
-});
+// メモ追加ボタン (TOP & Workspace)
+document.getElementById('add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'memo'));
+document.getElementById('ws-add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'workspace'));
 
-// メモ読み込み
+// メモ読み込み (TOP)
 function loadMemoList() {
     if(!currentUser) return;
     db.collection('memos').where('uid', '==', currentUser.uid)
         .orderBy('updatedAt', 'desc').get().then(snap => {
             const container = document.getElementById('memo-list-container');
             container.innerHTML = '';
-            snap.forEach(doc => {
-                container.appendChild(createMemoCard(doc.id, doc.data()));
-            });
+            snap.forEach(doc => container.appendChild(createMemoCard(doc.id, doc.data(), 'memo')));
         });
 }
-
-// ワークスペース内のメモ一覧 (参照用)
+// メモ読み込み (Workspace)
 function loadMemoListForWorkspace() {
     if(!currentUser) return;
     db.collection('memos').where('uid', '==', currentUser.uid)
         .orderBy('updatedAt', 'desc').get().then(snap => {
-            const container = document.getElementById('ws-common-memo-list');
+            const container = document.getElementById('ws-memo-list-container');
             if(container) {
                 container.innerHTML = '';
-                snap.forEach(doc => {
-                    container.appendChild(createMemoCardSimple(doc.data()));
-                });
+                snap.forEach(doc => container.appendChild(createMemoCard(doc.id, doc.data(), 'workspace')));
             }
         });
 }
 
-// メモカード生成 (編集・削除ボタン付き)
-function createMemoCard(id, data) {
+function createMemoCard(id, data, originView) {
     const div = document.createElement('div');
     div.className = 'memo-card';
     div.innerHTML = `
         <div class="memo-header">
             <span class="memo-title">${escapeHtml(data.title)}</span>
             <div class="memo-controls">
-                <button class="memo-btn" onclick="editMemo('${id}', '${escapeHtml(data.title)}', '${escapeHtml(data.content)}')">✎ 編集</button>
-                <button class="memo-btn">↑</button>
-                <button class="memo-btn memo-btn-green-icon" onclick="deleteMemo('${id}')">-</button>
+                <button class="memo-btn" onclick="openMemoEditor('${id}', '${originView}')">✎ 編集</button>
+                <button class="memo-btn memo-btn-green-icon" onclick="deleteMemo('${id}', '${originView}')">-</button>
             </div>
         </div>
         <div class="memo-divider"></div>
@@ -252,58 +239,66 @@ function createMemoCard(id, data) {
     return div;
 }
 
-// ワークスペース用の簡易表示カード
-function createMemoCardSimple(data) {
-    const div = document.createElement('div');
-    div.className = 'memo-card';
-    div.innerHTML = `
-        <div class="memo-header"><span class="memo-title">${escapeHtml(data.title)}</span></div>
-        <div class="memo-divider"></div>
-        <div class="memo-text">${escapeHtml(data.content)}</div>
-    `;
-    return div;
-}
-
-// メモ削除
-window.deleteMemo = function(id) {
+window.deleteMemo = function(id, origin) {
     if(confirm("このメモを削除しますか？")) {
-        db.collection('memos').doc(id).delete().then(loadMemoList);
+        db.collection('memos').doc(id).delete().then(() => {
+            if(origin === 'memo') loadMemoList();
+            else loadMemoListForWorkspace();
+        });
     }
 };
 
-// メモ編集モード
-window.editMemo = function(id, title, content) {
-    openMemoModal(id, title, content); // idを渡すと編集モード
+// メモエディタを開く
+window.openMemoEditor = function(id, fromView) {
+    editingMemoId = id;
+    previousView = fromView; // 戻る場所を記録
+    
+    if(id) {
+        // 編集モード：データ取得して表示
+        db.collection('memos').doc(id).get().then(doc => {
+            if(doc.exists) {
+                const data = doc.data();
+                document.getElementById('memo-editor-title').value = data.title;
+                document.getElementById('memo-editor-content').value = data.content;
+                switchView('memoEditor');
+            }
+        });
+    } else {
+        // 新規作成モード
+        document.getElementById('memo-editor-title').value = "";
+        document.getElementById('memo-editor-content').value = "";
+        switchView('memoEditor');
+    }
 };
 
-// モーダル操作
-const modal = document.getElementById('memo-edit-modal');
-function openMemoModal(id = null, title = "", content = "") {
-    editingMemoId = id;
-    document.getElementById('memo-edit-title').value = title;
-    document.getElementById('memo-edit-content').value = content;
-    modal.style.display = 'flex';
-}
-document.getElementById('memo-modal-cancel').addEventListener('click', () => { modal.style.display = 'none'; });
-document.getElementById('memo-modal-save').addEventListener('click', () => {
-    const title = document.getElementById('memo-edit-title').value || "新規メモ";
-    const content = document.getElementById('memo-edit-content').value;
+// エディタの戻るボタン (保存して戻る)
+document.getElementById('memo-editor-back').addEventListener('click', saveMemo);
+// エディタの削除ボタン
+document.getElementById('memo-editor-delete').addEventListener('click', () => {
+    if(editingMemoId) deleteMemo(editingMemoId, previousView);
+    else switchView(previousView);
+});
+
+function saveMemo() {
+    const title = document.getElementById('memo-editor-title').value || "新規メモ";
+    const content = document.getElementById('memo-editor-content').value;
     const memoData = {
         uid: currentUser.uid, title: title, content: content,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
+    const onComplete = () => {
+        // 保存後は前の画面に戻り、リストを再読み込みする
+        switchView(previousView);
+    };
+
     if(editingMemoId) {
-        db.collection('memos').doc(editingMemoId).update(memoData).then(() => {
-            modal.style.display = 'none'; loadMemoList();
-        });
+        db.collection('memos').doc(editingMemoId).update(memoData).then(onComplete);
     } else {
         memoData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        db.collection('memos').add(memoData).then(() => {
-            modal.style.display = 'none'; loadMemoList();
-        });
+        db.collection('memos').add(memoData).then(onComplete);
     }
-});
+}
 
 // --- Stats Logic ---
 function loadStats() {
