@@ -1,4 +1,4 @@
-/* Story Builder V0.34 script.js */
+/* Story Builder V0.35 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -300,12 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const toolbar = document.createElement('div');
         toolbar.className = 'editor-toolbar';
         
-        // ★修正: ツールバーの配置変更
         // 📖 ⚙ ｜ 縦 置換 ﾙﾋﾞ ―
         const tools = [
             { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
-            { spacer: true, label: '|' }, // 視覚的な区切り線
+            { spacer: true, label: '|' },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: () => alert('置換機能（未実装）') },
             { icon: 'ﾙﾋﾞ', action: insertRuby },
@@ -337,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
         header.appendChild(toolbar);
         header.appendChild(counter);
 
-        // ★修正: サブタイトル入力欄をtextareaに変更（折り返し対応）
         const titleRow = document.createElement('div');
         titleRow.className = 'chapter-title-row';
         titleRow.innerHTML = `<textarea id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル" rows="1"></textarea>`;
@@ -354,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 左: 削除
         const deleteChapterBtn = document.createElement('button');
         deleteChapterBtn.className = 'btn-custom btn-small btn-red'; 
-        deleteChapterBtn.textContent = '削除'; // 表記変更
+        deleteChapterBtn.textContent = '削除'; 
         deleteChapterBtn.onclick = deleteCurrentChapter;
 
         // 右: 操作グループ
@@ -367,12 +365,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const undoBtn = document.createElement('button');
         undoBtn.className = 'toolbar-btn-footer';
         undoBtn.textContent = '◀️';
-        undoBtn.onclick = () => document.execCommand('undo');
+        undoBtn.onclick = () => { 
+            const ed = document.getElementById('main-editor');
+            if(ed) { ed.focus(); document.execCommand('undo'); }
+        };
 
         const redoBtn = document.createElement('button');
         redoBtn.className = 'toolbar-btn-footer';
         redoBtn.textContent = '▶️';
-        redoBtn.onclick = () => document.execCommand('redo');
+        redoBtn.onclick = () => {
+            const ed = document.getElementById('main-editor');
+            if(ed) { ed.focus(); document.execCommand('redo'); }
+        };
 
         // 区切り線
         const sep = document.createElement('span');
@@ -389,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = document.createElement('button');
         saveBtn.className = 'btn-custom btn-small';
         saveBtn.id = 'quick-save-btn';
-        saveBtn.textContent = '保存'; // 表記変更
+        saveBtn.textContent = '保存';
         saveBtn.onclick = () => saveCurrentChapter(null, false);
 
         rightGroup.appendChild(undoBtn);
@@ -561,13 +565,11 @@ document.addEventListener('DOMContentLoaded', () => {
                       if(window.currentChapterId === ch.id) item.classList.add('active');
                       
                       const title = document.createElement('span');
+                      title.className = 'chapter-list-title';
                       title.textContent = ch.title || "無題";
-                      // ★修正: リスト内のタイトルも折り返しCSSを適用するため構造維持
                       
                       const count = document.createElement('span');
-                      count.style.fontSize = "0.8em";
-                      count.style.color = "#888";
-                      count.style.marginLeft = "5px"; // 隙間
+                      count.className = 'chapter-list-count';
                       const chPure = (ch.content || "").replace(/\s/g, '').length;
                       count.textContent = `(${chPure}字)`;
 

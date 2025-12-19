@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.34 */
+/* style.css - Story Builder V0.35 */
 
 :root {
     --bg-color: #202020; 
@@ -241,7 +241,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 /* フッター用ボタン */
 .toolbar-btn-footer {
     background: transparent;
-    border: 1px solid #444;
+    border: none; /* 枠線を削除 */
     color: #ddd;
     font-size: 16px;
     cursor: pointer;
@@ -265,7 +265,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 }
 .char-count-display:hover { background: #444; }
 
-/* ★修正: サブタイトル入力欄をtextarea用スタイルに */
+/* サブタイトル入力欄をtextarea用スタイルに */
 .chapter-title-row {
     margin-bottom: 5px;
     flex-shrink: 0;
@@ -279,10 +279,10 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     font-size: 16px;
     font-weight: bold;
     border-radius: 4px;
-    resize: none; /* 手動リサイズ禁止 */
+    resize: none;
     height: auto;
-    min-height: 40px; /* 1行分確保 */
-    overflow-y: hidden; /* 自動拡張する場合はhidden推奨だが今回は固定 */
+    min-height: 40px;
+    overflow-y: hidden;
 }
 .chapter-title-input:focus { border-color: var(--accent-blue); }
 
@@ -327,12 +327,24 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     justify-content: space-between;
     align-items: center;
     font-size: 14px;
-    /* ★修正: 長いタイトルを折り返す設定 */
     white-space: normal; 
     word-break: break-word;
 }
 .chapter-item:hover { background: #2a2a2a; }
 .chapter-item.active { background: #2b4034; color: #fff; border-left: 4px solid #4caf50; }
+
+/* 章リスト用レイアウト修正クラス */
+.chapter-list-title {
+    flex: 1;
+    margin-right: 5px;
+    word-break: break-word;
+}
+.chapter-list-count {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.8em;
+    color: #888;
+}
 
 .sidebar-footer {
     padding: 8px;
@@ -376,7 +388,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 /* フッターレイアウト用 */
 .editor-footer-row {
     display: flex; 
-    justify-content: space-between; /* 削除ボタンと右グループを離す */
+    justify-content: space-between; 
     align-items: center; 
     margin-top: 5px;
 }
