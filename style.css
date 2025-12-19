@@ -1,13 +1,13 @@
-/* style.css - Story Builder V0.08 */
-
+/* 変数定義 */
 :root {
-    --bg-color: #3d3d3d;
+    /* 背景色を #3d3d3d から #202020 (より暗い黒に近いグレー) に変更 */
+    --bg-color: #202020; 
+    
     --active-green: #2b4034;
     --btn-bg: #222222;
     --text-white: #e0e0e0;
-    --gold: #f0e68c;
+    --sub-text: #aaaaaa;
     --accent-blue: #89b4fa;
-    --sub-text: #cccccc;
     --input-bg: #1a1a1a;
     --border-color: #555;
     --font-main: "MS Gothic", "MS ゴシック", "Courier New", monospace;
@@ -26,19 +26,20 @@ body {
 .screen { display: flex; flex-direction: column; height: 100%; padding: 20px; }
 .container { max-width: 1200px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; height: 100%; }
 
-/* タイトル */
+/* タイトル (金色を廃止し、白系で統一) */
 .app-title {
     font-size: 32px; color: var(--bg-color);
-    -webkit-text-stroke: 1px var(--gold);
+    -webkit-text-stroke: 1px var(--text-white);
     margin: 0 0 10px 0;
-    text-shadow: 1px 1px 0 var(--gold);
+    text-shadow: 1px 1px 0 var(--text-white); /* 影も白く */
 }
 
 hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 
-/* ボタンデザイン */
+/* ボタンデザイン (文字色を白に統一) */
 .btn-custom {
-    background: var(--btn-bg); color: var(--gold); border: 1px solid #555;
+    background: var(--btn-bg); color: var(--text-white); /* 金色廃止 */
+    border: 1px solid #555;
     padding: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 4px;
     transition: background 0.1s;
 }
@@ -56,35 +57,40 @@ hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 }
 .diary-title { font-weight:bold; font-size: 16px; color: var(--text-white); }
 .diary-content { display:flex; justify-content:space-between; font-size:13px; }
-.diary-val { color:var(--accent-blue); font-size:20px; font-weight: bold; }
+.diary-val { color: var(--accent-blue); font-size:20px; font-weight: bold; }
 .top-buttons { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
 
 /* リスト・フィルタ */
 .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
-.list-title { font-size: 26px; font-weight: bold; color: var(--gold); }
+.list-title { font-size: 26px; font-weight: bold; color: var(--text-white); /* 金色廃止 */ }
 .filter-select {
-    background: var(--input-bg); color: #fff; border: 1px solid #666;
+    background: var(--input-bg); color: var(--text-white); border: 1px solid #666;
     padding: 5px; border-radius: 4px; width: 130px; height: 35px; cursor: pointer;
 }
 .work-list-container { flex: 1; overflow-y: auto; padding-right: 5px; }
+
+/* 作品カード */
 .work-item {
     background: var(--btn-bg); padding: 15px; margin-bottom: 10px;
-    border-radius: 8px; border-left: 5px solid var(--gold);
+    border-radius: 8px; 
+    border-left: 5px solid var(--text-white); /* 左の線も白に */
     display: flex; justify-content: space-between; align-items: center;
     border: 1px solid #333;
 }
-.work-item.pinned { border-left-color: #ff4444; }
+.work-item.pinned { border-left-color: #ff4444; } /* ピン留め(赤)はそのまま */
+
 .work-info { flex: 1; cursor: pointer; }
-.work-title { font-weight:bold; font-size: 20px; color: #fff; margin-bottom: 5px; }
+.work-title { font-weight:bold; font-size: 20px; color: var(--text-white); margin-bottom: 5px; }
 .work-meta { font-size: 12px; color: var(--sub-text); }
 .work-actions { display: flex; gap: 8px; }
 
-/* --- ここから：いただいたコードのフォームデザイン --- */
+/* 入力フォーム類 (文字色統一) */
 .form-group { margin-bottom: 20px; }
-.form-group label { display: block; margin-bottom: 8px; color: var(--gold); font-weight: bold; font-size: 16px; }
+.form-group label { display: block; margin-bottom: 8px; color: var(--text-white); /* 金色廃止 */ font-weight: bold; font-size: 16px; }
 
 input, textarea, select.form-control {
-    background: var(--input-bg); color: #fff; border: 1px solid #666;
+    background: var(--input-bg); color: var(--text-white); /* 文字色統一 */
+    border: 1px solid #666;
     padding: 12px; border-radius: 4px; width: 100%; font-size: 14px;
     margin-bottom: 0;
 }
