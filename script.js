@@ -1,4 +1,4 @@
-/* Story Builder V0.45 script.js */
+/* Story Builder V0.46 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(mainApp) mainApp.style.display = 'block';
             
             await loadDailyLog();
-            await loadSettings(); // 設定読み込み
+            loadSettings(); // 設定読み込み(Local)
 
             const lastView = localStorage.getItem('sb_last_view');
             if (lastView === 'workspace') {
@@ -197,30 +197,29 @@ document.addEventListener('DOMContentLoaded', () => {
         saveAppState('workspace');
     }
 
-    // --- Settings Functions ---
-    async function loadSettings() {
-        if(!window.currentUser) return;
-        const doc = await db.collection('settings').doc(window.currentUser.uid).get();
-        if(doc.exists) {
-            window.userSettings = { ...window.userSettings, ...doc.data() };
+    // --- Settings Functions (LocalStorage) ---
+    function loadSettings() {
+        const saved = localStorage.getItem('sb_user_settings');
+        if(saved) {
+            try {
+                window.userSettings = { ...window.userSettings, ...JSON.parse(saved) };
+            } catch(e) { console.error("Settings parse error", e); }
         }
         applySettingsToUI();
         applySettingsToDOM();
     }
 
     function saveSettings(showMsg = false) {
-        if(!window.currentUser) return;
-        
         window.userSettings.editorFontSize = document.getElementById('set-editor-font').value;
         window.userSettings.editorLineHeight = document.getElementById('set-editor-line').value;
         window.userSettings.previewFontSize = document.getElementById('set-preview-font').value;
         window.userSettings.previewLineHeight = document.getElementById('set-preview-line').value;
 
-        db.collection('settings').doc(window.currentUser.uid).set(window.userSettings)
-            .then(() => {
-                applySettingsToDOM();
-                if(showMsg) alert("設定を保存しました");
-            });
+        // LocalStorageに保存 (端末ごと)
+        localStorage.setItem('sb_user_settings', JSON.stringify(window.userSettings));
+        
+        applySettingsToDOM();
+        if(showMsg) alert("設定をこの端末に保存しました");
     }
 
     function applySettingsToUI() {
@@ -438,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const tools = [
             { icon: '📖', action: showPreview }, 
-            { icon: '⚙️', action: () => activateTab('tab-settings') }, // ギアボタンで設定タブへ
+            { icon: '⚙️', action: () => activateTab('tab-settings') }, 
             { spacer: true, label: '|' },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: () => alert('置換機能（未実装）') },
@@ -660,7 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadChapters();
         switchView('workspace');
 
-        // エディタタブを初期表示
         activateTab(initTab);
     };
 
