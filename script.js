@@ -1,4 +1,4 @@
-/* Story Builder V0.46 script.js */
+/* Story Builder V0.50 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -37,12 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dailyHistory = [0,0,0,0,0,0,0]; 
     window.dragSrcEl = null; 
 
-    // 設定の初期値
-    window.userSettings = {
-        editorFontSize: 16,
-        editorLineHeight: 1.8,
-        previewFontSize: 18,
-        previewLineHeight: 2.0
+    // 設定初期値
+    window.appSettings = {
+        edLetterSpacing: 0,
+        edLineHeight: 1.8,
+        edWidth: 100,
+        edFontSize: 16,
+        
+        prVerticalChars: 20,
+        prLinesPage: 20,
+        prFontScale: 1.0
     };
 
     const views = {
@@ -59,8 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider)
-                .catch((error) => alert("ログインエラー: " + error.message));
+            auth.signInWithPopup(provider).catch((error) => alert("ログインエラー: " + error.message));
         });
     }
 
@@ -71,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(mainApp) mainApp.style.display = 'block';
             
             await loadDailyLog();
-            loadSettings(); // 設定読み込み(Local)
+            loadLocalSettings(); // 設定読み込み
 
             const lastView = localStorage.getItem('sb_last_view');
             if (lastView === 'workspace') {
@@ -148,9 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // プレビュー操作
     bindClick('preview-close-btn', closePreview);
     bindClick('preview-mode-btn', togglePreviewMode);
-    
-    // 設定保存ボタン
-    bindClick('save-settings-btn', () => saveSettings(true));
+    bindClick('preview-setting-btn', openPreviewSettings); // プレビュー設定ボタン
+
+    // 設定モーダルボタン
+    bindClick('es-cancel', () => document.getElementById('editor-settings-modal').style.display = 'none');
+    bindClick('es-save', saveEditorSettings);
+    bindClick('ps-cancel', () => document.getElementById('preview-settings-modal').style.display = 'none');
+    bindClick('ps-save', savePreviewSettings);
 
     initEditorToolbar();
 
@@ -178,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const catchEl = document.getElementById('input-catch');
     if(catchEl) catchEl.addEventListener('input', function() { updateCatchCounter(this); });
 
-    // タブ切り替え処理
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             activateTab(btn.getAttribute('data-tab'));
@@ -198,71 +204,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Settings Functions (LocalStorage) ---
-    function loadSettings() {
-        const saved = localStorage.getItem('sb_user_settings');
+    function loadLocalSettings() {
+        const saved = localStorage.getItem('sb_app_settings');
         if(saved) {
-            try {
-                window.userSettings = { ...window.userSettings, ...JSON.parse(saved) };
-            } catch(e) { console.error("Settings parse error", e); }
+            try { window.appSettings = { ...window.appSettings, ...JSON.parse(saved) }; } 
+            catch(e) { console.error(e); }
         }
-        applySettingsToUI();
         applySettingsToDOM();
     }
 
-    function saveSettings(showMsg = false) {
-        window.userSettings.editorFontSize = document.getElementById('set-editor-font').value;
-        window.userSettings.editorLineHeight = document.getElementById('set-editor-line').value;
-        window.userSettings.previewFontSize = document.getElementById('set-preview-font').value;
-        window.userSettings.previewLineHeight = document.getElementById('set-preview-line').value;
-
-        // LocalStorageに保存 (端末ごと)
-        localStorage.setItem('sb_user_settings', JSON.stringify(window.userSettings));
-        
-        applySettingsToDOM();
-        if(showMsg) alert("設定をこの端末に保存しました");
+    function openEditorSettings() {
+        document.getElementById('es-letter-spacing').value = window.appSettings.edLetterSpacing;
+        document.getElementById('es-line-height').value = window.appSettings.edLineHeight;
+        document.getElementById('es-width').value = window.appSettings.edWidth;
+        document.getElementById('es-font-size').value = window.appSettings.edFontSize;
+        document.getElementById('editor-settings-modal').style.display = 'flex';
     }
 
-    function applySettingsToUI() {
-        document.getElementById('set-editor-font').value = window.userSettings.editorFontSize;
-        document.getElementById('val-editor-font').textContent = window.userSettings.editorFontSize;
+    function saveEditorSettings() {
+        window.appSettings.edLetterSpacing = document.getElementById('es-letter-spacing').value;
+        window.appSettings.edLineHeight = document.getElementById('es-line-height').value;
+        window.appSettings.edWidth = document.getElementById('es-width').value;
+        window.appSettings.edFontSize = document.getElementById('es-font-size').value;
         
-        document.getElementById('set-editor-line').value = window.userSettings.editorLineHeight;
-        document.getElementById('val-editor-line').textContent = window.userSettings.editorLineHeight;
+        localStorage.setItem('sb_app_settings', JSON.stringify(window.appSettings));
+        applySettingsToDOM();
+        document.getElementById('editor-settings-modal').style.display = 'none';
+    }
+
+    function openPreviewSettings() {
+        document.getElementById('ps-vertical-chars').value = window.appSettings.prVerticalChars;
+        document.getElementById('ps-lines-page').value = window.appSettings.prLinesPage;
+        document.getElementById('ps-font-scale').value = window.appSettings.prFontScale;
+        document.getElementById('preview-settings-modal').style.display = 'flex';
+    }
+
+    function savePreviewSettings() {
+        window.appSettings.prVerticalChars = document.getElementById('ps-vertical-chars').value;
+        window.appSettings.prLinesPage = document.getElementById('ps-lines-page').value;
+        window.appSettings.prFontScale = document.getElementById('ps-font-scale').value;
         
-        document.getElementById('set-preview-font').value = window.userSettings.previewFontSize;
-        document.getElementById('val-preview-font').textContent = window.userSettings.previewFontSize;
-        
-        document.getElementById('set-preview-line').value = window.userSettings.previewLineHeight;
-        document.getElementById('val-preview-line').textContent = window.userSettings.previewLineHeight;
+        localStorage.setItem('sb_app_settings', JSON.stringify(window.appSettings));
+        applySettingsToDOM();
+        // プレビュー表示中の場合は再描画（フォントサイズ等反映のため）
+        const modal = document.getElementById('preview-modal');
+        if(modal.style.display === 'flex') {
+            applyPreviewLayout(); 
+        }
+        document.getElementById('preview-settings-modal').style.display = 'none';
     }
 
     function applySettingsToDOM() {
-        const root = document.documentElement;
-        root.style.setProperty('--editor-font-size', window.userSettings.editorFontSize + 'px');
-        root.style.setProperty('--editor-line-height', window.userSettings.editorLineHeight);
-        root.style.setProperty('--preview-font-size', window.userSettings.previewFontSize + 'px');
-        root.style.setProperty('--preview-line-height', window.userSettings.previewLineHeight);
+        const r = document.documentElement.style;
+        r.setProperty('--ed-font-size', window.appSettings.edFontSize + 'px');
+        r.setProperty('--ed-line-height', window.appSettings.edLineHeight);
+        r.setProperty('--ed-letter-spacing', window.appSettings.edLetterSpacing + 'em');
+        r.setProperty('--ed-width', window.appSettings.edWidth + '%');
     }
 
-    // 設定スライダーのイベントリスナー（リアルタイム反映）
-    ['set-editor-font', 'set-editor-line', 'set-preview-font', 'set-preview-line'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) {
-            el.addEventListener('input', (e) => {
-                const valId = id.replace('set-', 'val-');
-                document.getElementById(valId).textContent = e.target.value;
-                
-                // 一時的にDOMに反映（保存はまだしない）
-                if(id.includes('editor-font')) document.documentElement.style.setProperty('--editor-font-size', e.target.value + 'px');
-                if(id.includes('editor-line')) document.documentElement.style.setProperty('--editor-line-height', e.target.value);
-                if(id.includes('preview-font')) document.documentElement.style.setProperty('--preview-font-size', e.target.value + 'px');
-                if(id.includes('preview-line')) document.documentElement.style.setProperty('--preview-line-height', e.target.value);
-            });
-        }
-    });
-
-
-    // --- Preview Functions ---
+    // --- Preview Logic ---
     function showPreview() {
         const editor = document.getElementById('main-editor');
         const modal = document.getElementById('preview-modal');
@@ -275,6 +275,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         content.innerHTML = text;
         modal.style.display = 'flex';
+        applyPreviewLayout();
+    }
+
+    function applyPreviewLayout() {
+        const r = document.documentElement.style;
+        // 基本フォントサイズ 18px * 倍率
+        const baseSize = 18 * parseFloat(window.appSettings.prFontScale);
+        r.setProperty('--pr-font-size', baseSize + 'px');
+        
+        // 縦書き時の高さ（＝1行の文字数）計算
+        // フォントサイズ * 文字数
+        const height = baseSize * parseInt(window.appSettings.prVerticalChars);
+        // 行間調整等はCSSで自動処理されるが、厳密な高さを指定して折り返し位置を決める
+        r.setProperty('--pr-height', height + 'px');
     }
 
     function closePreview() {
@@ -437,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const tools = [
             { icon: '📖', action: showPreview }, 
-            { icon: '⚙️', action: () => activateTab('tab-settings') }, 
+            { icon: '⚙️', action: openEditorSettings }, // 設定モーダル呼び出し
             { spacer: true, label: '|' },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: () => alert('置換機能（未実装）') },
