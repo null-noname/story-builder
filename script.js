@@ -333,9 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
 
-/* Story Builder V1.30 script.js - Part 3/3 (Timeline UI Fixed) */
+/* Story Builder V1.40 script.js - Part 3/3 (Timeline Split UI) */
 
-    // --- Plot (Timeline UI Update) ---
+    // --- Plot (Final UI Fix) ---
     window.loadPlots = function() {
         const c=document.getElementById('plot-items-container'); if(!c||!window.currentWorkId)return;
         db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order','asc').get().then(snap=>{
@@ -344,24 +344,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d=doc.data(); const div=document.createElement('div');
                 const isTL = d.type === 'timeline';
                 div.className = 'plot-card';
-                // タイムラインのプレビュー生成
-                let preview = "";
-                if(isTL) {
-                    try {
-                        const rows = JSON.parse(d.content || "[]");
-                        preview = rows.slice(0, 3).map(r => `[${r.time}] ${r.text}`).join('\n') + (rows.length>3?"...":"");
-                    } catch(e) { preview = d.content; }
-                } else { preview = d.content; }
+                // 表記変更: TL / メモ
+                // リスト表示: タイムラインの場合は中身を表示せず、タイトルのみのカードにする
+                const typeLabel = isTL ? 'TL' : 'メモ';
+                const labelColor = isTL ? '#ffb74d' : '#89b4fa';
+                
+                // プレビュー: メモのみ表示。TLは「日時と内容は表示させなくてOK」に従い非表示（またはタイトルのみ）
+                let previewHtml = "";
+                if(!isTL) {
+                    previewHtml = `<div class="plot-card-preview" style="margin-top:5px;font-size:13px;color:#aaa;white-space:pre-wrap;max-height:60px;overflow:hidden;">${escapeHtml(d.content)}</div>`;
+                }
 
                 div.innerHTML = `
-                    <div class="plot-card-header" style="display:flex;justify-content:space-between;">
-                        <div class="plot-card-title">${escapeHtml(d.title)} <span style="font-size:10px;color:${isTL?'#ffb74d':'#89b4fa'};border:1px solid #555;padding:1px 3px;border-radius:3px;">${isTL?'⏱️TL':'📝Memo'}</span></div>
+                    <div class="plot-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                        <div class="plot-card-title" style="font-weight:bold;color:${isTL?'#ddd':'#89b4fa'};">
+                            ${escapeHtml(d.title||'無題')} 
+                            <span style="font-size:10px;color:${labelColor};border:1px solid ${labelColor};padding:1px 4px;border-radius:3px;margin-left:5px;">${typeLabel}</span>
+                        </div>
                         <div class="plot-actions" style="display:flex;gap:5px;">
                             <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div>
                             <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',1)">▼</div>
                         </div>
                     </div>
-                    <div class="plot-card-preview">${escapeHtml(preview)}</div>
+                    ${previewHtml}
                 `;
                 div.onclick=()=>openPlotEditor(doc.id); c.appendChild(div);
             });
@@ -372,12 +377,12 @@ document.addEventListener('DOMContentLoaded', () => {
         window.editingPlotId=id; 
         const t=document.getElementById('plot-edit-title'); const c=document.getElementById('plot-edit-content'); const ty=document.getElementById('plot-edit-type');
         
-        // ヘッダー修正
+        // ヘッダー
         const header = document.querySelector('#plot-edit-view .edit-overlay-header');
         header.innerHTML = `<button id="plot-edit-back" class="btn-custom btn-small">← 戻る</button><span style="font-weight:bold;">プロット編集</span><div style="width:50px;"></div>`;
         document.getElementById('plot-edit-back').onclick = () => document.getElementById('plot-edit-view').style.display='none';
 
-        // タイムラインエリア準備
+        // タイムラインエリア
         const body = document.querySelector('#plot-edit-view .edit-overlay-body');
         let tlArea = document.getElementById('plot-timeline-editor');
         if(!tlArea) {
@@ -385,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
             c.parentElement.insertBefore(tlArea, c.nextSibling);
         }
 
-        // フッターボタン
+        // フッター
         let footerBtnArea = document.getElementById('plot-footer-btns');
         if(!footerBtnArea) {
             footerBtnArea = document.createElement('div'); footerBtnArea.id = 'plot-footer-btns';
@@ -428,41 +433,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ★タイムライン描画ロジック（UI改善版）
+    // ★タイムラインUI: 日付と時間を上下に分割
     window.renderTimelineEditor = function() {
         const el = document.getElementById('plot-timeline-editor');
         if(window.tempTimelineData.length === 0) window.tempTimelineData.push({time:"", text:""});
         
-        el.innerHTML = window.tempTimelineData.map((row, i) => `
-            <div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden; min-height:50px;">
-                <div style="width:70px; border-right:1px solid #444; display:flex; align-items:center; justify-content:center; background:#111;">
-                    <input type="text" class="tl-time-input" data-idx="${i}" value="${escapeHtml(row.time)}" 
-                        style="background:transparent; border:none; color:#fff; text-align:center; width:100%; font-size:13px; outline:none; padding:5px 0;" 
-                        placeholder="日時">
+        el.innerHTML = window.tempTimelineData.map((row, i) => {
+            // 保存された "日付 時間" 文字列を分割して表示
+            let [datePart, timePart] = (row.time || "").split(' ');
+            if(!timePart) { timePart = ""; } // 時間がない場合
+
+            return `
+            <div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden; min-height:60px;">
+                <div style="width:70px; border-right:1px solid #444; display:flex; flex-direction:column; background:#151515;">
+                    <input type="text" class="tl-date-input" data-idx="${i}" value="${escapeHtml(datePart||'')}" 
+                        style="background:transparent; border:none; border-bottom:1px solid #333; color:#fff; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;" 
+                        placeholder="日付">
+                    <input type="text" class="tl-time-input" data-idx="${i}" value="${escapeHtml(timePart||'')}" 
+                        style="background:transparent; border:none; color:#ddd; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;" 
+                        placeholder="時間">
                 </div>
                 <div style="flex:1; display:flex; align-items:center;">
                     <textarea class="tl-text-input" data-idx="${i}" rows="1" placeholder="内容..."
-                        style="width:100%; background:transparent; border:none; color:#fff; resize:none; padding:10px; line-height:1.5; overflow:hidden; min-height:40px;">${escapeHtml(row.text)}</textarea>
+                        style="width:100%; background:transparent; border:none; color:#fff; resize:none; padding:10px; line-height:1.5; overflow:hidden; min-height:50px;">${escapeHtml(row.text)}</textarea>
                 </div>
                 <div style="width:32px; display:flex; flex-direction:column; background:#222; border-left:1px solid #444;">
                     <button onclick="moveTLRow(${i},-1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▲</button>
                     <button onclick="moveTLRow(${i},1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▼</button>
                     <button onclick="deleteTLRow(${i})" style="flex:1; border:none; background:#500; color:#fff; cursor:pointer; font-size:14px;">×</button>
                 </div>
-            </div>
-        `).join('') + `<button onclick="addTLRow()" class="btn-custom btn-full" style="margin-top:10px;">＋ 行を追加</button>`;
+            </div>`;
+        }).join('') + `<button onclick="addTLRow()" class="btn-custom btn-full" style="margin-top:10px;">＋ 行を追加</button>`;
 
-        // イベント設定：入力制限と自動リサイズ
-        el.querySelectorAll('.tl-time-input').forEach(e => {
-            e.oninput = (ev) => {
-                // 半角数字と / : のみ許可
-                ev.target.value = ev.target.value.replace(/[^0-9/:]/g, '');
-                window.tempTimelineData[ev.target.dataset.idx].time = ev.target.value;
-            };
-        });
+        // 入力イベント: 日付と時間を結合して保存データ(time)にセット
+        const updateTimeData = (idx) => {
+            const d = el.querySelector(`.tl-date-input[data-idx="${idx}"]`).value;
+            const t = el.querySelector(`.tl-time-input[data-idx="${idx}"]`).value;
+            window.tempTimelineData[idx].time = (d + " " + t).trim();
+        };
+
+        el.querySelectorAll('.tl-date-input').forEach(e => e.oninput = (ev) => updateTimeData(ev.target.dataset.idx));
+        el.querySelectorAll('.tl-time-input').forEach(e => e.oninput = (ev) => updateTimeData(ev.target.dataset.idx));
         
         el.querySelectorAll('.tl-text-input').forEach(e => {
-            autoResize(e); // 初期リサイズ
+            autoResize(e);
             e.oninput = (ev) => {
                 autoResize(ev.target);
                 window.tempTimelineData[ev.target.dataset.idx].text = ev.target.value;
@@ -497,7 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deletePlotItem = async function() { if(window.editingPlotId && confirm("削除しますか？")){ await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete(); document.getElementById('plot-edit-view').style.display='none'; loadPlots(); } };
     window.movePlot = async function(id, dir) { await moveItem('plots', id, dir); loadPlots(); };
 
-    // --- Stats Fix (Same as before) ---
+    // --- Stats & Utils (Unchanged) ---
     window.loadDailyLog = async function() {
         if(!window.currentUser) return;
         let p=[], l=[]; 
@@ -519,7 +533,6 @@ document.addEventListener('DOMContentLoaded', () => {
         db.collection('daily_logs').doc(`${window.currentUser.uid}_${s}`).set({uid:window.currentUser.uid,date:s,count:window.todayAddedCount,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     };
 
-    // --- Char & Others ---
     window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div><div class="char-role">${escapeHtml(d.role)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
     window.openCharEditor=function(id){window.editingCharId=id;const fields=['name','ruby','alias','age','birth','role','height','appearance','personality','ability','background','memo'];const p=document.getElementById('char-icon-preview');const hb=document.querySelector('#char-edit-view #char-edit-back');if(hb)hb.textContent="← 戻る";if(id){db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc=>{if(doc.exists){const d=doc.data();fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value=d[f]||"";});if(d.iconBase64){p.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;p.setAttribute('data-base64',d.iconBase64);}else{p.innerHTML='👤';p.removeAttribute('data-base64');}}});}else{fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value="";});p.innerHTML='👤';p.removeAttribute('data-base64');}document.getElementById('char-edit-view').style.display='flex';};
     window.saveCharItem=async function(){const getData=id=>document.getElementById('char-'+id)?.value||"";const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||"";const d={name:getData('name'),ruby:getData('ruby'),alias:getData('alias'),age:getData('age'),birth:getData('birth'),role:getData('role'),height:getData('height'),appearance:getData('appearance'),personality:getData('personality'),ability:getData('ability'),background:getData('background'),memo:getData('memo'),iconBase64:ib,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingCharId)await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d);else{const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get();d.order=s.size+1;d.createdAt=firebase.firestore.FieldValue.serverTimestamp();await db.collection('works').doc(window.currentWorkId).collection('characters').add(d);}document.getElementById('char-edit-view').style.display='none';loadCharacters();};
