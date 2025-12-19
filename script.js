@@ -1,4 +1,4 @@
-/* Story Builder V0.18 script.js */
+/* Story Builder V0.19 script.js */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -32,10 +32,15 @@ const views = {
 const loginScreen = document.getElementById('login-screen');
 const mainApp = document.getElementById('main-app');
 
+// ★修正: アプリ(WebView)対応のため、signInWithRedirectを使用
 document.getElementById('google-login-btn').addEventListener('click', () => {
-    auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(alert);
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithRedirect(provider).catch(error => {
+        alert("Login Error: " + error.message);
+    });
 });
 
+// Redirect後の処理も AuthStateChanged で拾われる
 auth.onAuthStateChanged(user => {
     if (user) {
         currentUser = user;
@@ -64,7 +69,7 @@ function switchView(name) {
 document.getElementById('diary-widget').addEventListener('click', () => switchView('stats'));
 document.getElementById('btn-common-memo').addEventListener('click', () => switchView('memo'));
 document.getElementById('back-to-top').addEventListener('click', () => { 
-    saveCurrentWork(true); // true = silent (popupなし)
+    saveCurrentWork(true); 
 });
 document.getElementById('back-from-stats').addEventListener('click', () => switchView('top'));
 document.getElementById('back-from-memo').addEventListener('click', () => switchView('top'));
@@ -156,16 +161,13 @@ function fillWorkspace(data) {
     loadMemoListForWorkspace(); 
 }
 
-// 作品情報の保存 (Reflect Work Info)
-document.getElementById('save-work-info-btn').addEventListener('click', () => saveCurrentWork(true)); // true=popupなし
-document.getElementById('quick-save-btn').addEventListener('click', () => saveCurrentWork(false)); // 執筆画面の一時保存はアラートあってもいいが、統一するならここもtrue
+document.getElementById('save-work-info-btn').addEventListener('click', () => saveCurrentWork(true));
+document.getElementById('quick-save-btn').addEventListener('click', () => saveCurrentWork(false));
 
-// ★修正: silent引数でポップアップ制御
 function saveCurrentWork(silent = false) {
     if(!currentWorkId) return;
     const content = document.getElementById('main-editor').value;
     
-    // 文字数上限チェック (2万字)
     if(content.length > 20000) {
         alert("文字数が上限(20,000字)を超えています。保存できません。");
         return;
@@ -192,7 +194,6 @@ function saveCurrentWork(silent = false) {
     
     db.collection('works').doc(currentWorkId).update(data).then(() => {
         if(silent) {
-            // ポップアップなしで戻る（戻るボタン押下時など）
             if(document.getElementById('workspace-view').style.display !== 'none' && event.target.id === 'back-to-top') {
                switchView('top'); 
             }
@@ -202,18 +203,15 @@ function saveCurrentWork(silent = false) {
     });
 }
 
-// ★追加: 縦書き/横書き切り替え
 document.getElementById('toggle-writing-mode').addEventListener('click', () => {
     const editor = document.getElementById('main-editor');
     editor.classList.toggle('vertical-mode');
 });
 
-// ★修正: 詳細文字数カウント
 document.getElementById('main-editor').addEventListener('input', updateCharCount);
 function updateCharCount() { 
     const text = document.getElementById('main-editor').value;
     const total = text.length;
-    // 空白・改行を除く
     const pure = text.replace(/\s/g, '').length;
     
     document.getElementById('editor-char-count-total').textContent = total;

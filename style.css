@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.18 */
+/* style.css - Story Builder V0.19 */
 
 :root {
     --bg-color: #202020; 
@@ -27,7 +27,13 @@ body {
 .scrollable { overflow-y: auto; }
 .container { max-width: 1200px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; height: 100%; }
 
-.app-title { font-size: 32px; color: var(--bg-color); -webkit-text-stroke: 1px var(--text-white); margin: 0 0 10px 0; text-shadow: 1px 1px 0 var(--text-white); }
+/* タイトル: 真っ白に変更 */
+.app-title {
+    font-size: 32px; color: #fff;
+    margin: 0 0 10px 0; font-weight: bold;
+    /* 袋文字風の指定を解除 */
+    text-shadow: none; -webkit-text-stroke: 0;
+}
 hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 
 .btn-custom {
@@ -75,14 +81,16 @@ hr { border: 0; border-top: 0.5px solid #555; margin: 15px 0; width: 100%; }
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; margin-bottom: 8px; color: var(--text-white); font-weight: bold; font-size: 16px; }
 input, textarea, select.form-control { background: var(--input-bg); color: var(--text-white); border: 1px solid #666; padding: 12px; border-radius: 4px; width: 100%; font-size: 14px; margin-bottom: 0; }
-.main-textarea { width: 100%; height: 60vh; background: #111; color: #fff; padding: 15px; font-size: 16px; line-height: 1.8; border: 1px solid #555; resize: none; }
 
-/* ★追加: 縦書きモード用スタイル */
+/* ★修正: エディタの高さを親に合わせる */
+.main-textarea { 
+    width: 100%; height: 100%; /* 親要素に追従 */
+    background: #111; color: #fff; padding: 15px; 
+    font-size: 16px; line-height: 1.8; border: 1px solid #555; resize: none; 
+    overflow-y: auto; /* 内部スクロール */
+}
 .main-textarea.vertical-mode {
-    writing-mode: vertical-rl;
-    text-orientation: upright;
-    overflow-x: auto;
-    overflow-y: hidden;
+    writing-mode: vertical-rl; text-orientation: upright; overflow-x: auto; overflow-y: hidden;
 }
 
 .compact-row { display: flex; gap: 5px; background: transparent; padding: 0; border: none; }
