@@ -1,4 +1,4 @@
-/* Story Builder V0.15 script.js */
+/* Story Builder V0.16 script.js */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -20,7 +20,7 @@ let currentUser = null;
 let currentWorkId = null;
 let writingChart = null;
 let editingMemoId = null; 
-let previousView = 'top'; // メモ編集からの戻り先
+let previousView = 'top';
 
 const views = {
     top: document.getElementById('top-view'),
@@ -88,9 +88,7 @@ function loadWorks() {
         listEl.innerHTML = '';
         let worksData = [];
         snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
-        
         if(filterStatus !== 'all') worksData = worksData.filter(w => w.status === filterStatus);
-        
         worksData.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
             const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
@@ -193,13 +191,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
-// --- Common Memo Logic (Full Editor UI) ---
+// --- Common Memo Logic (With Save Button) ---
 
-// メモ追加ボタン (TOP & Workspace)
 document.getElementById('add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'memo'));
 document.getElementById('ws-add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'workspace'));
 
-// メモ読み込み (TOP)
 function loadMemoList() {
     if(!currentUser) return;
     db.collection('memos').where('uid', '==', currentUser.uid)
@@ -209,7 +205,6 @@ function loadMemoList() {
             snap.forEach(doc => container.appendChild(createMemoCard(doc.id, doc.data(), 'memo')));
         });
 }
-// メモ読み込み (Workspace)
 function loadMemoListForWorkspace() {
     if(!currentUser) return;
     db.collection('memos').where('uid', '==', currentUser.uid)
@@ -248,13 +243,11 @@ window.deleteMemo = function(id, origin) {
     }
 };
 
-// メモエディタを開く
 window.openMemoEditor = function(id, fromView) {
     editingMemoId = id;
-    previousView = fromView; // 戻る場所を記録
+    previousView = fromView; 
     
     if(id) {
-        // 編集モード：データ取得して表示
         db.collection('memos').doc(id).get().then(doc => {
             if(doc.exists) {
                 const data = doc.data();
@@ -264,16 +257,18 @@ window.openMemoEditor = function(id, fromView) {
             }
         });
     } else {
-        // 新規作成モード
         document.getElementById('memo-editor-title').value = "";
         document.getElementById('memo-editor-content').value = "";
         switchView('memoEditor');
     }
 };
 
-// エディタの戻るボタン (保存して戻る)
-document.getElementById('memo-editor-back').addEventListener('click', saveMemo);
-// エディタの削除ボタン
+// ★修正: ボタン処理
+// 保存ボタン
+document.getElementById('memo-editor-save').addEventListener('click', saveMemo);
+// キャンセルボタン
+document.getElementById('memo-editor-cancel').addEventListener('click', () => switchView(previousView));
+// 削除ボタン
 document.getElementById('memo-editor-delete').addEventListener('click', () => {
     if(editingMemoId) deleteMemo(editingMemoId, previousView);
     else switchView(previousView);
@@ -295,12 +290,12 @@ function saveMemo() {
     if(editingMemoId) {
         db.collection('memos').doc(editingMemoId).update(memoData).then(onComplete);
     } else {
+        // ★修正: 新規作成時もupdatedAtを入れてリストに即反映させる
         memoData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         db.collection('memos').add(memoData).then(onComplete);
     }
 }
 
-// --- Stats Logic ---
 function loadStats() {
     db.collection('works').where('uid', '==', currentUser.uid).get().then(snap => {
         document.getElementById('stat-works').innerHTML = `${snap.size}<span class="unit">作品</span>`;

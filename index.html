@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Builder V0.15</title>
+    <title>Story Builder V0.16</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -125,8 +125,11 @@
 
             <div id="memo-editor-view" class="screen" style="display:none; height:100%; flex-direction:column;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <button id="memo-editor-back" class="btn-green">＜ 戻る</button>
-                    <button id="memo-editor-delete" class="btn-red">削除</button>
+                    <button id="memo-editor-cancel" class="btn-custom">キャンセル</button>
+                    <div style="display:flex; gap:10px;">
+                        <button id="memo-editor-delete" class="btn-red">削除</button>
+                        <button id="memo-editor-save" class="btn-green">保存</button>
+                    </div>
                 </div>
                 
                 <label style="color:#fff; font-weight:bold; margin-bottom:5px;">タイトル</label>
