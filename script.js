@@ -1,4 +1,4 @@
-/* Story Builder V0.55 script.js */
+/* Story Builder V0.56 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.writingChart = null; 
     window.dailyHistory = [0,0,0,0,0,0,0]; 
     window.dragSrcEl = null; 
-    window.currentHistoryData = null; // 履歴復元用
+    window.currentHistoryData = null; 
 
     // 設定初期値
     window.appSettings = {
@@ -338,7 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
               snap.forEach((doc, index) => {
                   const data = doc.data();
                   const date = data.savedAt ? new Date(data.savedAt.toDate()) : new Date();
-                  const label = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+                  // ★修正: 秒まで表示
+                  const label = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
                   
                   const item = document.createElement('div');
                   item.className = 'history-item';
@@ -346,17 +347,16 @@ document.addEventListener('DOMContentLoaded', () => {
                   item.onclick = () => showDiff(data.content, item);
                   
                   listEl.appendChild(item);
-                  if(index === 0) item.click(); // 最新を自動選択
+                  if(index === 0) item.click(); 
               });
           });
     }
 
     function showDiff(oldContent, itemEl) {
-        // UI選択状態更新
         document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
         itemEl.classList.add('active');
         
-        window.currentHistoryData = oldContent; // 復元用に保持
+        window.currentHistoryData = oldContent; 
         
         const currentContent = document.getElementById('main-editor').value;
         const diff = Diff.diffChars(oldContent, currentContent);
@@ -364,8 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         display.innerHTML = '';
 
         diff.forEach(part => {
-            // green for additions, red for deletions
-            // grey for common parts
             const span = document.createElement('span');
             if (part.added) {
                 span.className = 'diff-added';
@@ -596,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { icon: '置換', action: openReplaceModal }, 
             { icon: 'ﾙﾋﾞ', action: insertRuby },
             { icon: '―', action: insertDash },
-            { icon: '🕒', action: openHistoryModal } // 履歴ボタン追加
+            { icon: '🕒', action: openHistoryModal } 
         ];
 
         tools.forEach(t => {
@@ -1057,14 +1055,6 @@ document.addEventListener('DOMContentLoaded', () => {
               title: title,
               content: content,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-
-        // 履歴保存（自動バックアップ）
-        db.collection('works').doc(window.currentWorkId)
-          .collection('chapters').doc(window.currentChapterId)
-          .collection('history').add({
-              content: content,
-              savedAt: firebase.firestore.FieldValue.serverTimestamp()
           });
 
         saveDailyLogToFirestore();
