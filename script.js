@@ -1,4 +1,4 @@
-/* Story Builder V1.00 script.js - Part 1/3 */
+/* Story Builder V1.01 script.js - Part 1/3 (Fixed) */
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Firebase Configuration ---
     const firebaseConfig = {
@@ -45,7 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
         prVerticalChars: 20, prLinesPage: 20, prFontScale: 1.0
     };
 
-    // --- 3. DOM Elements & Views ---
+    // --- 3. DOM Elements & Views (★ここを修正しました) ---
+    // ここで変数を定義しないと、後のコードで「loginScreen is not defined」エラーになります
+    const loginScreen = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    const loginBtn = document.getElementById('google-login-btn');
+
     const views = {
         top: document.getElementById('top-view'),
         workspace: document.getElementById('workspace-view'),
@@ -53,6 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
         memo: document.getElementById('memo-view'),
         memoEditor: document.getElementById('memo-editor-view')
     };
+
+    // ログインボタンのイベント設定
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch((error) => alert("ログインエラー: " + error.message));
+        });
+    }
 
     // --- 4. Core Functions (Definitions) ---
     // 画面切り替え
