@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.33 */
+/* style.css - Story Builder V0.34 */
 
 :root {
     --bg-color: #202020; 
@@ -238,6 +238,18 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .toolbar-btn:hover { background: #555; }
 .toolbar-btn:active { transform: scale(0.95); }
 
+/* フッター用ボタン */
+.toolbar-btn-footer {
+    background: transparent;
+    border: 1px solid #444;
+    color: #ddd;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+.toolbar-btn-footer:hover { background: #444; }
+
 /* モバイルのみ表示する要素 */
 .mobile-only { display: none !important; }
 
@@ -253,7 +265,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 }
 .char-count-display:hover { background: #444; }
 
-/* 章タイトル入力欄 */
+/* ★修正: サブタイトル入力欄をtextarea用スタイルに */
 .chapter-title-row {
     margin-bottom: 5px;
     flex-shrink: 0;
@@ -267,10 +279,14 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     font-size: 16px;
     font-weight: bold;
     border-radius: 4px;
+    resize: none; /* 手動リサイズ禁止 */
+    height: auto;
+    min-height: 40px; /* 1行分確保 */
+    overflow-y: hidden; /* 自動拡張する場合はhidden推奨だが今回は固定 */
 }
 .chapter-title-input:focus { border-color: var(--accent-blue); }
 
-/* 2カラムレイアウト（章リスト + エディタ） */
+/* 2カラムレイアウト */
 .chapter-sidebar {
     width: 250px;
     border-right: 1px solid #444;
@@ -279,10 +295,9 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     margin-right: 10px;
     background: #1a1a1a;
     border-radius: 4px;
-    transition: width 0.3s ease, margin 0.3s ease; /* アニメーション */
+    transition: width 0.3s ease, margin 0.3s ease; 
     position: relative;
 }
-/* ★修正: サイドバー畳み込み時のスタイル */
 .chapter-sidebar.collapsed {
     width: 0;
     margin-right: 0;
@@ -302,7 +317,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .chapter-list {
     flex: 1;
     overflow-y: auto;
-    min-width: 250px; /* 中身が潰れないように */
+    min-width: 250px; 
 }
 .chapter-item {
     padding: 10px;
@@ -312,6 +327,9 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     justify-content: space-between;
     align-items: center;
     font-size: 14px;
+    /* ★修正: 長いタイトルを折り返す設定 */
+    white-space: normal; 
+    word-break: break-word;
 }
 .chapter-item:hover { background: #2a2a2a; }
 .chapter-item.active { background: #2b4034; color: #fff; border-left: 4px solid #4caf50; }
@@ -319,15 +337,14 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .sidebar-footer {
     padding: 8px;
     border-top: 1px solid #444;
-    display: flex; /* 横並び */
-    justify-content: space-between; /* 両端配置 */
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     font-size: 12px;
     color: #aaa;
-    min-width: 250px; /* 中身保持 */
+    min-width: 250px;
 }
 
-/* サイドバー開閉ボタン */
 .sidebar-toggle-btn {
     background: transparent;
     border: none;
@@ -345,7 +362,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     cursor: pointer;
     font-size: 14px;
     padding: 0 8px;
-    margin-right: 5px; /* ツールバーとの間隔 */
+    margin-right: 5px; 
 }
 .sidebar-toggle-open-btn:hover { color: #fff; }
 
@@ -354,6 +371,14 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+/* フッターレイアウト用 */
+.editor-footer-row {
+    display: flex; 
+    justify-content: space-between; /* 削除ボタンと右グループを離す */
+    align-items: center; 
+    margin-top: 5px;
 }
 
 .stats-card-row { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -384,12 +409,10 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
         margin-bottom: 0;
         display: flex; 
     }
-    /* モバイルでは畳み込みクラスの影響を受けないようにリセット */
     .chapter-sidebar.collapsed {
         width: 100%; 
         overflow: auto;
     }
-    /* モバイルではPC用の開閉ボタンを隠す */
     .sidebar-toggle-btn, .sidebar-toggle-open-btn {
         display: none !important;
     }
