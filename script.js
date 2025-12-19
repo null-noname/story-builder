@@ -1,4 +1,4 @@
-/* Story Builder V0.37 script.js */
+/* Story Builder V0.38 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -28,13 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.previousView = 'top';
     window.charCountMode = 'total'; 
     window.unsubscribeWorks = null;
-    window.chapterListMode = 'normal'; // normal, reorder, delete
+    window.chapterListMode = 'normal'; 
     
     window.lastContentLength = 0;
     window.todayAddedCount = 0;
     window.pendingLogSave = null;
     window.writingChart = null; 
     window.dailyHistory = [0,0,0,0,0,0,0]; 
+    window.dragSrcEl = null; // ドラッグ中の要素
 
     const views = {
         top: document.getElementById('top-view'),
@@ -273,8 +274,10 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar.className = 'chapter-sidebar';
         sidebar.innerHTML = `
             <div class="sidebar-header">
-                <div style="display:flex; align-items:center;">
+                <div style="display:flex; align-items:center; flex:1;">
                     <span style="font-weight:bold;">話一覧</span>
+                    <div style="flex:1;"></div>
+                    <button class="btn-custom btn-small" id="add-chapter-btn" style="padding:2px 8px;">＋</button>
                     <button class="chapter-menu-btn" id="chapter-menu-toggle">≡</button>
                     <div id="chapter-menu-overlay" class="chapter-menu-overlay">
                         <div class="chapter-menu-item" onclick="setChapterMode('reorder')">原稿の並び替え</div>
@@ -283,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="chapter-menu-item" onclick="setChapterMode('normal')">メニューを閉じる</div>
                     </div>
                 </div>
-                <button class="btn-custom btn-small" id="add-chapter-btn" style="padding:2px 8px;">＋</button>
             </div>
             <div id="chapter-list" class="chapter-list scrollable"></div>
             <div class="sidebar-footer">
@@ -304,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(ov) ov.style.display = 'none';
         });
 
-        // 以下、エディタ本体生成
+        // エディタ本体生成
         const mainArea = document.createElement('div');
         mainArea.className = 'editor-main-area';
         
@@ -366,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
         editorContainer.style.cssText = "flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;";
         editorContainer.innerHTML = `<textarea id="main-editor" class="main-textarea" style="width:100%; height:100%; border:none;" placeholder="章を選択するか、新しい章を追加してください..."></textarea>`;
 
-        // フッター
         const footerRow = document.createElement('div');
         footerRow.className = 'editor-footer-row';
 
@@ -431,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('sidebar-toggle-close').addEventListener('click', toggleSidebar);
     }
 
-    // グローバル関数化
+    // モード切替
     window.setChapterMode = function(mode) {
         window.chapterListMode = mode;
         loadChapters(); // リスト再描画
@@ -579,73 +580,148 @@ document.addEventListener('DOMContentLoaded', () => {
               if(chapters.length === 0) {
                   listEl.innerHTML = '<div style="padding:10px; color:#aaa;">章がありません</div>';
               } else {
+                  // --- 並び替え完了時に保存するための配列をメモリに保持 ---
+                  window.currentChapterList = chapters;
+
                   chapters.forEach((ch, index) => {
                       const item = document.createElement('div');
                       item.className = 'chapter-item';
                       item.setAttribute('data-id', ch.id);
+                      item.setAttribute('data-index', index);
+                      
                       if(window.currentChapterId === ch.id) item.classList.add('active');
                       
                       const title = document.createElement('span');
                       title.className = 'chapter-list-title';
                       title.textContent = ch.title || "無題";
-                      
                       item.appendChild(title);
 
-                      // モードによる分岐
                       if(window.chapterListMode === 'reorder') {
-                          const btnGroup = document.createElement('div');
-                          const upBtn = document.createElement('button');
-                          upBtn.textContent = '↑'; upBtn.className = 'chapter-reorder-btn';
-                          upBtn.onclick = (e) => { e.stopPropagation(); moveChapter(ch.id, chapters, index, -1); };
+                          // 並び替えハンドル
+                          item.setAttribute('draggable', 'true'); // PC用
+                          const handle = document.createElement('span');
+                          handle.textContent = '||';
+                          handle.className = 'drag-handle';
+                          // スマホ用タッチイベント
+                          handle.addEventListener('touchstart', handleTouchStart, {passive: false});
+                          handle.addEventListener('touchmove', handleTouchMove, {passive: false});
+                          handle.addEventListener('touchend', handleTouchEnd);
                           
-                          const downBtn = document.createElement('button');
-                          downBtn.textContent = '↓'; downBtn.className = 'chapter-reorder-btn';
-                          downBtn.onclick = (e) => { e.stopPropagation(); moveChapter(ch.id, chapters, index, 1); };
-
-                          btnGroup.appendChild(upBtn);
-                          btnGroup.appendChild(downBtn);
-                          item.appendChild(btnGroup);
+                          item.appendChild(handle);
+                          
+                          // PC用ドラッグイベント
+                          addDragEvents(item);
+                          
                       } else if (window.chapterListMode === 'delete') {
+                          // 削除アイコン
                           const delIcon = document.createElement('span');
                           delIcon.textContent = '🗑️';
                           delIcon.className = 'chapter-delete-icon';
                           delIcon.onclick = (e) => { e.stopPropagation(); deleteTargetChapter(ch.id); };
                           item.appendChild(delIcon);
                       } else {
-                          // normal
+                          // 通常: 文字数表示
                           const count = document.createElement('span');
                           count.className = 'chapter-list-count';
                           const chPure = (ch.content || "").replace(/\s/g, '').length;
                           count.textContent = `(${chPure}字)`;
                           item.appendChild(count);
+                          item.onclick = () => selectChapter(ch.id, ch);
                       }
 
-                      // 通常クリック
-                      item.onclick = () => selectChapter(ch.id, ch);
                       listEl.appendChild(item);
                   });
               }
           });
     }
 
-    async function moveChapter(id, allChapters, index, direction) {
-        if(direction === -1 && index === 0) return; // 先頭は上へ行けない
-        if(direction === 1 && index === allChapters.length - 1) return; // 末尾は下へ行けない
+    // --- Drag & Drop Logic (PC) ---
+    function addDragEvents(item) {
+        item.addEventListener('dragstart', function(e) {
+            window.dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            this.classList.add('dragging');
+        });
+        item.addEventListener('dragover', function(e) {
+            if (e.preventDefault) e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        });
+        item.addEventListener('dragenter', function() { this.classList.add('over'); });
+        item.addEventListener('dragleave', function() { this.classList.remove('over'); });
+        item.addEventListener('drop', function(e) {
+            if (e.stopPropagation) e.stopPropagation();
+            if (window.dragSrcEl !== this) {
+                // DOM上で入れ替え
+                swapNodes(window.dragSrcEl, this);
+                updateOrderInDB(); // DB保存
+            }
+            return false;
+        });
+        item.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.chapter-item').forEach(el => el.classList.remove('over'));
+        });
+    }
 
-        const targetIndex = index + direction;
-        const currentCh = allChapters[index];
-        const swapCh = allChapters[targetIndex];
+    // --- Drag & Drop Logic (Mobile Touch) ---
+    let touchSrcEl = null;
+    
+    function handleTouchStart(e) {
+        touchSrcEl = e.target.closest('.chapter-item');
+        if(touchSrcEl) {
+            touchSrcEl.classList.add('dragging');
+            e.preventDefault(); 
+        }
+    }
+    
+    function handleTouchMove(e) {
+        if(!touchSrcEl) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        const targetItem = target ? target.closest('.chapter-item') : null;
 
-        // 順番(order)を入れ替え
+        if (targetItem && targetItem !== touchSrcEl && targetItem.parentNode === touchSrcEl.parentNode) {
+            swapNodes(touchSrcEl, targetItem);
+        }
+    }
+
+    function handleTouchEnd(e) {
+        if(touchSrcEl) {
+            touchSrcEl.classList.remove('dragging');
+            updateOrderInDB(); // DB保存
+            touchSrcEl = null;
+        }
+    }
+
+    function swapNodes(n1, n2) {
+        const p1 = n1.parentNode;
+        const p2 = n2.parentNode;
+        if (p1 !== p2) return;
+        
+        // 単純な入れ替えロジック
+        const temp = document.createElement("div");
+        p1.insertBefore(temp, n1);
+        p2.insertBefore(n1, n2);
+        p1.insertBefore(n2, temp);
+        p1.removeChild(temp);
+    }
+
+    async function updateOrderInDB() {
+        const listEl = document.getElementById('chapter-list');
+        const items = listEl.querySelectorAll('.chapter-item');
         const batch = db.batch();
-        const currentRef = db.collection('works').doc(window.currentWorkId).collection('chapters').doc(currentCh.id);
-        const swapRef = db.collection('works').doc(window.currentWorkId).collection('chapters').doc(swapCh.id);
-
-        batch.update(currentRef, { order: swapCh.order });
-        batch.update(swapRef, { order: currentCh.order });
-
+        
+        items.forEach((item, index) => {
+            const id = item.getAttribute('data-id');
+            const ref = db.collection('works').doc(window.currentWorkId).collection('chapters').doc(id);
+            batch.update(ref, { order: index + 1 });
+        });
+        
         await batch.commit();
-        loadChapters();
+        // コンソールで確認用
+        console.log("Order updated");
     }
 
     async function deleteTargetChapter(chapterId) {

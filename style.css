@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.37 */
+/* style.css - Story Builder V0.38 */
 
 :root {
     --bg-color: #202020; 
@@ -313,7 +313,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     justify-content: space-between;
     align-items: center;
     font-size: 14px;
-    position: relative; /* メニュー配置用 */
+    position: relative; 
 }
 .chapter-list {
     flex: 1;
@@ -330,9 +330,11 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     font-size: 14px;
     white-space: normal; 
     word-break: break-word;
+    user-select: none; /* ドラッグ中に文字選択されないように */
 }
 .chapter-item:hover { background: #2a2a2a; }
 .chapter-item.active { background: #2b4034; color: #fff; border-left: 4px solid #4caf50; }
+.chapter-item.dragging { opacity: 0.5; background: #333; border: 2px dashed #666; }
 
 .chapter-list-title {
     flex: 1;
@@ -354,11 +356,12 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     font-size: 16px;
     cursor: pointer;
     padding: 2px 6px;
+    margin-left: 5px; /* +ボタンとの距離 */
 }
 .chapter-menu-overlay {
     position: absolute;
     top: 40px;
-    left: 10px;
+    right: 10px; /* 右寄せ */
     width: 200px;
     background: #333;
     border: 1px solid #555;
@@ -378,15 +381,17 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .chapter-menu-item:hover { background: #444; }
 .chapter-menu-item:last-child { border-bottom: none; }
 
-.chapter-reorder-btn {
-    background: #444;
-    border: 1px solid #666;
-    color: #fff;
-    font-size: 12px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 2px;
-    cursor: pointer;
+/* ドラッグハンドル || を回転 */
+.drag-handle {
+    cursor: grab;
+    color: #888;
+    margin-left: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    transform: rotate(90deg); /* || を横にする */
+    display: inline-block;
+    padding: 5px;
+    touch-action: none; /* スマホでスクロール防止 */
 }
 .chapter-delete-icon {
     font-size: 16px;
