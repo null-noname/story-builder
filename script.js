@@ -1,4 +1,4 @@
-/* Story Builder V0.08 script.js - Form Design Updated */
+/* Story Builder V0.10 script.js */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -52,7 +52,7 @@ auth.onAuthStateChanged(user => {
 function switchView(name) {
     Object.values(views).forEach(el => el.style.display = 'none');
     if (views[name]) {
-        views[name].style.display = 'flex'; // コンテナがあるのでflexで統一
+        views[name].style.display = 'flex';
         if(name === 'top') loadWorks();
     }
 }
@@ -137,7 +137,7 @@ window.togglePin = function(e, id, newState) {
     db.collection('works').doc(id).update({ isPinned: newState }).then(loadWorks);
 };
 
-// --- Editor Logic (新しいフォームIDに対応) ---
+// --- Editor Logic ---
 window.openWork = function(id) {
     currentWorkId = id;
     db.collection('works').doc(id).get().then(doc => {
@@ -150,34 +150,28 @@ window.openWork = function(id) {
 };
 
 function fillWorkspace(data) {
-    // テキストフィールド
+    // 基本フィールド
     document.getElementById('input-title').value = data.title || "";
     document.getElementById('input-summary').value = data.description || "";
     document.getElementById('input-catch').value = data.catchphrase || "";
     document.getElementById('input-genre-main').value = data.genreMain || "";
     document.getElementById('input-genre-sub').value = data.genreSub || "";
     
-    // エディタ
+    // エディタ類
     document.getElementById('main-editor').value = data.content || "";
     document.getElementById('plot-editor').value = data.plot || "";
     document.getElementById('char-editor').value = data.characterNotes || "";
 
-    // ラジオボタン (Status)
-    const statusVal = data.status || "in-progress";
-    const statusRadio = document.querySelector(`input[name="novel-status"][value="${statusVal}"]`);
-    if(statusRadio) statusRadio.checked = true;
+    // 【単一選択】ラジオボタン類 (1つだけON)
+    const setRadio = (name, val) => {
+        const radio = document.querySelector(`input[name="${name}"][value="${val}"]`);
+        if(radio) radio.checked = true;
+    };
+    setRadio("novel-status", data.status || "in-progress");
+    setRadio("novel-type", data.type || "original");
+    setRadio("ai-usage", data.aiUsage || "none");
 
-    // ラジオボタン (Type)
-    const typeVal = data.type || "original";
-    const typeRadio = document.querySelector(`input[name="novel-type"][value="${typeVal}"]`);
-    if(typeRadio) typeRadio.checked = true;
-
-    // ラジオボタン (AI Usage)
-    const aiVal = data.aiUsage || "none";
-    const aiRadio = document.querySelector(`input[name="ai-usage"][value="${aiVal}"]`);
-    if(aiRadio) aiRadio.checked = true;
-
-    // チェックボックス (Ratings) - 配列として保存されている想定
+    // 【複数選択】チェックボックス類 (配列からON/OFF)
     const ratings = data.ratings || [];
     document.querySelectorAll('input[name="rating"]').forEach(chk => {
         chk.checked = ratings.includes(chk.value);
@@ -187,16 +181,15 @@ function fillWorkspace(data) {
     updateCatchCounter(document.getElementById('input-catch'));
 }
 
-// 保存処理 (新しいフォームIDから取得)
+// 保存処理
 document.getElementById('save-work-info-btn').addEventListener('click', saveCurrentWork);
 document.getElementById('quick-save-btn').addEventListener('click', saveCurrentWork);
 
 function saveCurrentWork() {
     if(!currentWorkId) return;
-    
     const content = document.getElementById('main-editor').value;
     
-    // チェックボックスの値を配列に収集
+    // レーティングの収集（複数選択）
     const selectedRatings = [];
     document.querySelectorAll('input[name="rating"]:checked').forEach(chk => {
         selectedRatings.push(chk.value);
@@ -209,9 +202,12 @@ function saveCurrentWork() {
         genreMain: document.getElementById('input-genre-main').value,
         genreSub: document.getElementById('input-genre-sub').value,
         
+        // 単一選択の値
         status: document.querySelector('input[name="novel-status"]:checked')?.value || "in-progress",
         type: document.querySelector('input[name="novel-type"]:checked')?.value || "original",
         aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value || "none",
+        
+        // 複数選択の値
         ratings: selectedRatings,
 
         content: content,
@@ -226,7 +222,7 @@ function saveCurrentWork() {
         .then(() => alert("保存しました"));
 }
 
-// 文字数カウントなど
+// 文字数カウント
 document.getElementById('main-editor').addEventListener('input', updateCharCount);
 function updateCharCount() {
     const len = document.getElementById('main-editor').value.length;
