@@ -1,4 +1,4 @@
-/* Story Builder V0.26 script.js */
+/* Story Builder V0.27 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.writingChart = null;
     window.editingMemoId = null; 
     window.previousView = 'top';
-    window.charCountMode = 'total'; // 'total' (総文字数) or 'pure' (全文字数/正味)
+    window.charCountMode = 'total'; 
 
     const views = {
         top: document.getElementById('top-view'),
@@ -84,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('save-work-info-btn', () => saveCurrentWork());
     bindClick('quick-save-btn', () => saveCurrentWork(null, false)); 
     
-    // ★修正: 執筆画面のツールバー初期化
     initEditorToolbar();
 
     bindClick('add-new-memo-btn', () => openMemoEditor(null, 'memo'));
@@ -118,54 +117,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Editor Toolbar Functions ---
     function initEditorToolbar() {
-        // 既存のボタンレイアウトをJSで書き換える（HTMLを変更せずJSで構築）
         const editorTab = document.getElementById('tab-editor');
         if(!editorTab) return;
 
-        // 既存のヘッダーバーを探して中身をリセット
         let header = editorTab.querySelector('.editor-header');
         if(!header) {
             header = document.createElement('div');
             header.className = 'editor-header';
             editorTab.insertBefore(header, editorTab.firstChild);
-            // 古いトグルボタンなどは削除（HTML側で残っていてもここでクリア）
             const oldHeader = editorTab.querySelector('div[style*="background:#333"]');
             if(oldHeader) oldHeader.remove(); 
         }
         header.innerHTML = '';
 
-        // ツールバー（左側）
         const toolbar = document.createElement('div');
         toolbar.className = 'editor-toolbar';
         
         const tools = [
-            { icon: '👁️', action: () => alert('プレビュー機能（未実装）') },
+            { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
-            { icon: '🔄', action: toggleVerticalMode }, // 縦書き切替
-            { icon: '🔍', action: () => alert('置換機能（未実装）') },
+            // ★修正: 縦書き切替ボタン（ID付与して文字を変えられるようにする）
+            { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
+            { icon: '置換', action: () => alert('置換機能（未実装）') },
             { spacer: true },
-            { icon: '🇷', action: insertRuby }, // ルビ
-            { icon: '—', action: insertDash }, // ダッシュ
-            { icon: '↩️', action: () => document.execCommand('undo') },
-            { icon: '↪️', action: () => document.execCommand('redo') }
+            { icon: 'ﾙﾋﾞ', action: insertRuby },
+            { icon: '—', action: insertDash },
+            { icon: '◀️', action: () => document.execCommand('undo') },
+            { icon: '▶️', action: () => document.execCommand('redo') }
         ];
 
         tools.forEach(t => {
             if(t.spacer) {
                 const sp = document.createElement('div');
-                sp.style.width = '10px';
-                sp.style.flexShrink = '0';
+                sp.style.width = '10px'; sp.style.flexShrink = '0';
                 toolbar.appendChild(sp);
             } else {
                 const btn = document.createElement('button');
                 btn.className = 'toolbar-btn';
+                if(t.id) btn.id = t.id; // IDがあれば設定
                 btn.textContent = t.icon;
                 btn.onclick = t.action;
                 toolbar.appendChild(btn);
             }
         });
 
-        // 文字数表示（右側）
         const counter = document.createElement('div');
         counter.className = 'char-count-display';
         counter.id = 'editor-char-counter';
@@ -176,9 +171,16 @@ document.addEventListener('DOMContentLoaded', () => {
         header.appendChild(counter);
     }
 
+    // ★修正: 縦書き/横書き切替時のボタン文字変更
     function toggleVerticalMode() {
         const editor = document.getElementById('main-editor');
-        if(editor) editor.classList.toggle('vertical-mode');
+        const btn = document.getElementById('btn-writing-mode');
+        if(editor) {
+            editor.classList.toggle('vertical-mode');
+            const isVertical = editor.classList.contains('vertical-mode');
+            // 縦書きモードなら、次は「横」に戻すボタンになる
+            if(btn) btn.textContent = isVertical ? '横' : '縦';
+        }
     }
 
     function insertTextAtCursor(text) {
@@ -334,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ★修正: 文字数カウントのモード切替対応
     function updateCharCount() { 
         const text = document.getElementById('main-editor').value;
         const counter = document.getElementById('editor-char-counter');
@@ -342,11 +343,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (window.charCountMode === 'total') {
             counter.textContent = `総文字数: ${text.length}`;
-            counter.style.color = '#fff'; // 白
+            counter.style.color = '#fff';
         } else {
             const pure = text.replace(/\s/g, '').length;
             counter.textContent = `全文字数: ${pure}`;
-            counter.style.color = '#89b4fa'; // 青
+            counter.style.color = '#89b4fa';
         }
     }
 
