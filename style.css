@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.27 */
+/* style.css - Story Builder V0.28 */
 
 :root {
     --bg-color: #202020; 
@@ -250,15 +250,66 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 }
 .char-count-display:hover { background: #444; }
 
-.stats-card-row { display: flex; gap: 10px; margin-bottom: 10px; }
-.stats-card {
-    background: #2a2a2a; border: 1px solid #444; padding: 15px; border-radius: 8px; flex: 1;
-    display: flex; flex-direction: column; align-items: center;
+/* ★修正: 2カラムレイアウト（章リスト + エディタ） */
+.chapter-sidebar {
+    width: 250px;
+    border-right: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+    margin-right: 10px;
+    background: #1a1a1a;
+    border-radius: 4px;
 }
-.stats-card .value { font-size: 24px; font-weight: bold; color: var(--accent-blue); }
-.stats-card .unit { font-size: 14px; color: var(--text-white); margin-left: 2px; font-weight: normal; }
+.sidebar-header {
+    padding: 8px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #444;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+.chapter-list {
+    flex: 1;
+    overflow-y: auto;
+}
+.chapter-item {
+    padding: 10px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+.chapter-item:hover { background: #2a2a2a; }
+.chapter-item.active { background: #2b4034; color: #fff; border-left: 4px solid #4caf50; }
 
+.sidebar-footer {
+    padding: 8px;
+    border-top: 1px solid #444;
+    text-align: center;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.editor-main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* モバイル対応：章リストは上部に配置するか、狭くする */
 @media (max-width: 600px) {
+    /* モバイルではFlexを縦並びに上書きして、章リストの高さを制限 */
+    #tab-editor { flex-direction: column !important; }
+    .chapter-sidebar {
+        width: 100%;
+        height: 150px; /* 高さを固定 */
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
     .dashboard-area { flex-direction: row; align-items: stretch; }
     .top-buttons { width: 120px; }
     .diary-val { font-size: 16px; }

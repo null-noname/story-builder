@@ -1,4 +1,4 @@
-/* Story Builder V0.27 script.js */
+/* Story Builder V0.28 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.currentUser = null;
     window.currentWorkId = null;
-    window.writingChart = null;
+    window.currentChapterId = null; // ★追加: 現在編集中の章ID
     window.editingMemoId = null; 
     window.previousView = 'top';
     window.charCountMode = 'total'; 
@@ -77,12 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     bindClick('diary-widget', () => switchView('stats'));
     bindClick('btn-common-memo', () => switchView('memo'));
-    bindClick('back-to-top', () => saveCurrentWork('top'));
+    bindClick('back-to-top', () => saveCurrentChapter('top')); // 保存対象を変更
     bindClick('back-from-stats', () => switchView('top'));
     bindClick('back-from-memo', () => switchView('top'));
     bindClick('create-new-work-btn', createNewWork);
-    bindClick('save-work-info-btn', () => saveCurrentWork());
-    bindClick('quick-save-btn', () => saveCurrentWork(null, false)); 
+    bindClick('save-work-info-btn', () => saveWorkInfo()); // 作品情報のみ保存
+    bindClick('quick-save-btn', () => saveCurrentChapter(null, false)); 
     
     initEditorToolbar();
 
@@ -115,28 +115,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Editor Toolbar Functions ---
+    // --- Editor Toolbar & Chapter UI Init ---
     function initEditorToolbar() {
         const editorTab = document.getElementById('tab-editor');
         if(!editorTab) return;
 
-        let header = editorTab.querySelector('.editor-header');
-        if(!header) {
-            header = document.createElement('div');
-            header.className = 'editor-header';
-            editorTab.insertBefore(header, editorTab.firstChild);
-            const oldHeader = editorTab.querySelector('div[style*="background:#333"]');
-            if(oldHeader) oldHeader.remove(); 
-        }
-        header.innerHTML = '';
+        // ★修正: 2カラムレイアウト用のコンテナを作成
+        editorTab.innerHTML = ''; // 一旦クリア
+        editorTab.style.flexDirection = 'row'; // 横並びにする
 
+        // 左カラム: 章リスト
+        const sidebar = document.createElement('div');
+        sidebar.className = 'chapter-sidebar';
+        sidebar.innerHTML = `
+            <div class="sidebar-header">
+                <span style="font-weight:bold;">章一覧</span>
+                <button class="btn-custom btn-small" id="add-chapter-btn" style="padding:2px 8px;">＋</button>
+            </div>
+            <div id="chapter-list" class="chapter-list scrollable"></div>
+            <div class="sidebar-footer">
+                <small id="total-work-chars">合計: 0文字</small>
+            </div>
+        `;
+        editorTab.appendChild(sidebar);
+
+        // 右カラム: エディタエリア
+        const mainArea = document.createElement('div');
+        mainArea.className = 'editor-main-area';
+        
+        // ツールバー
+        const header = document.createElement('div');
+        header.className = 'editor-header';
+        
         const toolbar = document.createElement('div');
         toolbar.className = 'editor-toolbar';
-        
         const tools = [
             { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
-            // ★修正: 縦書き切替ボタン（ID付与して文字を変えられるようにする）
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: () => alert('置換機能（未実装）') },
             { spacer: true },
@@ -154,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const btn = document.createElement('button');
                 btn.className = 'toolbar-btn';
-                if(t.id) btn.id = t.id; // IDがあれば設定
+                if(t.id) btn.id = t.id;
                 btn.textContent = t.icon;
                 btn.onclick = t.action;
                 toolbar.appendChild(btn);
@@ -165,20 +180,44 @@ document.addEventListener('DOMContentLoaded', () => {
         counter.className = 'char-count-display';
         counter.id = 'editor-char-counter';
         counter.onclick = toggleCharCountMode;
-        counter.textContent = '総文字数: 0';
+        counter.textContent = '0文字';
 
         header.appendChild(toolbar);
         header.appendChild(counter);
+
+        // エディタ本体
+        const editorContainer = document.createElement('div');
+        editorContainer.id = 'editor-container';
+        editorContainer.style.cssText = "flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;";
+        editorContainer.innerHTML = `<textarea id="main-editor" class="main-textarea" style="width:100%; height:100%; border:none;" placeholder="章を選択するか、新しい章を追加してください..."></textarea>`;
+
+        // 一時保存ボタン
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn-custom btn-small';
+        saveBtn.id = 'quick-save-btn';
+        saveBtn.style.marginTop = '5px';
+        saveBtn.textContent = '一時保存';
+        saveBtn.onclick = () => saveCurrentChapter(null, false);
+
+        mainArea.appendChild(header);
+        mainArea.appendChild(editorContainer);
+        mainArea.appendChild(saveBtn);
+
+        editorTab.appendChild(mainArea);
+
+        // 章追加ボタンのイベント
+        document.getElementById('add-chapter-btn').addEventListener('click', addNewChapter);
+        
+        // エディタ入力イベント再設定
+        document.getElementById('main-editor').addEventListener('input', updateCharCount);
     }
 
-    // ★修正: 縦書き/横書き切替時のボタン文字変更
     function toggleVerticalMode() {
         const editor = document.getElementById('main-editor');
         const btn = document.getElementById('btn-writing-mode');
         if(editor) {
             editor.classList.toggle('vertical-mode');
             const isVertical = editor.classList.contains('vertical-mode');
-            // 縦書きモードなら、次は「横」に戻すボタンになる
             if(btn) btn.textContent = isVertical ? '横' : '縦';
         }
     }
@@ -203,25 +242,226 @@ document.addEventListener('DOMContentLoaded', () => {
         insertTextAtCursor(`|${parent}《${ruby}》`);
     }
 
-    function insertDash() {
-        insertTextAtCursor('――');
-    }
+    function insertDash() { insertTextAtCursor('――'); }
 
     function toggleCharCountMode() {
         window.charCountMode = (window.charCountMode === 'total') ? 'pure' : 'total';
         updateCharCount();
     }
 
-    // ---
+    // --- Work & Chapter Management ---
 
     async function createNewWork() {
         if (!window.currentUser) return;
         const newWork = {
             uid: window.currentUser.uid, title: "無題の物語", status: "in-progress", isPinned: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            totalChars: 0
+        };
+        try { 
+            const doc = await db.collection('works').add(newWork); 
+            // 新規作成時、自動で第1章を作る
+            await db.collection('works').doc(doc.id).collection('chapters').add({
+                title: "第1話",
+                content: "",
+                order: 1,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            openWork(doc.id); 
+        } catch (e) { console.error(e); }
+    }
+
+    // 作品を開く（章リストの読み込みと移行処理含む）
+    window.openWork = async function(id) {
+        window.currentWorkId = id;
+        window.currentChapterId = null;
+
+        const workDoc = await db.collection('works').doc(id).get();
+        if(!workDoc.exists) return;
+
+        const data = workDoc.data();
+        fillWorkInfo(data); // 作品情報タブの中身を埋める
+
+        // ★重要: 古いデータ構造（本文がworks直下にある）場合、第1章へ移行する
+        if (data.content && data.content.length > 0) {
+            const chaptersSnap = await db.collection('works').doc(id).collection('chapters').get();
+            if (chaptersSnap.empty) {
+                // 自動移行処理
+                await db.collection('works').doc(id).collection('chapters').add({
+                    title: "第1話（自動移行）",
+                    content: data.content,
+                    order: 1,
+                    updatedAt: new Date()
+                });
+                // 元の本文は削除しないが、空にしておく（またはそのまま）
+                await db.collection('works').doc(id).update({ content: "" });
+            }
+        }
+
+        loadChapters();
+        switchView('workspace');
+    };
+
+    function loadChapters() {
+        if(!window.currentWorkId) return;
+        const listEl = document.getElementById('chapter-list');
+        listEl.innerHTML = '<div style="padding:10px; color:#aaa;">読み込み中...</div>';
+
+        db.collection('works').doc(window.currentWorkId).collection('chapters')
+          .orderBy('order', 'asc')
+          .get().then(snap => {
+              listEl.innerHTML = '';
+              let totalChars = 0;
+              let chapters = [];
+              snap.forEach(doc => { 
+                  const d = doc.data();
+                  chapters.push({id: doc.id, ...d});
+                  totalChars += (d.content ? d.content.length : 0);
+              });
+
+              // 合計文字数更新
+              document.getElementById('total-work-chars').textContent = `合計: ${totalChars}文字`;
+
+              if(chapters.length === 0) {
+                  listEl.innerHTML = '<div style="padding:10px; color:#aaa;">章がありません</div>';
+              } else {
+                  chapters.forEach(ch => {
+                      const item = document.createElement('div');
+                      item.className = 'chapter-item';
+                      if(window.currentChapterId === ch.id) item.classList.add('active');
+                      
+                      const title = document.createElement('span');
+                      title.textContent = ch.title || "無題";
+                      
+                      const count = document.createElement('span');
+                      count.style.fontSize = "0.8em";
+                      count.style.color = "#888";
+                      count.textContent = `(${ch.content ? ch.content.length : 0}字)`;
+
+                      item.appendChild(title);
+                      item.appendChild(count);
+                      item.onclick = () => selectChapter(ch.id, ch);
+                      listEl.appendChild(item);
+                  });
+                  // 最初の章を自動選択（まだ選択してない場合）
+                  if (!window.currentChapterId && chapters.length > 0) {
+                      selectChapter(chapters[0].id, chapters[0]);
+                  }
+              }
+          });
+    }
+
+    function selectChapter(id, data) {
+        window.currentChapterId = id;
+        document.getElementById('main-editor').value = data.content || "";
+        updateCharCount();
+        
+        // 選択状態のスタイル更新
+        document.querySelectorAll('.chapter-item').forEach(el => el.classList.remove('active'));
+        // 再描画しないとクラスが当たらないので、loadChapters内で制御するか、
+        // ここで簡易的にやるなら再取得が必要だが、一旦ロード済みリストから探すのは複雑になるので
+        // シンプルにリストを再描画せずとも見た目を変えられるようにしたいが、
+        // 今回はシンプルにloadChaptersを呼ばずにDOM操作だけするのが理想。
+        // 手抜きでloadChaptersを呼ぶとちらつくので、クラス操作のみ実装推奨だが、
+        // 実装簡略化のため、loadChaptersを呼ばず、DOM構築時にIDを持たせておくのがベター。
+        // ★修正: リスト再生成せずハイライトのみ切り替えたいが、今回はloadChaptersで全リロードする形にします（確実性重視）
+        loadChapters(); 
+    }
+
+    async function addNewChapter() {
+        if(!window.currentWorkId) return;
+        
+        // 1000話制限チェック
+        const snap = await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
+        if(snap.size >= 1000) {
+            alert("最大1000話までです。");
+            return;
+        }
+
+        const title = prompt("新しい章のタイトルを入力してください", `第${snap.size + 1}話`);
+        if(title) {
+            await db.collection('works').doc(window.currentWorkId).collection('chapters').add({
+                title: title,
+                content: "",
+                order: snap.size + 1,
+                updatedAt: new Date()
+            });
+            loadChapters();
+        }
+    }
+
+    // 章の保存（エディタの内容を保存）
+    function saveCurrentChapter(nextViewName = null, showAlert = false) {
+        if(!window.currentWorkId || !window.currentChapterId) {
+            // 章がない場合に保存ボタンを押した時の対策
+            if(nextViewName) switchView(nextViewName);
+            return;
+        }
+        
+        const content = document.getElementById('main-editor').value;
+        
+        // 1話2万文字制限
+        if(content.length > 20000) {
+            alert("1話あたりの文字数が上限(20,000字)を超えています。保存できません。");
+            return;
+        }
+
+        db.collection('works').doc(window.currentWorkId)
+          .collection('chapters').doc(window.currentChapterId)
+          .update({
+              content: content,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(() => {
+              // リストの文字数表記などを更新
+              loadChapters();
+              if(nextViewName) switchView(nextViewName);
+              else if (showAlert) alert("保存しました");
+          });
+    }
+
+    // 作品情報の保存（タイトルなど）
+    function saveWorkInfo() {
+        if(!window.currentWorkId) return;
+        const selectedRatings = [];
+        document.querySelectorAll('input[name="rating"]:checked').forEach(c => selectedRatings.push(c.value));
+        
+        const data = {
+            title: document.getElementById('input-title').value,
+            description: document.getElementById('input-summary').value,
+            catchphrase: document.getElementById('input-catch').value,
+            genreMain: document.getElementById('input-genre-main').value,
+            genreSub: document.getElementById('input-genre-sub').value,
+            status: document.querySelector('input[name="novel-status"]:checked')?.value || "in-progress",
+            type: document.querySelector('input[name="novel-type"]:checked')?.value || "original",
+            aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value || "none",
+            ratings: selectedRatings,
+            plot: document.getElementById('plot-editor').value,
+            characterNotes: document.getElementById('char-editor').value,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        try { const doc = await db.collection('works').add(newWork); openWork(doc.id); } catch (e) { console.error(e); }
+        
+        db.collection('works').doc(window.currentWorkId).update(data).then(() => {
+            // 保存完了（サイレント）
+        });
+    }
+
+    // 作品情報タブへのデータ埋め込み
+    function fillWorkInfo(data) {
+        document.getElementById('input-title').value = data.title || "";
+        document.getElementById('input-summary').value = data.description || "";
+        document.getElementById('input-catch').value = data.catchphrase || "";
+        document.getElementById('input-genre-main').value = data.genreMain || "";
+        document.getElementById('input-genre-sub').value = data.genreSub || "";
+        document.getElementById('plot-editor').value = data.plot || "";
+        document.getElementById('char-editor').value = data.characterNotes || "";
+        const setRadio = (name, val) => { const r = document.querySelector(`input[name="${name}"][value="${val}"]`); if(r) r.checked = true; };
+        setRadio("novel-status", data.status || "in-progress");
+        setRadio("novel-type", data.type || "original");
+        setRadio("ai-usage", data.aiUsage || "none");
+        const ratings = data.ratings || [];
+        document.querySelectorAll('input[name="rating"]').forEach(c => c.checked = ratings.includes(c.value));
+        updateCatchCounter(document.getElementById('input-catch'));
     }
 
     function loadWorks() {
@@ -266,7 +506,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="work-meta-container">
                     <div class="work-meta-row">作成日: ${formatDate(data.createdAt)}</div>
                     <div class="work-meta-row">更新日: ${formatDate(data.updatedAt)}</div>
-                    <div class="work-meta-row">全 ${data.totalChars || 0} 字</div>
                 </div>
             </div>
             <div class="work-actions">
@@ -280,61 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteWork = function(e, id) { e.stopPropagation(); if(confirm("削除しますか？")) db.collection('works').doc(id).delete().then(loadWorks); };
     window.togglePin = function(e, id, newState) { e.stopPropagation(); db.collection('works').doc(id).update({ isPinned: newState }).then(loadWorks); };
-
-    window.openWork = function(id) {
-        window.currentWorkId = id;
-        db.collection('works').doc(id).get().then(doc => {
-            if(doc.exists) { fillWorkspace(doc.data()); switchView('workspace'); }
-        });
-    };
-
-    function fillWorkspace(data) {
-        document.getElementById('input-title').value = data.title || "";
-        document.getElementById('input-summary').value = data.description || "";
-        document.getElementById('input-catch').value = data.catchphrase || "";
-        document.getElementById('input-genre-main').value = data.genreMain || "";
-        document.getElementById('input-genre-sub').value = data.genreSub || "";
-        document.getElementById('main-editor').value = data.content || "";
-        document.getElementById('plot-editor').value = data.plot || "";
-        document.getElementById('char-editor').value = data.characterNotes || "";
-        const setRadio = (name, val) => { const r = document.querySelector(`input[name="${name}"][value="${val}"]`); if(r) r.checked = true; };
-        setRadio("novel-status", data.status || "in-progress");
-        setRadio("novel-type", data.type || "original");
-        setRadio("ai-usage", data.aiUsage || "none");
-        const ratings = data.ratings || [];
-        document.querySelectorAll('input[name="rating"]').forEach(c => c.checked = ratings.includes(c.value));
-        updateCharCount();
-        updateCatchCounter(document.getElementById('input-catch'));
-        loadMemoListForWorkspace(); 
-    }
-
-    function saveCurrentWork(nextViewName = null, showAlert = false) {
-        if(!window.currentWorkId) return;
-        const content = document.getElementById('main-editor').value;
-        if(content.length > 20000) { alert("文字数が上限(20,000字)を超えています。"); return; }
-        const selectedRatings = [];
-        document.querySelectorAll('input[name="rating"]:checked').forEach(c => selectedRatings.push(c.value));
-        const data = {
-            title: document.getElementById('input-title').value,
-            description: document.getElementById('input-summary').value,
-            catchphrase: document.getElementById('input-catch').value,
-            genreMain: document.getElementById('input-genre-main').value,
-            genreSub: document.getElementById('input-genre-sub').value,
-            status: document.querySelector('input[name="novel-status"]:checked')?.value || "in-progress",
-            type: document.querySelector('input[name="novel-type"]:checked')?.value || "original",
-            aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value || "none",
-            ratings: selectedRatings,
-            content: content,
-            plot: document.getElementById('plot-editor').value,
-            characterNotes: document.getElementById('char-editor').value,
-            totalChars: content.length,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        db.collection('works').doc(window.currentWorkId).update(data).then(() => {
-            if(nextViewName) switchView(nextViewName);
-            else if (showAlert) alert("保存しました");
-        });
-    }
 
     function updateCharCount() { 
         const text = document.getElementById('main-editor').value;
