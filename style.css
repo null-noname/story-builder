@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.50 */
+/* style.css - Story Builder V0.51 */
 
 :root {
     --bg-color: #202020; 
@@ -20,9 +20,9 @@
     --ed-letter-spacing: 0em;
     --ed-width: 100%;
     
-    --pr-font-size: 18px; /* 基本サイズ */
+    --pr-font-size: 18px; 
     --pr-line-height: 2.0;
-    --pr-height: auto; /* 縦書き時の折り返し計算用 */
+    --pr-height: auto; 
 }
 
 * { box-sizing: border-box; font-family: var(--font-ui) !important; }
@@ -103,7 +103,6 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     width: 100%; background: #151515; color: #eee; padding: 15px;
     border: none; resize: none; margin: 0 auto;
     
-    /* 変数適用 */
     font-size: var(--ed-font-size);
     line-height: var(--ed-line-height);
     letter-spacing: var(--ed-letter-spacing);
@@ -196,9 +195,13 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .preview-content.vertical-mode {
     writing-mode: vertical-rl; text-orientation: upright;
     overflow-x: auto; overflow-y: hidden;
-    height: var(--pr-height, 100%); /* 高さを指定して文字数を制御 */
+    height: var(--pr-height, 100%); 
     width: auto; max-width: none; margin: 0 auto;
 }
+
+/* ルビの調整 */
+ruby { font-family: inherit; }
+rt { font-size: 0.5em; color: var(--accent-blue); user-select: none; }
 
 /* 設定モーダル共通 */
 .settings-modal-overlay {

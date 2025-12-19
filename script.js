@@ -1,4 +1,4 @@
-/* Story Builder V0.50 script.js */
+/* Story Builder V0.51 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -37,7 +37,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dailyHistory = [0,0,0,0,0,0,0]; 
     window.dragSrcEl = null; 
 
-    // 設定初期値
+    // 設定の初期値
+    window.userSettings = {
+        editorFontSize: 16,
+        editorLineHeight: 1.8,
+        previewFontSize: 18,
+        previewLineHeight: 2.0
+    };
+    
+    // アプリ設定（端末保存用）
     window.appSettings = {
         edLetterSpacing: 0,
         edLineHeight: 1.8,
@@ -63,7 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch((error) => alert("ログインエラー: " + error.message));
+            auth.signInWithPopup(provider)
+                .catch((error) => alert("ログインエラー: " + error.message));
         });
     }
 
@@ -151,8 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // プレビュー操作
     bindClick('preview-close-btn', closePreview);
     bindClick('preview-mode-btn', togglePreviewMode);
-    bindClick('preview-setting-btn', openPreviewSettings); // プレビュー設定ボタン
-
+    bindClick('preview-setting-btn', openPreviewSettings); 
+    
     // 設定モーダルボタン
     bindClick('es-cancel', () => document.getElementById('editor-settings-modal').style.display = 'none');
     bindClick('es-save', saveEditorSettings);
@@ -246,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         localStorage.setItem('sb_app_settings', JSON.stringify(window.appSettings));
         applySettingsToDOM();
-        // プレビュー表示中の場合は再描画（フォントサイズ等反映のため）
+        
         const modal = document.getElementById('preview-modal');
         if(modal.style.display === 'flex') {
             applyPreviewLayout(); 
@@ -271,23 +280,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let text = editor.value;
         text = escapeHtml(text).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
-        text = text.replace(/｜(.*?《.*?》)/g, '$1').replace(/([^\x01-\x7E]+)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+        
+        // ★修正: ルビの正規表現
+        // 1. |親文字《ルビ》 (指定あり)
+        text = text.replace(/[\|｜]([^《]+?)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+        // 2. 漢字《ルビ》 (自動判定: 漢字,々,〆,ヵ,ヶの連続)
+        text = text.replace(/([一-龠々〆ヵヶ]+)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
 
         content.innerHTML = text;
         modal.style.display = 'flex';
         applyPreviewLayout();
+        updatePreviewModeButton(); // ボタン表記更新
     }
 
     function applyPreviewLayout() {
         const r = document.documentElement.style;
-        // 基本フォントサイズ 18px * 倍率
         const baseSize = 18 * parseFloat(window.appSettings.prFontScale);
         r.setProperty('--pr-font-size', baseSize + 'px');
         
-        // 縦書き時の高さ（＝1行の文字数）計算
-        // フォントサイズ * 文字数
         const height = baseSize * parseInt(window.appSettings.prVerticalChars);
-        // 行間調整等はCSSで自動処理されるが、厳密な高さを指定して折り返し位置を決める
         r.setProperty('--pr-height', height + 'px');
     }
 
@@ -298,6 +309,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function togglePreviewMode() {
         const content = document.getElementById('preview-content');
         content.classList.toggle('vertical-mode');
+        updatePreviewModeButton(); // ボタン表記更新
+    }
+
+    function updatePreviewModeButton() {
+        const content = document.getElementById('preview-content');
+        const btn = document.getElementById('preview-mode-btn');
+        if(content.classList.contains('vertical-mode')) {
+            btn.textContent = "横読み"; // 今は縦なので「横読み」に変更可能
+        } else {
+            btn.textContent = "縦読み"; // 今は横なので「縦読み」に変更可能
+        }
     }
 
     // --- Daily Log & Graph Logic ---
@@ -451,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const tools = [
             { icon: '📖', action: showPreview }, 
-            { icon: '⚙️', action: openEditorSettings }, // 設定モーダル呼び出し
+            { icon: '⚙️', action: openEditorSettings }, 
             { spacer: true, label: '|' },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: () => alert('置換機能（未実装）') },
