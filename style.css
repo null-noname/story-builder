@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.35 */
+/* style.css - Story Builder V0.36 */
 
 :root {
     --bg-color: #202020; 
@@ -241,14 +241,14 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 /* フッター用ボタン */
 .toolbar-btn-footer {
     background: transparent;
-    border: none; /* 枠線を削除 */
-    color: #ddd;
-    font-size: 16px;
+    border: none;
+    color: #fff;
+    font-size: 18px; /* 16px -> 18px (上と統一) */
     cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 4px 8px; /* 6px 12px -> 4px 8px (上と統一) */
+    border-radius: 4px; /* 6px -> 4px */
 }
-.toolbar-btn-footer:hover { background: #444; }
+.toolbar-btn-footer:hover { background: #555; }
 
 /* モバイルのみ表示する要素 */
 .mobile-only { display: none !important; }
@@ -333,7 +333,6 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .chapter-item:hover { background: #2a2a2a; }
 .chapter-item.active { background: #2b4034; color: #fff; border-left: 4px solid #4caf50; }
 
-/* 章リスト用レイアウト修正クラス */
 .chapter-list-title {
     flex: 1;
     margin-right: 5px;
