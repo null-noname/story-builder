@@ -333,9 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
 
-/* Story Builder V1.20 script.js - Part 3/3 */
+/* Story Builder V1.30 script.js - Part 3/3 (Timeline UI Fixed) */
 
-    // --- Plot (New Timeline Logic) ---
+    // --- Plot (Timeline UI Update) ---
     window.loadPlots = function() {
         const c=document.getElementById('plot-items-container'); if(!c||!window.currentWorkId)return;
         db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order','asc').get().then(snap=>{
@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d=doc.data(); const div=document.createElement('div');
                 const isTL = d.type === 'timeline';
                 div.className = 'plot-card';
-                // タイムラインのプレビュー生成（最初の2行を表示）
+                // タイムラインのプレビュー生成
                 let preview = "";
                 if(isTL) {
                     try {
@@ -372,22 +372,20 @@ document.addEventListener('DOMContentLoaded', () => {
         window.editingPlotId=id; 
         const t=document.getElementById('plot-edit-title'); const c=document.getElementById('plot-edit-content'); const ty=document.getElementById('plot-edit-type');
         
-        // ヘッダーボタン修正
+        // ヘッダー修正
         const header = document.querySelector('#plot-edit-view .edit-overlay-header');
         header.innerHTML = `<button id="plot-edit-back" class="btn-custom btn-small">← 戻る</button><span style="font-weight:bold;">プロット編集</span><div style="width:50px;"></div>`;
         document.getElementById('plot-edit-back').onclick = () => document.getElementById('plot-edit-view').style.display='none';
 
-        // タイムライン用エリアの準備（なければ作る）
+        // タイムラインエリア準備
         const body = document.querySelector('#plot-edit-view .edit-overlay-body');
         let tlArea = document.getElementById('plot-timeline-editor');
         if(!tlArea) {
-            tlArea = document.createElement('div'); tlArea.id='plot-timeline-editor';
-            tlArea.style.display = 'none';
-            // 元のtextareaの下に挿入
+            tlArea = document.createElement('div'); tlArea.id='plot-timeline-editor'; tlArea.style.display = 'none';
             c.parentElement.insertBefore(tlArea, c.nextSibling);
         }
 
-        // フッターボタン（保存/削除）
+        // フッターボタン
         let footerBtnArea = document.getElementById('plot-footer-btns');
         if(!footerBtnArea) {
             footerBtnArea = document.createElement('div'); footerBtnArea.id = 'plot-footer-btns';
@@ -398,18 +396,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('plot-footer-save').onclick = savePlotItem;
         document.getElementById('plot-footer-delete').onclick = deletePlotItem;
 
-        // 本文中の古い削除ボタンを隠す
         const oldDel = document.getElementById('plot-edit-delete'); if(oldDel) oldDel.style.display='none';
-
-        // タイプ変更時のイベント
         ty.onchange = () => togglePlotEditorMode(ty.value);
 
         if(id){
             db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(d=>{
                 if(d.exists){
-                    const data=d.data(); t.value=data.title; 
-                    ty.value=data.type||'memo';
-                    // モードに応じて中身をセット
+                    const data=d.data(); t.value=data.title; ty.value=data.type||'memo';
                     if(ty.value === 'timeline') {
                         try { window.tempTimelineData = JSON.parse(data.content||"[]"); } catch(e){ window.tempTimelineData = [{time:"", text:data.content}]; }
                         renderTimelineEditor();
@@ -429,36 +422,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const tl = document.getElementById('plot-timeline-editor');
         if(mode === 'timeline') {
             c.style.display = 'none'; tl.style.display = 'block';
-            if(window.tempTimelineData.length === 0) renderTimelineEditor(); // 初期表示
+            if(window.tempTimelineData.length === 0) renderTimelineEditor(); 
         } else {
             c.style.display = 'block'; tl.style.display = 'none';
         }
     };
 
+    // ★タイムライン描画ロジック（UI改善版）
     window.renderTimelineEditor = function() {
         const el = document.getElementById('plot-timeline-editor');
         if(window.tempTimelineData.length === 0) window.tempTimelineData.push({time:"", text:""});
         
         el.innerHTML = window.tempTimelineData.map((row, i) => `
-            <div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden;">
-                <div style="width:80px; border-right:2px solid #fff; display:flex; flex-direction:column;">
-                    <textarea class="tl-time-input" data-idx="${i}" style="background:transparent; border:none; color:#fff; text-align:center; height:100%; resize:none; padding:10px 2px; font-size:12px;" placeholder="日付/時間">${escapeHtml(row.time)}</textarea>
+            <div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden; min-height:50px;">
+                <div style="width:70px; border-right:1px solid #444; display:flex; align-items:center; justify-content:center; background:#111;">
+                    <input type="text" class="tl-time-input" data-idx="${i}" value="${escapeHtml(row.time)}" 
+                        style="background:transparent; border:none; color:#fff; text-align:center; width:100%; font-size:13px; outline:none; padding:5px 0;" 
+                        placeholder="日時">
                 </div>
-                <div style="flex:1;">
-                    <textarea class="tl-text-input" data-idx="${i}" style="width:100%; background:transparent; border:none; color:#fff; resize:none; height:60px; padding:10px;">${escapeHtml(row.text)}</textarea>
+                <div style="flex:1; display:flex; align-items:center;">
+                    <textarea class="tl-text-input" data-idx="${i}" rows="1" placeholder="内容..."
+                        style="width:100%; background:transparent; border:none; color:#fff; resize:none; padding:10px; line-height:1.5; overflow:hidden; min-height:40px;">${escapeHtml(row.text)}</textarea>
                 </div>
-                <div style="width:30px; display:flex; flex-direction:column; background:#222; border-left:1px solid #444;">
-                    <button onclick="moveTLRow(${i},-1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer;">↑</button>
-                    <button onclick="moveTLRow(${i},1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer;">↓</button>
-                    <button onclick="deleteTLRow(${i})" style="flex:1; border:none; background:#500; color:#fff; cursor:pointer;">×</button>
+                <div style="width:32px; display:flex; flex-direction:column; background:#222; border-left:1px solid #444;">
+                    <button onclick="moveTLRow(${i},-1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▲</button>
+                    <button onclick="moveTLRow(${i},1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▼</button>
+                    <button onclick="deleteTLRow(${i})" style="flex:1; border:none; background:#500; color:#fff; cursor:pointer; font-size:14px;">×</button>
                 </div>
             </div>
         `).join('') + `<button onclick="addTLRow()" class="btn-custom btn-full" style="margin-top:10px;">＋ 行を追加</button>`;
 
-        // 入力イベントでデータを更新
-        el.querySelectorAll('.tl-time-input').forEach(e => e.oninput = (ev) => window.tempTimelineData[ev.target.dataset.idx].time = ev.target.value);
-        el.querySelectorAll('.tl-text-input').forEach(e => e.oninput = (ev) => window.tempTimelineData[ev.target.dataset.idx].text = ev.target.value);
+        // イベント設定：入力制限と自動リサイズ
+        el.querySelectorAll('.tl-time-input').forEach(e => {
+            e.oninput = (ev) => {
+                // 半角数字と / : のみ許可
+                ev.target.value = ev.target.value.replace(/[^0-9/:]/g, '');
+                window.tempTimelineData[ev.target.dataset.idx].time = ev.target.value;
+            };
+        });
+        
+        el.querySelectorAll('.tl-text-input').forEach(e => {
+            autoResize(e); // 初期リサイズ
+            e.oninput = (ev) => {
+                autoResize(ev.target);
+                window.tempTimelineData[ev.target.dataset.idx].text = ev.target.value;
+            };
+        });
     };
+
+    function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
 
     window.addTLRow = () => { window.tempTimelineData.push({time:"", text:""}); renderTimelineEditor(); };
     window.deleteTLRow = (i) => { window.tempTimelineData.splice(i, 1); renderTimelineEditor(); };
@@ -471,11 +486,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.savePlotItem = async function() {
         const t=document.getElementById('plot-edit-title').value; const ty=document.getElementById('plot-edit-type').value;
         let finalContent = "";
-        if(ty === 'timeline') {
-            finalContent = JSON.stringify(window.tempTimelineData);
-        } else {
-            finalContent = document.getElementById('plot-edit-content').value;
-        }
+        if(ty === 'timeline') { finalContent = JSON.stringify(window.tempTimelineData); } 
+        else { finalContent = document.getElementById('plot-edit-content').value; }
         
         const d={title:t, content:finalContent, type:ty, updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
         if(window.editingPlotId) await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(d);
@@ -485,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deletePlotItem = async function() { if(window.editingPlotId && confirm("削除しますか？")){ await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete(); document.getElementById('plot-edit-view').style.display='none'; loadPlots(); } };
     window.movePlot = async function(id, dir) { await moveItem('plots', id, dir); loadPlots(); };
 
-    // --- Stats Fix ---
+    // --- Stats Fix (Same as before) ---
     window.loadDailyLog = async function() {
         if(!window.currentUser) return;
         let p=[], l=[]; 
