@@ -1,4 +1,4 @@
-/* Story Builder V0.16 script.js */
+/* Story Builder V0.16 script.js (Fix) */
 
 // --- Firebase Config ---
 const firebaseConfig = {
@@ -83,12 +83,15 @@ function loadWorks() {
     const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
     const filterStatus = document.getElementById('filter-status').value;
     
+    // ★修正: 並び替えをJS側で行うことでインデックスエラーを回避
     db.collection('works').where('uid', '==', currentUser.uid).get().then(snapshot => {
         const listEl = document.getElementById('work-list');
         listEl.innerHTML = '';
         let worksData = [];
         snapshot.forEach(doc => { worksData.push({ ...doc.data(), id: doc.id }); });
+        
         if(filterStatus !== 'all') worksData = worksData.filter(w => w.status === filterStatus);
+        
         worksData.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
             const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
@@ -191,29 +194,64 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
-// --- Common Memo Logic (With Save Button) ---
+// --- Common Memo Logic (Fix: Client-side sorting) ---
 
 document.getElementById('add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'memo'));
 document.getElementById('ws-add-new-memo-btn').addEventListener('click', () => openMemoEditor(null, 'workspace'));
 
 function loadMemoList() {
     if(!currentUser) return;
+    // ★修正: orderByを使わずに取得してからJSでソートする（インデックスエラー回避）
     db.collection('memos').where('uid', '==', currentUser.uid)
-        .orderBy('updatedAt', 'desc').get().then(snap => {
+        .get().then(snap => {
             const container = document.getElementById('memo-list-container');
             container.innerHTML = '';
-            snap.forEach(doc => container.appendChild(createMemoCard(doc.id, doc.data(), 'memo')));
+            
+            let memos = [];
+            snap.forEach(doc => {
+                let d = doc.data();
+                d.id = doc.id;
+                memos.push(d);
+            });
+
+            // 更新日順にソート（新しい順）
+            memos.sort((a, b) => {
+                const tA = a.updatedAt ? a.updatedAt.toMillis() : 0;
+                const tB = b.updatedAt ? b.updatedAt.toMillis() : 0;
+                return tB - tA;
+            });
+
+            memos.forEach(data => {
+                container.appendChild(createMemoCard(data.id, data, 'memo'));
+            });
         });
 }
+
 function loadMemoListForWorkspace() {
     if(!currentUser) return;
+    // ★修正: こちらも同様にJSソート
     db.collection('memos').where('uid', '==', currentUser.uid)
-        .orderBy('updatedAt', 'desc').get().then(snap => {
+        .get().then(snap => {
             const container = document.getElementById('ws-memo-list-container');
-            if(container) {
-                container.innerHTML = '';
-                snap.forEach(doc => container.appendChild(createMemoCard(doc.id, doc.data(), 'workspace')));
-            }
+            if(!container) return;
+            container.innerHTML = '';
+            
+            let memos = [];
+            snap.forEach(doc => {
+                let d = doc.data();
+                d.id = doc.id;
+                memos.push(d);
+            });
+
+            memos.sort((a, b) => {
+                const tA = a.updatedAt ? a.updatedAt.toMillis() : 0;
+                const tB = b.updatedAt ? b.updatedAt.toMillis() : 0;
+                return tB - tA;
+            });
+
+            memos.forEach(data => {
+                container.appendChild(createMemoCard(data.id, data, 'workspace'));
+            });
         });
 }
 
@@ -263,12 +301,9 @@ window.openMemoEditor = function(id, fromView) {
     }
 };
 
-// ★修正: ボタン処理
-// 保存ボタン
+// ボタン処理
 document.getElementById('memo-editor-save').addEventListener('click', saveMemo);
-// キャンセルボタン
 document.getElementById('memo-editor-cancel').addEventListener('click', () => switchView(previousView));
-// 削除ボタン
 document.getElementById('memo-editor-delete').addEventListener('click', () => {
     if(editingMemoId) deleteMemo(editingMemoId, previousView);
     else switchView(previousView);
@@ -283,19 +318,20 @@ function saveMemo() {
     };
 
     const onComplete = () => {
-        // 保存後は前の画面に戻り、リストを再読み込みする
+        // 保存後は前の画面に戻る
         switchView(previousView);
     };
 
     if(editingMemoId) {
         db.collection('memos').doc(editingMemoId).update(memoData).then(onComplete);
     } else {
-        // ★修正: 新規作成時もupdatedAtを入れてリストに即反映させる
+        // 新規作成
         memoData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         db.collection('memos').add(memoData).then(onComplete);
     }
 }
 
+// --- Stats Logic ---
 function loadStats() {
     db.collection('works').where('uid', '==', currentUser.uid).get().then(snap => {
         document.getElementById('stat-works').innerHTML = `${snap.size}<span class="unit">作品</span>`;
