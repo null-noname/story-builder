@@ -31,6 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dailyHistory = [0,0,0,0,0,0,0];
     window.dragSrcEl = null;
     window.currentHistoryData = null;
+    // タイムライン編集用の一時データ
+    window.tempTimelineData = [];
 
     window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
 
@@ -161,19 +163,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if(window.unsubscribeWorks) window.unsubscribeWorks();
         if(!window.currentUser) return;
         
+        // ソートとフィルタのロジック修正
         window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid).onSnapshot(snap => {
+            const listEl = document.getElementById('work-list'); if(!listEl) return;
             const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
             const filterStatus = document.getElementById('filter-status').value;
-            const listEl = document.getElementById('work-list'); if(!listEl) return;
             
-            listEl.innerHTML = ''; let works = [];
+            listEl.innerHTML = ''; 
+            let works = [];
             snap.forEach(d => works.push({...d.data(), id:d.id}));
             
             if(filterStatus !== 'all') works = works.filter(w => w.status === filterStatus);
             
             works.sort((a,b) => {
                 if(a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
-                return (b[sortKey]?.toMillis()||0) - (a[sortKey]?.toMillis()||0);
+                // 日付が存在しない場合のガードを追加
+                const tA = a[sortKey] ? a[sortKey].toMillis() : 0;
+                const tB = b[sortKey] ? b[sortKey].toMillis() : 0;
+                return tB - tA;
             });
             works.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
         });
@@ -187,14 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const pad=n=>n.toString().padStart(2,'0');
             return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
-        // ★修正: 文字数を3段目に移動して干渉防止
+        // 文字数を3段目に独立させて表示
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${data.isPinned?'<span style="color:#4caf50;margin-right:4px;">★</span>':''}${escapeHtml(data.title||'無題')}</div>
                 <div class="work-meta-container">
                     <div class="work-meta-row">作成: ${fmt(data.createdAt)}</div>
                     <div class="work-meta-row">更新: ${fmt(data.updatedAt)}</div>
-                    <div class="work-meta-row" style="color:#89b4fa;">${data.totalChars||0} 字</div>
+                    <div class="work-meta-row" style="color:#89b4fa; font-weight:bold;">${data.totalChars||0} 字</div>
                 </div>
             </div>
             <div class="work-actions">
@@ -222,7 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const header = document.createElement('div'); header.className='editor-header';
         const toolbar = document.createElement('div'); toolbar.className='editor-toolbar';
         
-        // ★修正: 関数をアロー関数でラップして、定義順の問題を回避
         const tools=[
             {i:'📖',f:()=>window.showPreview()},
             {i:'⚙️',f:()=>window.openEditorSettings()},
@@ -231,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {i:'置換',f:()=>window.openReplaceModal()},
             {i:'ﾙﾋﾞ',f:()=>window.insertRuby()},
             {i:'―',f:()=>window.insertDash()},
-            {i:'🕒',f:()=>window.openHistoryModal()} // ここが機能するようになります
+            {i:'🕒',f:()=>window.openHistoryModal()} // ここ修正済
         ];
         
         tools.forEach(t=>{if(t.s){const s=document.createElement('span');s.textContent='|';s.style.cssText="color:#555;margin:0 5px;";toolbar.appendChild(s);}else{const b=document.createElement('button');b.className='toolbar-btn';b.textContent=t.i;b.onclick=t.f;if(t.id)b.id=t.id;toolbar.appendChild(b);}});
@@ -329,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* Story Builder V1.20 script.js - Part 3/3 */
 
-    // --- Plot (Timeline Card UI) ---
+    // --- Plot (New Timeline Logic) ---
     window.loadPlots = function() {
         const c=document.getElementById('plot-items-container'); if(!c||!window.currentWorkId)return;
         db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order','asc').get().then(snap=>{
@@ -338,19 +344,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d=doc.data(); const div=document.createElement('div');
                 const isTL = d.type === 'timeline';
                 div.className = 'plot-card';
-                // ★修正: タイムラインなら左に日付/時間、右に内容のカードスタイル
-                const leftStyle = isTL ? "flex:0 0 80px;border-right:1px solid #444;margin-right:10px;padding-right:5px;text-align:right;font-weight:bold;color:#ffb74d;" : "font-weight:bold;color:#89b4fa;margin-bottom:5px;";
-                const rightStyle = isTL ? "flex:1;" : "color:#ddd;font-size:13px;";
-                const contentHtml = isTL ? 
-                    `<div style="display:flex;align-items:flex-start;"><div style="${leftStyle}">${escapeHtml(d.title)}</div><div style="${rightStyle}font-size:13px;white-space:pre-wrap;">${escapeHtml(d.content)}</div></div>` :
-                    `<div style="${leftStyle}">${escapeHtml(d.title||'無題')}</div><div style="${rightStyle}white-space:pre-wrap;">${escapeHtml(d.content)}</div>`;
+                // タイムラインのプレビュー生成（最初の2行を表示）
+                let preview = "";
+                if(isTL) {
+                    try {
+                        const rows = JSON.parse(d.content || "[]");
+                        preview = rows.slice(0, 3).map(r => `[${r.time}] ${r.text}`).join('\n') + (rows.length>3?"...":"");
+                    } catch(e) { preview = d.content; }
+                } else { preview = d.content; }
 
                 div.innerHTML = `
-                    ${contentHtml}
-                    <div class="plot-actions" style="position:absolute;top:5px;right:5px;display:flex;gap:5px;">
-                        <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div>
-                        <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',1)">▼</div>
+                    <div class="plot-card-header" style="display:flex;justify-content:space-between;">
+                        <div class="plot-card-title">${escapeHtml(d.title)} <span style="font-size:10px;color:${isTL?'#ffb74d':'#89b4fa'};border:1px solid #555;padding:1px 3px;border-radius:3px;">${isTL?'⏱️TL':'📝Memo'}</span></div>
+                        <div class="plot-actions" style="display:flex;gap:5px;">
+                            <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div>
+                            <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',1)">▼</div>
+                        </div>
                     </div>
+                    <div class="plot-card-preview">${escapeHtml(preview)}</div>
                 `;
                 div.onclick=()=>openPlotEditor(doc.id); c.appendChild(div);
             });
@@ -361,15 +372,22 @@ document.addEventListener('DOMContentLoaded', () => {
         window.editingPlotId=id; 
         const t=document.getElementById('plot-edit-title'); const c=document.getElementById('plot-edit-content'); const ty=document.getElementById('plot-edit-type');
         
-        // ★修正: 「保存して戻る」→「←戻る」
+        // ヘッダーボタン修正
         const header = document.querySelector('#plot-edit-view .edit-overlay-header');
         header.innerHTML = `<button id="plot-edit-back" class="btn-custom btn-small">← 戻る</button><span style="font-weight:bold;">プロット編集</span><div style="width:50px;"></div>`;
         document.getElementById('plot-edit-back').onclick = () => document.getElementById('plot-edit-view').style.display='none';
 
-        // ★修正: 本文中の古い削除ボタンを消し、フッターに「削除/保存」配置
+        // タイムライン用エリアの準備（なければ作る）
         const body = document.querySelector('#plot-edit-view .edit-overlay-body');
-        const oldDel = document.getElementById('plot-edit-delete'); if(oldDel && oldDel.parentElement === body) oldDel.style.display='none';
+        let tlArea = document.getElementById('plot-timeline-editor');
+        if(!tlArea) {
+            tlArea = document.createElement('div'); tlArea.id='plot-timeline-editor';
+            tlArea.style.display = 'none';
+            // 元のtextareaの下に挿入
+            c.parentElement.insertBefore(tlArea, c.nextSibling);
+        }
 
+        // フッターボタン（保存/削除）
         let footerBtnArea = document.getElementById('plot-footer-btns');
         if(!footerBtnArea) {
             footerBtnArea = document.createElement('div'); footerBtnArea.id = 'plot-footer-btns';
@@ -380,14 +398,86 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('plot-footer-save').onclick = savePlotItem;
         document.getElementById('plot-footer-delete').onclick = deletePlotItem;
 
-        if(id){db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(d=>{if(d.exists){const data=d.data();t.value=data.title;c.value=data.content;if(ty)ty.value=data.type||'memo';}});}
-        else{t.value="";c.value="";if(ty)ty.value='memo';}
+        // 本文中の古い削除ボタンを隠す
+        const oldDel = document.getElementById('plot-edit-delete'); if(oldDel) oldDel.style.display='none';
+
+        // タイプ変更時のイベント
+        ty.onchange = () => togglePlotEditorMode(ty.value);
+
+        if(id){
+            db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(d=>{
+                if(d.exists){
+                    const data=d.data(); t.value=data.title; 
+                    ty.value=data.type||'memo';
+                    // モードに応じて中身をセット
+                    if(ty.value === 'timeline') {
+                        try { window.tempTimelineData = JSON.parse(data.content||"[]"); } catch(e){ window.tempTimelineData = [{time:"", text:data.content}]; }
+                        renderTimelineEditor();
+                    } else { c.value=data.content; }
+                    togglePlotEditorMode(ty.value);
+                }
+            });
+        } else {
+            t.value=""; c.value=""; ty.value='memo'; window.tempTimelineData = [];
+            togglePlotEditorMode('memo');
+        }
         document.getElementById('plot-edit-view').style.display='flex';
     };
 
+    window.togglePlotEditorMode = function(mode) {
+        const c = document.getElementById('plot-edit-content');
+        const tl = document.getElementById('plot-timeline-editor');
+        if(mode === 'timeline') {
+            c.style.display = 'none'; tl.style.display = 'block';
+            if(window.tempTimelineData.length === 0) renderTimelineEditor(); // 初期表示
+        } else {
+            c.style.display = 'block'; tl.style.display = 'none';
+        }
+    };
+
+    window.renderTimelineEditor = function() {
+        const el = document.getElementById('plot-timeline-editor');
+        if(window.tempTimelineData.length === 0) window.tempTimelineData.push({time:"", text:""});
+        
+        el.innerHTML = window.tempTimelineData.map((row, i) => `
+            <div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden;">
+                <div style="width:80px; border-right:2px solid #fff; display:flex; flex-direction:column;">
+                    <textarea class="tl-time-input" data-idx="${i}" style="background:transparent; border:none; color:#fff; text-align:center; height:100%; resize:none; padding:10px 2px; font-size:12px;" placeholder="日付/時間">${escapeHtml(row.time)}</textarea>
+                </div>
+                <div style="flex:1;">
+                    <textarea class="tl-text-input" data-idx="${i}" style="width:100%; background:transparent; border:none; color:#fff; resize:none; height:60px; padding:10px;">${escapeHtml(row.text)}</textarea>
+                </div>
+                <div style="width:30px; display:flex; flex-direction:column; background:#222; border-left:1px solid #444;">
+                    <button onclick="moveTLRow(${i},-1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer;">↑</button>
+                    <button onclick="moveTLRow(${i},1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer;">↓</button>
+                    <button onclick="deleteTLRow(${i})" style="flex:1; border:none; background:#500; color:#fff; cursor:pointer;">×</button>
+                </div>
+            </div>
+        `).join('') + `<button onclick="addTLRow()" class="btn-custom btn-full" style="margin-top:10px;">＋ 行を追加</button>`;
+
+        // 入力イベントでデータを更新
+        el.querySelectorAll('.tl-time-input').forEach(e => e.oninput = (ev) => window.tempTimelineData[ev.target.dataset.idx].time = ev.target.value);
+        el.querySelectorAll('.tl-text-input').forEach(e => e.oninput = (ev) => window.tempTimelineData[ev.target.dataset.idx].text = ev.target.value);
+    };
+
+    window.addTLRow = () => { window.tempTimelineData.push({time:"", text:""}); renderTimelineEditor(); };
+    window.deleteTLRow = (i) => { window.tempTimelineData.splice(i, 1); renderTimelineEditor(); };
+    window.moveTLRow = (i, dir) => {
+        if(i+dir < 0 || i+dir >= window.tempTimelineData.length) return;
+        [window.tempTimelineData[i], window.tempTimelineData[i+dir]] = [window.tempTimelineData[i+dir], window.tempTimelineData[i]];
+        renderTimelineEditor();
+    };
+
     window.savePlotItem = async function() {
-        const t=document.getElementById('plot-edit-title').value; const c=document.getElementById('plot-edit-content').value; const ty=document.getElementById('plot-edit-type').value;
-        const d={title:t,content:c,type:ty,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+        const t=document.getElementById('plot-edit-title').value; const ty=document.getElementById('plot-edit-type').value;
+        let finalContent = "";
+        if(ty === 'timeline') {
+            finalContent = JSON.stringify(window.tempTimelineData);
+        } else {
+            finalContent = document.getElementById('plot-edit-content').value;
+        }
+        
+        const d={title:t, content:finalContent, type:ty, updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
         if(window.editingPlotId) await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(d);
         else { const s=await db.collection('works').doc(window.currentWorkId).collection('plots').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('plots').add(d); }
         document.getElementById('plot-edit-view').style.display='none'; loadPlots();
@@ -399,7 +489,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadDailyLog = async function() {
         if(!window.currentUser) return;
         let p=[], l=[]; 
-        // ★修正: 日付キー生成ロジックの統一と非同期処理
         for(let i=6;i>=0;i--){
             const d=new Date(); d.setDate(d.getDate()-i);
             const y=d.getFullYear(); const m=(d.getMonth()+1).toString().padStart(2,'0'); const da=d.getDate().toString().padStart(2,'0');
@@ -418,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
         db.collection('daily_logs').doc(`${window.currentUser.uid}_${s}`).set({uid:window.currentUser.uid,date:s,count:window.todayAddedCount,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     };
 
-    // --- Others (Char, Memo, Utils) ---
+    // --- Char & Others ---
     window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div><div class="char-role">${escapeHtml(d.role)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
     window.openCharEditor=function(id){window.editingCharId=id;const fields=['name','ruby','alias','age','birth','role','height','appearance','personality','ability','background','memo'];const p=document.getElementById('char-icon-preview');const hb=document.querySelector('#char-edit-view #char-edit-back');if(hb)hb.textContent="← 戻る";if(id){db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc=>{if(doc.exists){const d=doc.data();fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value=d[f]||"";});if(d.iconBase64){p.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;p.setAttribute('data-base64',d.iconBase64);}else{p.innerHTML='👤';p.removeAttribute('data-base64');}}});}else{fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value="";});p.innerHTML='👤';p.removeAttribute('data-base64');}document.getElementById('char-edit-view').style.display='flex';};
     window.saveCharItem=async function(){const getData=id=>document.getElementById('char-'+id)?.value||"";const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||"";const d={name:getData('name'),ruby:getData('ruby'),alias:getData('alias'),age:getData('age'),birth:getData('birth'),role:getData('role'),height:getData('height'),appearance:getData('appearance'),personality:getData('personality'),ability:getData('ability'),background:getData('background'),memo:getData('memo'),iconBase64:ib,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingCharId)await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d);else{const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get();d.order=s.size+1;d.createdAt=firebase.firestore.FieldValue.serverTimestamp();await db.collection('works').doc(window.currentWorkId).collection('characters').add(d);}document.getElementById('char-edit-view').style.display='none';loadCharacters();};
