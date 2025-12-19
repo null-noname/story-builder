@@ -1,4 +1,4 @@
-/* Story Builder V1.10 script.js - Part 1/3 */
+/* Story Builder V1.20 script.js - Part 1/3 */
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Config & State ---
     const firebaseConfig = {
@@ -32,10 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dragSrcEl = null;
     window.currentHistoryData = null;
 
-    // 初期設定
     window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
 
-    // DOM要素
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
     const loginBtn = document.getElementById('google-login-btn');
@@ -104,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const workDoc = await db.collection('works').doc(id).get();
         if(!workDoc.exists) return;
         fillWorkInfo(workDoc.data());
-        // 初回章作成チェック
         const chSnap = await db.collection('works').doc(id).collection('chapters').get();
         if(chSnap.empty && workDoc.data().content) {
             await db.collection('works').doc(id).collection('chapters').add({title:"第1話",content:workDoc.data().content,order:1,updatedAt:new Date()});
@@ -163,14 +160,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function initWorkListener() {
         if(window.unsubscribeWorks) window.unsubscribeWorks();
         if(!window.currentUser) return;
-        const sortKey = document.getElementById('sort-order').value==='created'?'createdAt':'updatedAt';
-        const filterStatus = document.getElementById('filter-status').value;
         
         window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid).onSnapshot(snap => {
+            const sortKey = document.getElementById('sort-order').value === 'created' ? 'createdAt' : 'updatedAt';
+            const filterStatus = document.getElementById('filter-status').value;
             const listEl = document.getElementById('work-list'); if(!listEl) return;
+            
             listEl.innerHTML = ''; let works = [];
             snap.forEach(d => works.push({...d.data(), id:d.id}));
-            if(filterStatus!=='all') works = works.filter(w => w.status===filterStatus);
+            
+            if(filterStatus !== 'all') works = works.filter(w => w.status === filterStatus);
+            
             works.sort((a,b) => {
                 if(a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
                 return (b[sortKey]?.toMillis()||0) - (a[sortKey]?.toMillis()||0);
@@ -187,13 +187,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const pad=n=>n.toString().padStart(2,'0');
             return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
-        // ★修正: 作成日を表示するように変更
+        // ★修正: 文字数を3段目に移動して干渉防止
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${data.isPinned?'<span style="color:#4caf50;margin-right:4px;">★</span>':''}${escapeHtml(data.title||'無題')}</div>
                 <div class="work-meta-container">
                     <div class="work-meta-row">作成: ${fmt(data.createdAt)}</div>
-                    <div class="work-meta-row">更新: ${fmt(data.updatedAt)} / ${data.totalChars||0}字</div>
+                    <div class="work-meta-row">更新: ${fmt(data.updatedAt)}</div>
+                    <div class="work-meta-row" style="color:#89b4fa;">${data.totalChars||0} 字</div>
                 </div>
             </div>
             <div class="work-actions">
@@ -206,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete();};
     window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
 
-/* Story Builder V1.10 script.js - Part 2/3 */
+/* Story Builder V1.20 script.js - Part 2/3 */
 
     // --- Editor & Chapter ---
     window.initEditorToolbar = function() {
@@ -219,9 +220,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const mainArea = document.createElement('div'); mainArea.className='editor-main-area';
         const header = document.createElement('div'); header.className='editor-header';
-        
         const toolbar = document.createElement('div'); toolbar.className='editor-toolbar';
-        const tools=[{i:'📖',f:showPreview},{i:'⚙️',f:openEditorSettings},{s:1},{id:'btn-writing-mode',i:'縦',f:toggleVerticalMode},{i:'置換',f:openReplaceModal},{i:'ﾙﾋﾞ',f:insertRuby},{i:'―',f:insertDash},{i:'🕒',f:openHistoryModal}];
+        
+        // ★修正: 関数をアロー関数でラップして、定義順の問題を回避
+        const tools=[
+            {i:'📖',f:()=>window.showPreview()},
+            {i:'⚙️',f:()=>window.openEditorSettings()},
+            {s:1},
+            {id:'btn-writing-mode',i:'縦',f:()=>window.toggleVerticalMode()},
+            {i:'置換',f:()=>window.openReplaceModal()},
+            {i:'ﾙﾋﾞ',f:()=>window.insertRuby()},
+            {i:'―',f:()=>window.insertDash()},
+            {i:'🕒',f:()=>window.openHistoryModal()} // ここが機能するようになります
+        ];
+        
         tools.forEach(t=>{if(t.s){const s=document.createElement('span');s.textContent='|';s.style.cssText="color:#555;margin:0 5px;";toolbar.appendChild(s);}else{const b=document.createElement('button');b.className='toolbar-btn';b.textContent=t.i;b.onclick=t.f;if(t.id)b.id=t.id;toolbar.appendChild(b);}});
         
         header.innerHTML=`<button id="sidebar-toggle-open" class="sidebar-toggle-open-btn" style="display:none;">▶</button>`;
@@ -236,7 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mainArea.appendChild(header); mainArea.appendChild(titleRow); mainArea.appendChild(edCon); mainArea.appendChild(footer);
         editorTab.appendChild(mainArea);
 
-        // Bindings
         const eid = (id)=>document.getElementById(id);
         eid('chapter-menu-toggle').onclick=(e)=>{e.stopPropagation();const o=eid('chapter-menu-overlay');o.style.display=o.style.display==='flex'?'none':'flex';};
         document.addEventListener('click',()=>eid('chapter-menu-overlay').style.display='none');
@@ -298,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await ref.collection('history').add({content:c,savedAt:firebase.firestore.FieldValue.serverTimestamp()});
         await ref.update({title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
         saveDailyLogToFirestore(); loadChapters();
-        if(nv)switchView(nv); else if(alert!==false)alert("保存済");
+        if(nv)switchView(nv); else if(alert!==false)alert("保存しました");
     };
     window.addNewChapter=async()=>{
         if(!window.currentWorkId)return; const s=await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
@@ -309,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteCurrentChapter=async()=>{if(window.currentChapterId&&confirm("削除？")){await db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).delete();window.currentChapterId=null;document.getElementById('main-editor').value="";showMobileChapterList();loadChapters();}};
     window.deleteTargetChapter=async(id)=>{if(confirm("削除？")){await db.collection('works').doc(window.currentWorkId).collection('chapters').doc(id).delete();loadChapters();}};
 
-    // DnD
     function addDragEvents(i){i.addEventListener('dragstart',function(e){window.dragSrcEl=this;e.dataTransfer.effectAllowed='move';this.classList.add('dragging');});i.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';return false;});i.addEventListener('drop',function(e){e.stopPropagation();if(window.dragSrcEl!==this){swapNodes(window.dragSrcEl,this);updateOrderInDB();}return false;});i.addEventListener('dragend',function(){this.classList.remove('dragging');});}
     function swapNodes(n1,n2){const p=n1.parentNode;if(p!==n2.parentNode)return;const t=document.createElement("div");p.insertBefore(t,n1);p.insertBefore(n1,n2);p.insertBefore(n2,t);p.removeChild(t);}
     function handleTouchStart(e){window.touchSrcEl=e.target.closest('.chapter-item');if(window.touchSrcEl){window.touchSrcEl.classList.add('dragging');e.preventDefault();}}
@@ -317,32 +327,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
 
-/* Story Builder V1.10 script.js - Part 3/3 */
+/* Story Builder V1.20 script.js - Part 3/3 */
 
-    // --- Plot (Revised UI) ---
+    // --- Plot (Timeline Card UI) ---
     window.loadPlots = function() {
         const c=document.getElementById('plot-items-container'); if(!c||!window.currentWorkId)return;
         db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order','asc').get().then(snap=>{
             c.innerHTML=''; if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">プロットなし</div>';return;}
             snap.forEach(doc=>{
-                const d=doc.data(); const div=document.createElement('div'); 
-                // タイムラインかメモかでスタイルを変える
+                const d=doc.data(); const div=document.createElement('div');
                 const isTL = d.type === 'timeline';
-                div.className = isTL ? 'plot-card timeline-card' : 'plot-card';
-                
-                // タイムラインの場合: タイトルを時間/日付として強調
-                const titleHtml = isTL ? `<span style="color:#ffb74d;font-weight:bold;">${escapeHtml(d.title)}</span>` : `<span style="font-weight:bold;color:#89b4fa;">${escapeHtml(d.title||'無題')}</span>`;
-                const typeLabel = isTL ? '⏱️TL' : '📝Memo';
-                
+                div.className = 'plot-card';
+                // ★修正: タイムラインなら左に日付/時間、右に内容のカードスタイル
+                const leftStyle = isTL ? "flex:0 0 80px;border-right:1px solid #444;margin-right:10px;padding-right:5px;text-align:right;font-weight:bold;color:#ffb74d;" : "font-weight:bold;color:#89b4fa;margin-bottom:5px;";
+                const rightStyle = isTL ? "flex:1;" : "color:#ddd;font-size:13px;";
+                const contentHtml = isTL ? 
+                    `<div style="display:flex;align-items:flex-start;"><div style="${leftStyle}">${escapeHtml(d.title)}</div><div style="${rightStyle}font-size:13px;white-space:pre-wrap;">${escapeHtml(d.content)}</div></div>` :
+                    `<div style="${leftStyle}">${escapeHtml(d.title||'無題')}</div><div style="${rightStyle}white-space:pre-wrap;">${escapeHtml(d.content)}</div>`;
+
                 div.innerHTML = `
-                    <div class="plot-card-header" style="display:flex;justify-content:space-between;">
-                        <div>${titleHtml} <span style="font-size:10px;color:#888;border:1px solid #555;padding:1px 3px;border-radius:3px;">${typeLabel}</span></div>
-                        <div class="plot-actions" style="display:flex;gap:5px;">
-                            <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div>
-                            <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',1)">▼</div>
-                        </div>
+                    ${contentHtml}
+                    <div class="plot-actions" style="position:absolute;top:5px;right:5px;display:flex;gap:5px;">
+                        <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div>
+                        <div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',1)">▼</div>
                     </div>
-                    <div class="plot-card-preview" style="margin-top:5px;font-size:13px;color:#ddd;white-space:pre-wrap;">${escapeHtml(d.content)}</div>
                 `;
                 div.onclick=()=>openPlotEditor(doc.id); c.appendChild(div);
             });
@@ -353,27 +361,25 @@ document.addEventListener('DOMContentLoaded', () => {
         window.editingPlotId=id; 
         const t=document.getElementById('plot-edit-title'); const c=document.getElementById('plot-edit-content'); const ty=document.getElementById('plot-edit-type');
         
-        // ★UI修正: ヘッダーとフッターをJSで再構築してボタン配置を変更
+        // ★修正: 「保存して戻る」→「←戻る」
         const header = document.querySelector('#plot-edit-view .edit-overlay-header');
         header.innerHTML = `<button id="plot-edit-back" class="btn-custom btn-small">← 戻る</button><span style="font-weight:bold;">プロット編集</span><div style="width:50px;"></div>`;
         document.getElementById('plot-edit-back').onclick = () => document.getElementById('plot-edit-view').style.display='none';
 
-        // ボディの最下部に削除/保存ボタンを追加（既存のボタンがあれば削除して再生成）
+        // ★修正: 本文中の古い削除ボタンを消し、フッターに「削除/保存」配置
         const body = document.querySelector('#plot-edit-view .edit-overlay-body');
+        const oldDel = document.getElementById('plot-edit-delete'); if(oldDel && oldDel.parentElement === body) oldDel.style.display='none';
+
         let footerBtnArea = document.getElementById('plot-footer-btns');
         if(!footerBtnArea) {
             footerBtnArea = document.createElement('div'); footerBtnArea.id = 'plot-footer-btns';
             footerBtnArea.style.cssText = "display:flex; gap:10px; margin-top:20px; padding-top:10px; border-top:1px solid #444;";
             body.appendChild(footerBtnArea);
         }
-        footerBtnArea.innerHTML = `
-            <button id="plot-edit-delete" class="btn-red" style="flex:1;">削除</button>
-            <button id="plot-edit-save" class="btn-green" style="flex:1;">保存</button>
-        `;
-        document.getElementById('plot-edit-save').onclick = savePlotItem;
-        document.getElementById('plot-edit-delete').onclick = deletePlotItem;
+        footerBtnArea.innerHTML = `<button id="plot-footer-delete" class="btn-red" style="flex:1;">削除</button><button id="plot-footer-save" class="btn-green" style="flex:1;">保存</button>`;
+        document.getElementById('plot-footer-save').onclick = savePlotItem;
+        document.getElementById('plot-footer-delete').onclick = deletePlotItem;
 
-        // データ読み込み
         if(id){db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(d=>{if(d.exists){const data=d.data();t.value=data.title;c.value=data.content;if(ty)ty.value=data.type||'memo';}});}
         else{t.value="";c.value="";if(ty)ty.value='memo';}
         document.getElementById('plot-edit-view').style.display='flex';
@@ -389,100 +395,47 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deletePlotItem = async function() { if(window.editingPlotId && confirm("削除しますか？")){ await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete(); document.getElementById('plot-edit-view').style.display='none'; loadPlots(); } };
     window.movePlot = async function(id, dir) { await moveItem('plots', id, dir); loadPlots(); };
 
-    // --- Char & Others ---
-    window.loadCharacters = function() {
-        const c=document.getElementById('char-items-container'); if(!c||!window.currentWorkId)return;
-        db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{
-            c.innerHTML=''; if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}
-            snap.forEach(doc=>{
-                const d=doc.data(); const card=document.createElement('div'); card.className='char-card';
-                const img = d.iconBase64 ? `<img src="${d.iconBase64}" class="char-icon">` : '<div class="char-icon">👤</div>';
-                card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div><div class="char-role">${escapeHtml(d.role)}</div>`;
-                card.onclick=()=>openCharEditor(doc.id); c.appendChild(card);
-            });
-            document.getElementById('stat-chars').textContent = snap.size + "体";
-        });
-    };
-    window.openCharEditor = function(id) {
-        window.editingCharId=id; const fields=['name','ruby','alias','age','birth','role','height','appearance','personality','ability','background','memo']; const p=document.getElementById('char-icon-preview');
-        // ヘッダーの戻るボタン表記修正
-        const headerBtn = document.querySelector('#char-edit-view #char-edit-back');
-        if(headerBtn) headerBtn.textContent = "← 戻る";
-
-        if(id){db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc=>{if(doc.exists){const d=doc.data();fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value=d[f]||"";});if(d.iconBase64){p.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;p.setAttribute('data-base64',d.iconBase64);}else{p.innerHTML='👤';p.removeAttribute('data-base64');}}});}
-        else{fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value="";});p.innerHTML='👤';p.removeAttribute('data-base64');}
-        document.getElementById('char-edit-view').style.display='flex';
-    };
-    window.saveCharItem = async function() {
-        const getData=id=>document.getElementById('char-'+id)?.value||""; const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||"";
-        const d={name:getData('name'),ruby:getData('ruby'),alias:getData('alias'),age:getData('age'),birth:getData('birth'),role:getData('role'),height:getData('height'),appearance:getData('appearance'),personality:getData('personality'),ability:getData('ability'),background:getData('background'),memo:getData('memo'),iconBase64:ib,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-        if(window.editingCharId) await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d);
-        else { const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('characters').add(d); }
-        document.getElementById('char-edit-view').style.display='none'; loadCharacters();
-    };
-    window.deleteCharItem = async function() { if(window.editingCharId&&confirm("削除？")){ await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete(); document.getElementById('char-edit-view').style.display='none'; loadCharacters(); } };
-    window.moveChar = async function(id, dir) { await moveItem('characters', id, dir); loadCharacters(); };
-    async function moveItem(col, id, dir) {
-        const snap = await db.collection('works').doc(window.currentWorkId).collection(col).orderBy('order','asc').get();
-        let items=[]; snap.forEach(d=>items.push({id:d.id,...d.data()}));
-        const idx = items.findIndex(i=>i.id===id); if(idx===-1)return; const tIdx=idx+dir; if(tIdx<0||tIdx>=items.length)return;
-        [items[idx], items[tIdx]] = [items[tIdx], items[idx]];
-        const batch=db.batch(); items.forEach((it,i)=>{batch.update(db.collection('works').doc(window.currentWorkId).collection(col).doc(it.id),{order:i+1});});
-        await batch.commit();
-    }
-
-    // --- Utils & Memo ---
-    window.loadMemoList = function() {
-        if(!window.currentUser) return;
-        const c=document.getElementById('memo-list-container'); if(!c)return; c.innerHTML='';
-        db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{
-            let m=[]; s.forEach(d=>m.push({id:d.id,...d.data()})); m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));
-            m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'memo')));
-        });
-    };
-    window.loadMemoListForWorkspace = function() {
-        if(!window.currentUser) return;
-        const c=document.getElementById('ws-memo-list-container'); if(!c)return; c.innerHTML='';
-        db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{
-            let m=[]; s.forEach(d=>m.push({id:d.id,...d.data()})); m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));
-            m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'workspace')));
-        });
-    };
-    function createMemoCard(id,data,view){
-        const d=document.createElement('div'); d.className='memo-card';
-        d.innerHTML=`<div class="memo-header"><span class="memo-title">${escapeHtml(data.title)}</span><div><button class="memo-btn" onclick="openMemoEditor('${id}','${view}')">編集</button><button class="memo-btn memo-btn-delete" onclick="deleteMemo('${id}','${view}')">削除</button></div></div><div class="memo-divider"></div><div class="memo-text">${escapeHtml(data.content)}</div>`;
-        return d;
-    }
-    window.openMemoEditor=(id,v)=>{ window.editingMemoId=id;window.previousView=v; if(id){db.collection('memos').doc(id).get().then(d=>{const da=d.data();document.getElementById('memo-editor-title').value=da.title;document.getElementById('memo-editor-content').value=da.content;switchView('memoEditor');});}else{document.getElementById('memo-editor-title').value="";document.getElementById('memo-editor-content').value="";switchView('memoEditor');} };
-    window.saveMemo=()=>{
-        const t=document.getElementById('memo-editor-title').value||"新規メモ"; const c=document.getElementById('memo-editor-content').value;
-        const d={uid:window.currentUser.uid,title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-        if(window.editingMemoId) db.collection('memos').doc(window.editingMemoId).update(d).then(()=>switchView(window.previousView));
-        else { d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); db.collection('memos').add(d).then(()=>switchView(window.previousView)); }
-    };
-    window.deleteMemo=(id,v)=>{ if(confirm("削除？")) db.collection('memos').doc(id).delete().then(()=>(v==='memo'?loadMemoList:loadMemoListForWorkspace)()); };
-
-    // Stats & Daily
+    // --- Stats Fix ---
     window.loadDailyLog = async function() {
         if(!window.currentUser) return;
-        let p=[], l=[]; for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const s=`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;l.push(`${d.getMonth()+1}/${d.getDate()}`);p.push(db.collection('daily_logs').doc(`${window.currentUser.uid}_${s}`).get());}
+        let p=[], l=[]; 
+        // ★修正: 日付キー生成ロジックの統一と非同期処理
+        for(let i=6;i>=0;i--){
+            const d=new Date(); d.setDate(d.getDate()-i);
+            const y=d.getFullYear(); const m=(d.getMonth()+1).toString().padStart(2,'0'); const da=d.getDate().toString().padStart(2,'0');
+            const s=`${y}-${m}-${da}`;
+            l.push(`${d.getMonth()+1}/${d.getDate()}`);
+            p.push(db.collection('daily_logs').doc(`${window.currentUser.uid}_${s}`).get());
+        }
         const s=await Promise.all(p); let w=0; window.dailyHistory=s.map(d=>{const v=d.exists?(d.data().count||0):0;w+=v;return v;});
         window.todayAddedCount=window.dailyHistory[6]; window.graphLabels=l;
         document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`; document.getElementById('widget-weekly-count').innerHTML=`${w}<span class="unit">字</span>`;
     };
-    window.loadStats = function() {
-        db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);
-        loadDailyLog(); const ctx=document.getElementById('writingChart').getContext('2d'); if(window.writingChart)window.writingChart.destroy();
-        window.writingChart=new Chart(ctx,{type:'bar',data:{labels:window.graphLabels,datasets:[{data:window.dailyHistory,backgroundColor:'#89b4fa',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#444'}},x:{grid:{display:false}}}}});
+    window.saveDailyLogToFirestore = function() {
+        if(!window.currentUser)return; 
+        const d=new Date(); const y=d.getFullYear(); const m=(d.getMonth()+1).toString().padStart(2,'0'); const da=d.getDate().toString().padStart(2,'0');
+        const s=`${y}-${m}-${da}`; 
+        db.collection('daily_logs').doc(`${window.currentUser.uid}_${s}`).set({uid:window.currentUser.uid,date:s,count:window.todayAddedCount,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     };
-    window.trackDailyProgress = function() {
-        const e=document.getElementById('main-editor'); if(!e)return; const diff=e.value.length-window.lastContentLength;
-        if(diff>0){ window.todayAddedCount+=diff; window.dailyHistory[6]=window.todayAddedCount; document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`; if(window.writingChart){window.writingChart.data.datasets[0].data=window.dailyHistory;window.writingChart.update();} if(window.pendingLogSave)clearTimeout(window.pendingLogSave); window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000); }
-        window.lastContentLength=e.value.length;
-    };
-    function saveDailyLogToFirestore(){ if(!window.currentUser)return; const d=new Date();const s=`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`; db.collection('daily_logs').doc(`${window.currentUser.uid}_${s}`).set({uid:window.currentUser.uid,date:s,count:window.todayAddedCount,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}); }
 
-    // Helpers
+    // --- Others (Char, Memo, Utils) ---
+    window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div><div class="char-role">${escapeHtml(d.role)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
+    window.openCharEditor=function(id){window.editingCharId=id;const fields=['name','ruby','alias','age','birth','role','height','appearance','personality','ability','background','memo'];const p=document.getElementById('char-icon-preview');const hb=document.querySelector('#char-edit-view #char-edit-back');if(hb)hb.textContent="← 戻る";if(id){db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc=>{if(doc.exists){const d=doc.data();fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value=d[f]||"";});if(d.iconBase64){p.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;p.setAttribute('data-base64',d.iconBase64);}else{p.innerHTML='👤';p.removeAttribute('data-base64');}}});}else{fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value="";});p.innerHTML='👤';p.removeAttribute('data-base64');}document.getElementById('char-edit-view').style.display='flex';};
+    window.saveCharItem=async function(){const getData=id=>document.getElementById('char-'+id)?.value||"";const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||"";const d={name:getData('name'),ruby:getData('ruby'),alias:getData('alias'),age:getData('age'),birth:getData('birth'),role:getData('role'),height:getData('height'),appearance:getData('appearance'),personality:getData('personality'),ability:getData('ability'),background:getData('background'),memo:getData('memo'),iconBase64:ib,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingCharId)await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d);else{const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get();d.order=s.size+1;d.createdAt=firebase.firestore.FieldValue.serverTimestamp();await db.collection('works').doc(window.currentWorkId).collection('characters').add(d);}document.getElementById('char-edit-view').style.display='none';loadCharacters();};
+    window.deleteCharItem=async function(){if(window.editingCharId&&confirm("削除？")){await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();document.getElementById('char-edit-view').style.display='none';loadCharacters();}};
+    window.moveChar=async function(id,dir){await moveItem('characters',id,dir);loadCharacters();};
+    async function moveItem(col,id,dir){const snap=await db.collection('works').doc(window.currentWorkId).collection(col).orderBy('order','asc').get();let items=[];snap.forEach(d=>items.push({id:d.id,...d.data()}));const idx=items.findIndex(i=>i.id===id);if(idx===-1)return;const tIdx=idx+dir;if(tIdx<0||tIdx>=items.length)return;[items[idx],items[tIdx]]=[items[tIdx],items[idx]];const batch=db.batch();items.forEach((it,i)=>{batch.update(db.collection('works').doc(window.currentWorkId).collection(col).doc(it.id),{order:i+1});});await batch.commit();}
+
+    window.loadMemoList=()=>{if(!window.currentUser)return;const c=document.getElementById('memo-list-container');if(!c)return;c.innerHTML='';db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{let m=[];s.forEach(d=>m.push({id:d.id,...d.data()}));m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'memo')));});};
+    window.loadMemoListForWorkspace=()=>{if(!window.currentUser)return;const c=document.getElementById('ws-memo-list-container');if(!c)return;c.innerHTML='';db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{let m=[];s.forEach(d=>m.push({id:d.id,...d.data()}));m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'workspace')));});};
+    function createMemoCard(id,data,view){const d=document.createElement('div');d.className='memo-card';d.innerHTML=`<div class="memo-header"><span class="memo-title">${escapeHtml(data.title)}</span><div><button class="memo-btn" onclick="openMemoEditor('${id}','${view}')">編集</button><button class="memo-btn memo-btn-delete" onclick="deleteMemo('${id}','${view}')">削除</button></div></div><div class="memo-divider"></div><div class="memo-text">${escapeHtml(data.content)}</div>`;return d;}
+    window.openMemoEditor=(id,v)=>{window.editingMemoId=id;window.previousView=v;if(id){db.collection('memos').doc(id).get().then(d=>{const da=d.data();document.getElementById('memo-editor-title').value=da.title;document.getElementById('memo-editor-content').value=da.content;switchView('memoEditor');});}else{document.getElementById('memo-editor-title').value="";document.getElementById('memo-editor-content').value="";switchView('memoEditor');}};
+    window.saveMemo=()=>{const t=document.getElementById('memo-editor-title').value||"新規メモ";const c=document.getElementById('memo-editor-content').value;const d={uid:window.currentUser.uid,title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingMemoId)db.collection('memos').doc(window.editingMemoId).update(d).then(()=>switchView(window.previousView));else{d.createdAt=firebase.firestore.FieldValue.serverTimestamp();db.collection('memos').add(d).then(()=>switchView(window.previousView));}};
+    window.deleteMemo=(id,v)=>{if(confirm("削除？"))db.collection('memos').doc(id).delete().then(()=>(v==='memo'?loadMemoList:loadMemoListForWorkspace)());};
+
+    window.loadStats=function(){db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);loadDailyLog();const ctx=document.getElementById('writingChart').getContext('2d');if(window.writingChart)window.writingChart.destroy();window.writingChart=new Chart(ctx,{type:'bar',data:{labels:window.graphLabels,datasets:[{data:window.dailyHistory,backgroundColor:'#89b4fa',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#444'}},x:{grid:{display:false}}}}});};
+    window.trackDailyProgress=function(){const e=document.getElementById('main-editor');if(!e)return;const diff=e.value.length-window.lastContentLength;if(diff>0){window.todayAddedCount+=diff;window.dailyHistory[6]=window.todayAddedCount;document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`;if(window.writingChart){window.writingChart.data.datasets[0].data=window.dailyHistory;window.writingChart.update();}if(window.pendingLogSave)clearTimeout(window.pendingLogSave);window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000);}window.lastContentLength=e.value.length;};
+
     window.showPreview=function(){const e=document.getElementById('main-editor');const c=document.getElementById('preview-content');document.getElementById('preview-modal').style.display='flex';c.innerHTML=escapeHtml(e.value).replace(/\n/g,'<br>').replace(/[\|｜]([^《]+?)《(.+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');applyPreviewLayout();};
     window.closePreview=()=>document.getElementById('preview-modal').style.display='none';
     window.togglePreviewMode=()=>{const c=document.getElementById('preview-content');c.classList.toggle('vertical-mode');document.getElementById('preview-mode-btn').textContent=c.classList.contains('vertical-mode')?'横読み':'縦読み';};
