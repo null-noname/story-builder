@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ストーリービルダー</title>
-    <link rel="stylesheet" href="style.css?v=0.40">
+    <link rel="stylesheet" href="style.css?v=0.45">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -70,6 +70,7 @@
                     <button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button>
                     <button class="btn-custom tab-btn" data-tab="tab-plot">プロット</button>
                     <button class="btn-custom tab-btn" data-tab="tab-char">登場人物</button>
+                    <button class="btn-custom tab-btn" data-tab="tab-settings">設定</button>
                     <button class="btn-custom tab-btn" data-tab="tab-common-memo">共通メモ</button> 
                 </div>
 
@@ -99,6 +100,32 @@
                 <div id="tab-plot" class="tab-content" style="display:none; flex:1;"><textarea id="plot-editor" class="main-textarea" style="height:100%;"></textarea></div>
                 <div id="tab-char" class="tab-content" style="display:none; flex:1;"><textarea id="char-editor" class="main-textarea" style="height:100%;"></textarea></div>
                 
+                <div id="tab-settings" class="tab-content" style="display:none; flex:1; overflow-y:auto;">
+                    <div class="settings-section">
+                        <h3>執筆エディタ設定</h3>
+                        <div class="setting-row">
+                            <label>文字サイズ: <span id="val-editor-font">16</span>px</label>
+                            <input type="range" id="set-editor-font" min="10" max="30" step="1">
+                        </div>
+                        <div class="setting-row">
+                            <label>行間: <span id="val-editor-line">1.8</span></label>
+                            <input type="range" id="set-editor-line" min="1.0" max="3.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>プレビュー設定 (閲覧・PDF)</h3>
+                        <div class="setting-row">
+                            <label>文字サイズ: <span id="val-preview-font">18</span>px</label>
+                            <input type="range" id="set-preview-font" min="10" max="40" step="1">
+                        </div>
+                        <div class="setting-row">
+                            <label>行間: <span id="val-preview-line">2.0</span></label>
+                            <input type="range" id="set-preview-line" min="1.0" max="3.0" step="0.1">
+                        </div>
+                    </div>
+                    <button id="save-settings-btn" class="btn-custom btn-full btn-green" style="margin-top:20px;">設定を保存</button>
+                </div>
+
                 <div id="tab-common-memo" class="tab-content" style="display:none; flex:1; flex-direction:column;">
                     <button id="ws-add-new-memo-btn" class="memo-add-btn" style="margin-bottom:10px;">＋ 新しいメモを追加</button>
                     <div id="ws-memo-list-container" class="scrollable" style="flex:1;"></div>
@@ -160,6 +187,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=0.40"></script>
+    <script src="script.js?v=0.45"></script>
 </body>
 </html>

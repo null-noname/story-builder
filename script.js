@@ -1,4 +1,4 @@
-/* Story Builder V0.40 script.js */
+/* Story Builder V0.45 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -37,6 +37,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dailyHistory = [0,0,0,0,0,0,0]; 
     window.dragSrcEl = null; 
 
+    // 設定の初期値
+    window.userSettings = {
+        editorFontSize: 16,
+        editorLineHeight: 1.8,
+        previewFontSize: 18,
+        previewLineHeight: 2.0
+    };
+
     const views = {
         top: document.getElementById('top-view'),
         workspace: document.getElementById('workspace-view'),
@@ -47,12 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
 
-    // ★ログイン修正: Redirect -> Popup
     const loginBtn = document.getElementById('google-login-btn');
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider) // ポップアップに変更
+            auth.signInWithPopup(provider)
                 .catch((error) => alert("ログインエラー: " + error.message));
         });
     }
@@ -64,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(mainApp) mainApp.style.display = 'block';
             
             await loadDailyLog();
+            await loadSettings(); // 設定読み込み
 
             const lastView = localStorage.getItem('sb_last_view');
             if (lastView === 'workspace') {
@@ -140,6 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // プレビュー操作
     bindClick('preview-close-btn', closePreview);
     bindClick('preview-mode-btn', togglePreviewMode);
+    
+    // 設定保存ボタン
+    bindClick('save-settings-btn', () => saveSettings(true));
 
     initEditorToolbar();
 
@@ -167,17 +178,90 @@ document.addEventListener('DOMContentLoaded', () => {
     const catchEl = document.getElementById('input-catch');
     if(catchEl) catchEl.addEventListener('input', function() { updateCatchCounter(this); });
 
+    // タブ切り替え処理
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-            btn.classList.add('active');
-            const contentId = btn.getAttribute('data-tab');
-            const contentEl = document.getElementById(contentId);
-            if(contentEl) contentEl.style.display = (contentId === 'tab-editor') ? 'flex' : 'block';
-            saveAppState('workspace');
+            activateTab(btn.getAttribute('data-tab'));
         });
     });
+
+    function activateTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        
+        const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+        if(btn) btn.classList.add('active');
+        
+        const contentEl = document.getElementById(tabId);
+        if(contentEl) contentEl.style.display = (tabId === 'tab-editor') ? 'flex' : 'block';
+        saveAppState('workspace');
+    }
+
+    // --- Settings Functions ---
+    async function loadSettings() {
+        if(!window.currentUser) return;
+        const doc = await db.collection('settings').doc(window.currentUser.uid).get();
+        if(doc.exists) {
+            window.userSettings = { ...window.userSettings, ...doc.data() };
+        }
+        applySettingsToUI();
+        applySettingsToDOM();
+    }
+
+    function saveSettings(showMsg = false) {
+        if(!window.currentUser) return;
+        
+        window.userSettings.editorFontSize = document.getElementById('set-editor-font').value;
+        window.userSettings.editorLineHeight = document.getElementById('set-editor-line').value;
+        window.userSettings.previewFontSize = document.getElementById('set-preview-font').value;
+        window.userSettings.previewLineHeight = document.getElementById('set-preview-line').value;
+
+        db.collection('settings').doc(window.currentUser.uid).set(window.userSettings)
+            .then(() => {
+                applySettingsToDOM();
+                if(showMsg) alert("設定を保存しました");
+            });
+    }
+
+    function applySettingsToUI() {
+        document.getElementById('set-editor-font').value = window.userSettings.editorFontSize;
+        document.getElementById('val-editor-font').textContent = window.userSettings.editorFontSize;
+        
+        document.getElementById('set-editor-line').value = window.userSettings.editorLineHeight;
+        document.getElementById('val-editor-line').textContent = window.userSettings.editorLineHeight;
+        
+        document.getElementById('set-preview-font').value = window.userSettings.previewFontSize;
+        document.getElementById('val-preview-font').textContent = window.userSettings.previewFontSize;
+        
+        document.getElementById('set-preview-line').value = window.userSettings.previewLineHeight;
+        document.getElementById('val-preview-line').textContent = window.userSettings.previewLineHeight;
+    }
+
+    function applySettingsToDOM() {
+        const root = document.documentElement;
+        root.style.setProperty('--editor-font-size', window.userSettings.editorFontSize + 'px');
+        root.style.setProperty('--editor-line-height', window.userSettings.editorLineHeight);
+        root.style.setProperty('--preview-font-size', window.userSettings.previewFontSize + 'px');
+        root.style.setProperty('--preview-line-height', window.userSettings.previewLineHeight);
+    }
+
+    // 設定スライダーのイベントリスナー（リアルタイム反映）
+    ['set-editor-font', 'set-editor-line', 'set-preview-font', 'set-preview-line'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+            el.addEventListener('input', (e) => {
+                const valId = id.replace('set-', 'val-');
+                document.getElementById(valId).textContent = e.target.value;
+                
+                // 一時的にDOMに反映（保存はまだしない）
+                if(id.includes('editor-font')) document.documentElement.style.setProperty('--editor-font-size', e.target.value + 'px');
+                if(id.includes('editor-line')) document.documentElement.style.setProperty('--editor-line-height', e.target.value);
+                if(id.includes('preview-font')) document.documentElement.style.setProperty('--preview-font-size', e.target.value + 'px');
+                if(id.includes('preview-line')) document.documentElement.style.setProperty('--preview-line-height', e.target.value);
+            });
+        }
+    });
+
 
     // --- Preview Functions ---
     function showPreview() {
@@ -186,10 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = document.getElementById('preview-content');
         if(!editor || !modal || !content) return;
 
-        // 簡易テキスト整形: 改行を<br>、スペースを&nbsp;に
         let text = editor.value;
         text = escapeHtml(text).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
-        // ルビ表示の簡易変換 |親文字《ふりがな》 -> <ruby>親文字<rt>ふりがな</rt></ruby>
         text = text.replace(/｜(.*?《.*?》)/g, '$1').replace(/([^\x01-\x7E]+)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
 
         content.innerHTML = text;
@@ -327,7 +409,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         editorTab.appendChild(sidebar);
 
-        // ハンバーガーメニュー制御
         document.getElementById('chapter-menu-toggle').addEventListener('click', (e) => {
             e.stopPropagation();
             const ov = document.getElementById('chapter-menu-overlay');
@@ -338,7 +419,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(ov) ov.style.display = 'none';
         });
 
-        // エディタ本体生成
         const mainArea = document.createElement('div');
         mainArea.className = 'editor-main-area';
         
@@ -357,8 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
         toolbar.className = 'editor-toolbar';
         
         const tools = [
-            { icon: '📖', action: showPreview }, // プレビュー実行
-            { icon: '⚙️', action: () => alert('設定画面（未実装）') },
+            { icon: '📖', action: showPreview }, 
+            { icon: '⚙️', action: () => activateTab('tab-settings') }, // ギアボタンで設定タブへ
             { spacer: true, label: '|' },
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: () => alert('置換機能（未実装）') },
@@ -580,12 +660,8 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadChapters();
         switchView('workspace');
 
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-        const targetBtn = document.querySelector(`.tab-btn[data-tab="${initTab}"]`);
-        if(targetBtn) targetBtn.classList.add('active');
-        const targetContent = document.getElementById(initTab);
-        if(targetContent) targetContent.style.display = (initTab === 'tab-editor') ? 'flex' : 'block';
+        // エディタタブを初期表示
+        activateTab(initTab);
     };
 
     function loadChapters() {

@@ -1,4 +1,4 @@
-/* style.css - Story Builder V0.40 */
+/* style.css - Story Builder V0.45 */
 
 :root {
     --bg-color: #202020; 
@@ -13,6 +13,12 @@
     --border-color: #555;
     --font-ui: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     --font-editor: "MS Gothic", "MS ゴシック", monospace; 
+    
+    /* 設定用変数の初期値 */
+    --editor-font-size: 16px;
+    --editor-line-height: 1.8;
+    --preview-font-size: 18px;
+    --preview-line-height: 2.0;
 }
 
 * { box-sizing: border-box; font-family: var(--font-ui) !important; }
@@ -146,7 +152,10 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
 .main-textarea {
     font-family: var(--font-editor) !important;
     width: 100%; background: #151515; color: #eee; padding: 15px;
-    font-size: 16px; line-height: 1.8; border: none; resize: none;
+    border: none; resize: none;
+    /* ★設定変数適用★ */
+    font-size: var(--editor-font-size);
+    line-height: var(--editor-line-height);
 }
 .main-textarea.vertical-mode { writing-mode: vertical-rl; text-orientation: upright; }
 
@@ -476,29 +485,62 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
     overflow: auto;
     padding: 20px;
     display: flex;
-    justify-content: center; /* 横書き時は中央寄せ */
+    justify-content: center; 
 }
 .preview-content {
     font-family: "MS Gothic", "MS ゴシック", monospace !important;
-    font-size: 18px; /* 少し大きめ */
-    line-height: 2.0;
+    /* ★設定変数適用★ */
+    font-size: var(--preview-font-size);
+    line-height: var(--preview-line-height);
     color: #f5f5f5;
-    background: #1a1a1a; /* 読書用の少し明るい背景 */
+    background: #1a1a1a; 
     padding: 40px;
     border-radius: 4px;
-    max-width: 800px; /* 横書き時の幅制限 */
+    max-width: 800px; 
     width: 100%;
     height: 100%;
 }
 .preview-content.vertical-mode {
     writing-mode: vertical-rl;
     text-orientation: upright;
-    overflow-x: auto; /* 縦書きは横スクロール */
+    overflow-x: auto; 
     overflow-y: hidden;
     height: 100%;
     width: auto;
     max-width: none;
-    margin: 0 auto; /* 中央寄せ */
+    margin: 0 auto; 
+}
+
+/* 設定画面用スタイル */
+.settings-section {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border: 1px solid #444;
+}
+.settings-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: var(--accent-blue);
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+}
+.setting-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+}
+.setting-row label {
+    font-size: 14px;
+    color: #ddd;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+.setting-row input[type="range"] {
+    width: 100%;
+    cursor: pointer;
 }
 
 /* --- モバイル対応 --- */
@@ -547,9 +589,7 @@ input:focus, textarea:focus { border-color: var(--accent-blue); }
         min-width: 50px;
     }
     
-    /* プレビューモバイル調整 */
     .preview-content {
         padding: 15px;
-        font-size: 16px;
     }
 }
