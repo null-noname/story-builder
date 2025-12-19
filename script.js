@@ -1,4 +1,4 @@
-/* Story Builder V0.31 script.js */
+/* Story Builder V0.32 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -29,6 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.charCountMode = 'total'; 
     window.unsubscribeWorks = null;
 
+    // ★追加: 執筆カウント用変数
+    window.lastContentLength = 0; // 直前の文字数
+    window.todayAddedCount = 0;   // 今日書いた文字数（セッション内累積）
+    window.pendingLogSave = null; // 保存タイマー
+
     const views = {
         top: document.getElementById('top-view'),
         workspace: document.getElementById('workspace-view'),
@@ -53,6 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if(loginScreen) loginScreen.style.display = 'none';
             if(mainApp) mainApp.style.display = 'block';
             
+            // 日記データの読み込み
+            loadDailyLog();
+
             const lastView = localStorage.getItem('sb_last_view');
             if (lastView === 'workspace') {
                 const lastWork = localStorage.getItem('sb_last_work');
@@ -98,13 +106,14 @@ document.addEventListener('DOMContentLoaded', () => {
             views[name].style.display = 'flex';
             if(name === 'top') {
                 initWorkListener();
+                loadDailyLog(); // TOPに戻ったときも最新の日記データを再取得
                 window.currentWorkId = null;
             } else {
                 if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
             }
             
             if(name === 'memo') loadMemoList();
-            if(name === 'stats') { loadStats(); /* グラフ描画削除 */ }
+            if(name === 'stats') { loadStats(); }
             if(name === 'workspace') loadMemoListForWorkspace(); 
             
             saveAppState(name);
@@ -141,8 +150,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterEl = document.getElementById('filter-status');
     if(filterEl) filterEl.addEventListener('change', initWorkListener);
     
+    // ★修正: 入力イベントで日記カウントと文字数カウントを両方呼ぶ
     const editorEl = document.getElementById('main-editor');
-    if(editorEl) editorEl.addEventListener('input', updateCharCount);
+    if(editorEl) {
+        editorEl.addEventListener('input', () => {
+            updateCharCount();
+            trackDailyProgress();
+        });
+    }
     const catchEl = document.getElementById('input-catch');
     if(catchEl) catchEl.addEventListener('input', function() { updateCatchCounter(this); });
 
@@ -158,6 +173,95 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Daily Log Logic ---
+    // 今日の日付IDを取得 (YYYY-MM-DD)
+    function getTodayId() {
+        const d = new Date();
+        return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+    }
+
+    // 日記データの読み込み・表示更新
+    function loadDailyLog() {
+        if(!window.currentUser) return;
+        const todayId = getTodayId();
+        const docId = `${window.currentUser.uid}_${todayId}`;
+
+        // 今日の分
+        db.collection('daily_logs').doc(docId).get().then(doc => {
+            let count = 0;
+            if(doc.exists) {
+                count = doc.data().count || 0;
+            }
+            window.todayAddedCount = count; // グローバル変数を同期
+            updateDailyWidgetUI(count);
+        });
+
+        // 過去7日間（簡易実装：個別に取得して合算）
+        // ※本来はクエリで行うが、docId指定で7回ループして取得
+        let weeklyTotal = 0;
+        let loadedDays = 0;
+        for(let i=0; i<7; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+            const logId = `${window.currentUser.uid}_${dateStr}`;
+            db.collection('daily_logs').doc(logId).get().then(doc => {
+                if(doc.exists) weeklyTotal += (doc.data().count || 0);
+                loadedDays++;
+                if(loadedDays === 7) {
+                    const wEl = document.getElementById('widget-weekly-count');
+                    if(wEl) wEl.innerHTML = `${weeklyTotal}<span class="unit">字</span>`;
+                    const statWeek = document.getElementById('stat-week');
+                    if(statWeek) statWeek.innerHTML = `${weeklyTotal}<span class="unit">字</span>`;
+                }
+            });
+        }
+    }
+
+    function updateDailyWidgetUI(count) {
+        const el = document.getElementById('widget-today-count');
+        if(el) el.innerHTML = `${count}<span class="unit">字</span>`;
+        
+        const statToday = document.getElementById('stat-today');
+        if(statToday) statToday.innerHTML = `${count}<span class="unit">字</span>`;
+    }
+
+    // 執筆量の計測（入力イベント毎に呼び出し）
+    function trackDailyProgress() {
+        const editor = document.getElementById('main-editor');
+        if(!editor) return;
+        
+        const currentLen = editor.value.length;
+        const diff = currentLen - window.lastContentLength;
+
+        // 増えた場合のみ加算（削除は無視）
+        if (diff > 0) {
+            window.todayAddedCount += diff;
+            updateDailyWidgetUI(window.todayAddedCount);
+            
+            // Firestoreへの保存をデバウンス（3秒間隔）
+            if(window.pendingLogSave) clearTimeout(window.pendingLogSave);
+            window.pendingLogSave = setTimeout(saveDailyLogToFirestore, 3000);
+        }
+        
+        window.lastContentLength = currentLen; // 次回比較用に更新
+    }
+
+    function saveDailyLogToFirestore() {
+        if(!window.currentUser) return;
+        const todayId = getTodayId();
+        const docId = `${window.currentUser.uid}_${todayId}`;
+        
+        db.collection('daily_logs').doc(docId).set({
+            uid: window.currentUser.uid,
+            date: todayId,
+            count: window.todayAddedCount,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    }
+
+    // --- Toolbar & Editor ---
+
     function initEditorToolbar() {
         const editorTab = document.getElementById('tab-editor');
         if(!editorTab) return;
@@ -166,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         editorTab.style.flexDirection = 'row'; 
         editorTab.classList.remove('mobile-editor-active');
 
-        // サイドバー
         const sidebar = document.createElement('div');
         sidebar.className = 'chapter-sidebar';
         sidebar.innerHTML = `
@@ -179,11 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         editorTab.appendChild(sidebar);
 
-        // メインエリア
         const mainArea = document.createElement('div');
         mainArea.className = 'editor-main-area';
         
-        // ヘッダー（ツールバー）
         const header = document.createElement('div');
         header.className = 'editor-header';
         
@@ -221,7 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 文字数表示
         const counter = document.createElement('div');
         counter.className = 'char-count-display';
         counter.id = 'editor-char-counter';
@@ -231,12 +331,10 @@ document.addEventListener('DOMContentLoaded', () => {
         header.appendChild(toolbar);
         header.appendChild(counter);
 
-        // ★追加: サブタイトル編集エリア（ツールバーの下、エディタの上）
         const titleRow = document.createElement('div');
         titleRow.className = 'chapter-title-row';
         titleRow.innerHTML = `<input type="text" id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル">`;
 
-        // エディタ本体
         const editorContainer = document.createElement('div');
         editorContainer.id = 'editor-container';
         editorContainer.style.cssText = "flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;";
@@ -250,14 +348,14 @@ document.addEventListener('DOMContentLoaded', () => {
         saveBtn.onclick = () => saveCurrentChapter(null, false);
 
         mainArea.appendChild(header);
-        mainArea.appendChild(titleRow); // 追加
+        mainArea.appendChild(titleRow);
         mainArea.appendChild(editorContainer);
         mainArea.appendChild(saveBtn);
 
         editorTab.appendChild(mainArea);
 
         document.getElementById('add-chapter-btn').addEventListener('click', addNewChapter);
-        document.getElementById('main-editor').addEventListener('input', updateCharCount);
+        // 入力イベントは別途設定済み
     }
 
     function showMobileEditor() {
@@ -292,7 +390,9 @@ document.addEventListener('DOMContentLoaded', () => {
         editor.value = val.substring(0, start) + text + val.substring(end);
         editor.selectionStart = editor.selectionEnd = start + text.length;
         editor.focus();
+        
         updateCharCount();
+        trackDailyProgress(); // 挿入もカウント対象
     }
 
     function insertRuby() {
@@ -374,13 +474,12 @@ document.addEventListener('DOMContentLoaded', () => {
           .orderBy('order', 'asc')
           .get().then(snap => {
               listEl.innerHTML = '';
-              let totalPureChars = 0; // 正味文字数
+              let totalPureChars = 0;
               let chapters = [];
               snap.forEach(doc => { 
                   const d = doc.data();
                   chapters.push({id: doc.id, ...d});
                   const content = d.content || "";
-                  // ★修正: 空白・改行を除去してカウント
                   totalPureChars += content.replace(/\s/g, '').length;
               });
 
@@ -401,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
                       const count = document.createElement('span');
                       count.style.fontSize = "0.8em";
                       count.style.color = "#888";
-                      // 章ごとの文字数も正味で表示
                       const chPure = (ch.content || "").replace(/\s/g, '').length;
                       count.textContent = `(${chPure}字)`;
 
@@ -418,8 +516,13 @@ document.addEventListener('DOMContentLoaded', () => {
         window.currentChapterId = id;
         saveAppState('workspace');
 
-        document.getElementById('main-editor').value = data.content || "";
-        // ★修正: サブタイトル入力欄にセット
+        // エディタにセット
+        const content = data.content || "";
+        document.getElementById('main-editor').value = content;
+        
+        // ★修正: 直前の文字数を記録（ここから増減を監視）
+        window.lastContentLength = content.length;
+
         const titleInput = document.getElementById('chapter-title-input');
         if(titleInput) titleInput.value = data.title || "";
 
@@ -451,7 +554,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ★修正: 保存時に作品全体の文字数を集計・更新
     async function saveCurrentChapter(nextViewName = null, showAlert = false) {
         if(!window.currentWorkId || !window.currentChapterId) {
             if(nextViewName) switchView(nextViewName);
@@ -467,17 +569,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1. 章の保存
+        // 章保存
         await db.collection('works').doc(window.currentWorkId)
           .collection('chapters').doc(window.currentChapterId)
           .update({
-              title: title, // タイトルも保存
+              title: title,
               content: content,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           });
 
-        // 2. 作品全体の文字数集計と更新
-        // クライアント側で再計算するために全章取得（少し重いが正確性を優先）
+        // 日記も確実に保存
+        saveDailyLogToFirestore();
+
+        // 作品全体の合計更新
         const snap = await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
         let totalPure = 0;
         snap.forEach(doc => {
@@ -485,13 +589,12 @@ document.addEventListener('DOMContentLoaded', () => {
             totalPure += (d.content || "").replace(/\s/g, '').length;
         });
 
-        // Worksドキュメント更新
         await db.collection('works').doc(window.currentWorkId).update({
             totalChars: totalPure,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        loadChapters(); // リスト更新
+        loadChapters(); 
         if(nextViewName) switchView(nextViewName);
         else if (showAlert) alert("保存しました");
     }
@@ -700,36 +803,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadStats() {
-        // ★修正: 合計文字数（正味）をWorksから集計して表示（章保存時に更新されるため）
         db.collection('works').where('uid', '==', window.currentUser.uid).get().then(snap => {
             let workCount = 0;
-            let totalPureChars = 0;
             snap.forEach(d => { 
                 const data = d.data();
                 if(!data.isSystem) workCount++; 
-                totalPureChars += (data.totalChars || 0);
             });
-            const elWorks = document.getElementById('stat-works');
-            if(elWorks) elWorks.innerHTML = `${workCount}<span class="unit">作品</span>`;
-            
-            // ついでに文字数統計も出せるなら出す（今回の要件にはないが、stat-today等の計算は履歴DBがないので0のまま）
-            const elToday = document.getElementById('stat-today');
-            if(elToday) elToday.innerHTML = `0<span class="unit">字</span>`; // 履歴機能未実装のため0固定
+            const el = document.getElementById('stat-works');
+            if(el) el.innerHTML = `${workCount}<span class="unit">作品</span>`;
         });
         
-        // グラフは非表示（Canvasをクリア）
         const canvas = document.getElementById('writingChart');
         if(canvas) {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            canvas.style.display = 'none'; // 要素ごと隠す
+            canvas.style.display = 'none';
             if(canvas.parentNode) canvas.parentNode.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">データ蓄積中...</div>';
         }
+        
+        loadDailyLog();
     }
     
-    function renderChart() {
-        // グラフ機能は一時停止
-    }
+    function renderChart() {}
 
     function escapeHtml(str) {
         if(!str) return "";
