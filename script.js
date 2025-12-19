@@ -1,4 +1,4 @@
-/* Story Builder V0.33 script.js */
+/* Story Builder V0.34 script.js */
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -29,12 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.charCountMode = 'total'; 
     window.unsubscribeWorks = null;
     
-    // 執筆記録・グラフ用
     window.lastContentLength = 0;
     window.todayAddedCount = 0;
     window.pendingLogSave = null;
-    window.writingChart = null; // Chartインスタンス
-    window.dailyHistory = [0,0,0,0,0,0,0]; // 過去7日分データ
+    window.writingChart = null; 
+    window.dailyHistory = [0,0,0,0,0,0,0]; 
 
     const views = {
         top: document.getElementById('top-view'),
@@ -60,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(loginScreen) loginScreen.style.display = 'none';
             if(mainApp) mainApp.style.display = 'block';
             
-            // データ読み込み
             await loadDailyLog();
 
             const lastView = localStorage.getItem('sb_last_view');
@@ -134,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('back-from-memo', () => switchView('top'));
     bindClick('create-new-work-btn', createNewWork);
     bindClick('save-work-info-btn', () => saveWorkInfo());
-    // quick-saveは動的生成のためinitEditorToolbar内で設定
     
     initEditorToolbar();
 
@@ -182,9 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadDailyLog() {
         if(!window.currentUser) return;
-        const todayId = getTodayId();
-        
-        // 過去7日分のデータを取得して配列に入れる
         let promises = [];
         let labels = [];
         for(let i=6; i>=0; i--) {
@@ -205,12 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return val;
         });
 
-        // 今日の分をグローバル変数にセット（配列の最後）
         window.todayAddedCount = window.dailyHistory[6];
-        
         updateDailyWidgetUI(window.todayAddedCount, weeklyTotal);
-        
-        // グラフ更新用のデータを保持（stats画面が開かれたら使う）
         window.graphLabels = labels;
     }
 
@@ -235,13 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (diff > 0) {
             window.todayAddedCount += diff;
-            // 配列の今日の分も更新
             window.dailyHistory[6] = window.todayAddedCount;
-            
-            // UI更新
             updateDailyWidgetUI(window.todayAddedCount, calculateWeeklyTotal());
             
-            // ★修正: グラフがあればリアルタイム更新
             if(window.writingChart) {
                 window.writingChart.data.datasets[0].data = window.dailyHistory;
                 window.writingChart.update();
@@ -250,7 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(window.pendingLogSave) clearTimeout(window.pendingLogSave);
             window.pendingLogSave = setTimeout(saveDailyLogToFirestore, 3000);
         }
-        
         window.lastContentLength = currentLen;
     }
 
@@ -283,11 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // サイドバー
         const sidebar = document.createElement('div');
-        sidebar.id = 'chapter-sidebar'; // ID追加（開閉用）
+        sidebar.id = 'chapter-sidebar';
         sidebar.className = 'chapter-sidebar';
         sidebar.innerHTML = `
             <div class="sidebar-header">
-                <span style="font-weight:bold;">章一覧</span>
+                <span style="font-weight:bold;">話一覧</span>
                 <button class="btn-custom btn-small" id="add-chapter-btn" style="padding:2px 8px;">＋</button>
             </div>
             <div id="chapter-list" class="chapter-list scrollable"></div>
@@ -304,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const header = document.createElement('div');
         header.className = 'editor-header';
         
-        // ★修正: サイドバー展開ボタン（デフォルト非表示）
         const openSidebarBtn = document.createElement('button');
         openSidebarBtn.id = 'sidebar-toggle-open';
         openSidebarBtn.className = 'sidebar-toggle-open-btn';
@@ -316,30 +300,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const toolbar = document.createElement('div');
         toolbar.className = 'editor-toolbar';
         
+        // ★修正: ツールバーの配置変更
+        // 📖 ⚙ ｜ 縦 置換 ﾙﾋﾞ ―
         const tools = [
-            { id: 'btn-mobile-back', icon: '🔙', action: showMobileChapterList, mobileOnly: true },
-            { spacer: true, mobileOnly: true },
             { icon: '📖', action: () => alert('プレビュー機能（未実装）') },
             { icon: '⚙️', action: () => alert('設定画面（未実装）') },
+            { spacer: true, label: '|' }, // 視覚的な区切り線
             { id: 'btn-writing-mode', icon: '縦', action: toggleVerticalMode }, 
             { icon: '置換', action: () => alert('置換機能（未実装）') },
-            { spacer: true },
             { icon: 'ﾙﾋﾞ', action: insertRuby },
-            { icon: '—', action: insertDash },
-            { icon: '◀️', action: () => document.execCommand('undo') },
-            { icon: '▶️', action: () => document.execCommand('redo') }
+            { icon: '―', action: insertDash }
         ];
 
         tools.forEach(t => {
             if(t.spacer) {
-                const sp = document.createElement('div');
-                sp.style.width = '10px'; sp.style.flexShrink = '0';
-                if(t.mobileOnly) sp.classList.add('mobile-only');
+                const sp = document.createElement('span');
+                sp.style.cssText = "color:#555; margin:0 5px; font-size:14px; display:flex; align-items:center;";
+                sp.textContent = '|';
                 toolbar.appendChild(sp);
             } else {
                 const btn = document.createElement('button');
                 btn.className = 'toolbar-btn';
-                if(t.mobileOnly) btn.classList.add('mobile-only');
                 if(t.id) btn.id = t.id;
                 btn.textContent = t.icon;
                 btn.onclick = t.action;
@@ -356,33 +337,69 @@ document.addEventListener('DOMContentLoaded', () => {
         header.appendChild(toolbar);
         header.appendChild(counter);
 
+        // ★修正: サブタイトル入力欄をtextareaに変更（折り返し対応）
         const titleRow = document.createElement('div');
         titleRow.className = 'chapter-title-row';
-        titleRow.innerHTML = `<input type="text" id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル">`;
+        titleRow.innerHTML = `<textarea id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル" rows="1"></textarea>`;
 
         const editorContainer = document.createElement('div');
         editorContainer.id = 'editor-container';
         editorContainer.style.cssText = "flex:1; position:relative; border:1px solid #555; background:#111; overflow:hidden;";
         editorContainer.innerHTML = `<textarea id="main-editor" class="main-textarea" style="width:100%; height:100%; border:none;" placeholder="章を選択するか、新しい章を追加してください..."></textarea>`;
 
-        // フッター（保存ボタン等）
+        // フッター
         const footerRow = document.createElement('div');
-        footerRow.style.cssText = "display:flex; justify-content:flex-end; gap:10px; margin-top:5px; align-items:center;";
+        footerRow.className = 'editor-footer-row';
 
-        // ★修正: 章削除ボタン
+        // 左: 削除
         const deleteChapterBtn = document.createElement('button');
-        deleteChapterBtn.className = 'btn-custom btn-small btn-red'; // 赤いボタン
-        deleteChapterBtn.textContent = '章を削除';
+        deleteChapterBtn.className = 'btn-custom btn-small btn-red'; 
+        deleteChapterBtn.textContent = '削除'; // 表記変更
         deleteChapterBtn.onclick = deleteCurrentChapter;
 
+        // 右: 操作グループ
+        const rightGroup = document.createElement('div');
+        rightGroup.style.display = 'flex';
+        rightGroup.style.gap = '8px';
+        rightGroup.style.alignItems = 'center';
+
+        // ◀️ ▶️
+        const undoBtn = document.createElement('button');
+        undoBtn.className = 'toolbar-btn-footer';
+        undoBtn.textContent = '◀️';
+        undoBtn.onclick = () => document.execCommand('undo');
+
+        const redoBtn = document.createElement('button');
+        redoBtn.className = 'toolbar-btn-footer';
+        redoBtn.textContent = '▶️';
+        redoBtn.onclick = () => document.execCommand('redo');
+
+        // 区切り線
+        const sep = document.createElement('span');
+        sep.style.color = '#555';
+        sep.textContent = '|';
+
+        // スマホ用戻るボタン (mobileOnlyクラス付与)
+        const backBtn = document.createElement('button');
+        backBtn.className = 'toolbar-btn-footer mobile-only';
+        backBtn.textContent = '🔙';
+        backBtn.onclick = showMobileChapterList;
+
+        // 保存ボタン
         const saveBtn = document.createElement('button');
         saveBtn.className = 'btn-custom btn-small';
         saveBtn.id = 'quick-save-btn';
-        saveBtn.textContent = '一時保存';
+        saveBtn.textContent = '保存'; // 表記変更
         saveBtn.onclick = () => saveCurrentChapter(null, false);
 
+        rightGroup.appendChild(undoBtn);
+        rightGroup.appendChild(redoBtn);
+        rightGroup.appendChild(sep);
+        rightGroup.appendChild(backBtn);
+        rightGroup.appendChild(saveBtn);
+
         footerRow.appendChild(deleteChapterBtn);
-        footerRow.appendChild(saveBtn);
+        footerRow.appendChild(rightGroup);
 
         mainArea.appendChild(header);
         mainArea.appendChild(titleRow);
@@ -395,13 +412,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('sidebar-toggle-close').addEventListener('click', toggleSidebar);
     }
 
-    // ★修正: サイドバーの開閉処理
     function toggleSidebar() {
         const sidebar = document.getElementById('chapter-sidebar');
         const openBtn = document.getElementById('sidebar-toggle-open');
         if(sidebar) {
             sidebar.classList.toggle('collapsed');
-            // 閉じたらopenボタンを表示、開いたら隠す
             if(sidebar.classList.contains('collapsed')) {
                 if(openBtn) openBtn.style.display = 'block';
             } else {
@@ -547,10 +562,12 @@ document.addEventListener('DOMContentLoaded', () => {
                       
                       const title = document.createElement('span');
                       title.textContent = ch.title || "無題";
+                      // ★修正: リスト内のタイトルも折り返しCSSを適用するため構造維持
                       
                       const count = document.createElement('span');
                       count.style.fontSize = "0.8em";
                       count.style.color = "#888";
+                      count.style.marginLeft = "5px"; // 隙間
                       const chPure = (ch.content || "").replace(/\s/g, '').length;
                       count.textContent = `(${chPure}字)`;
 
@@ -602,7 +619,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ★修正: 章削除機能
     async function deleteCurrentChapter() {
         if(!window.currentWorkId || !window.currentChapterId) return;
         if(!confirm("本当にこの章を削除しますか？\n（削除すると元に戻せません）")) return;
@@ -613,10 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alert("削除しました");
         window.currentChapterId = null;
         document.getElementById('main-editor').value = "";
-        
-        // モバイルならリストに戻る
         showMobileChapterList();
-        
         loadChapters();
     }
 
@@ -866,7 +879,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadStats() {
-        // 作品数等はここで集計
         db.collection('works').where('uid', '==', window.currentUser.uid).get().then(snap => {
             let workCount = 0;
             snap.forEach(d => { if(!d.data().isSystem) workCount++; });
@@ -874,11 +886,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if(el) el.innerHTML = `${workCount}<span class="unit">作品</span>`;
         });
         
-        // グラフ復活
         const canvas = document.getElementById('writingChart');
         if(canvas) {
-            canvas.style.display = 'block'; // 表示
-            if(canvas.parentNode.querySelector('div')) canvas.parentNode.querySelector('div').remove(); // メッセージ削除
+            canvas.style.display = 'block'; 
+            if(canvas.parentNode.querySelector('div')) canvas.parentNode.querySelector('div').remove(); 
             
             const ctx = canvas.getContext('2d');
             if (window.writingChart) window.writingChart.destroy();
@@ -905,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadDailyLog();
     }
     
-    function renderChart() {} // 上記loadStatsで統合
+    function renderChart() {}
 
     function escapeHtml(str) {
         if(!str) return "";
