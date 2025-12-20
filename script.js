@@ -1,4 +1,4 @@
-/* Story Builder V1.40 script.js - Part 1/3 */
+/* Story Builder V1.50 script.js - Part 1/3 */
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Config & State ---
     const firebaseConfig = {
@@ -20,9 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingMemoId = null;
     window.editingPlotId = null;
     window.editingCharId = null;
-    window.previousView = 'top';
-    window.charCountMode = 'total';
+    
+    // データ保持用
+    window.allWorksCache = []; 
     window.unsubscribeWorks = null;
+    
     window.chapterListMode = 'normal';
     window.lastContentLength = 0;
     window.todayAddedCount = 0;
@@ -32,9 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dragSrcEl = null;
     window.currentHistoryData = null;
     window.tempTimelineData = [];
-    
-    // 作品リスト用キャッシュ
-    window.cachedWorksData = [];
 
     window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
 
@@ -62,14 +61,22 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadDailyLog(); 
             loadLocalSettings();
             
+            // リロード時の復帰処理
             const lv = localStorage.getItem('sb_last_view');
             if (lv === 'workspace') {
                 const lw = localStorage.getItem('sb_last_work');
-                const lc = localStorage.getItem('sb_last_chapter');
-                const lt = localStorage.getItem('sb_last_tab') || 'tab-editor';
-                if (lw) { await openWork(lw, lt); if (lc) setTimeout(()=>document.querySelector(`.chapter-item[data-id="${lc}"]`)?.click(), 500); }
-                else switchView('top');
-            } else if (lv && views[lv]) switchView(lv); else switchView('top');
+                if (lw && lw !== "null") {
+                    await openWork(lw, localStorage.getItem('sb_last_tab') || 'tab-editor');
+                    const lc = localStorage.getItem('sb_last_chapter');
+                    if (lc) setTimeout(()=>document.querySelector(`.chapter-item[data-id="${lc}"]`)?.click(), 500);
+                } else {
+                    switchView('top');
+                }
+            } else if (lv && views[lv]) {
+                switchView(lv);
+            } else {
+                switchView('top');
+            }
         } else {
             window.currentUser = null;
             if(loginScreen) loginScreen.style.display='flex';
@@ -81,22 +88,30 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
         if (views[name]) {
             views[name].style.display = 'flex';
-            if(name === 'top') { 
-                // TOPに戻るたびにリスナーを再設定せず、初回のみまたは必要時のみにする
-                if(!window.unsubscribeWorks) initWorkListener();
-                else renderWorkList(); // 既存データで再描画
-                loadDailyLog(); 
-                window.currentWorkId = null; 
+            
+            // TOP画面に入るときだけリスナーを起動、出るときは解除
+            if(name === 'top') {
+                initWorkListener();
+                loadDailyLog();
+                window.currentWorkId = null; // TOPに戻ったら選択解除
+            } else {
+                if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
             }
+
             if(name === 'memo') loadMemoList();
             if(name === 'stats') loadStats();
             if(name === 'workspace') loadMemoListForWorkspace();
-            saveAppState(name);
+            
+            // 新規作成中の「戻る」でゴミデータを残さないため、WorkIdがない場合はTOPとみなして保存
+            if(name === 'workspace' && !window.currentWorkId) {
+                // 保存しない（ステートに残さない）
+            } else {
+                localStorage.setItem('sb_last_view', name);
+            }
         }
     };
 
     function saveAppState(viewName) {
-        if(!viewName) return;
         localStorage.setItem('sb_last_view', viewName);
         if(window.currentWorkId) localStorage.setItem('sb_last_work', window.currentWorkId);
         if(window.currentChapterId) localStorage.setItem('sb_last_chapter', window.currentChapterId);
@@ -104,105 +119,48 @@ document.addEventListener('DOMContentLoaded', () => {
         if(activeTab) localStorage.setItem('sb_last_tab', activeTab.getAttribute('data-tab'));
     }
 
-    // --- 3. Work Management ---
-    window.openWork = async function(id, initTab='tab-info') {
-        window.currentWorkId = id; window.currentChapterId = null; saveAppState('workspace');
-        // ★修正: 「保存して戻る」ボタンの表記を「戻る」に変更
-        const backBtn = document.getElementById('back-to-top');
-        if(backBtn) backBtn.textContent = "戻る";
-
-        const workDoc = await db.collection('works').doc(id).get();
-        if(!workDoc.exists) return;
-        fillWorkInfo(workDoc.data());
-        const chSnap = await db.collection('works').doc(id).collection('chapters').get();
-        if(chSnap.empty && workDoc.data().content) {
-            await db.collection('works').doc(id).collection('chapters').add({title:"第1話",content:workDoc.data().content,order:1,updatedAt:new Date()});
-            await db.collection('works').doc(id).update({content:""});
-        }
-        await loadChapters();
-        switchView('workspace');
-        activateTab(initTab);
-    };
-
-    window.createNewWork = async function() {
-        if (!window.currentUser) return;
-        const newWork = {
-            uid: window.currentUser.uid, title: "無題の物語", status: "in-progress", isPinned: false,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            totalChars: 0
-        };
-        try {
-            const doc = await db.collection('works').add(newWork);
-            await db.collection('works').doc(doc.id).collection('chapters').add({title: "第1話", content: "", order: 1, updatedAt: new Date()});
-            openWork(doc.id);
-        } catch (e) { console.error(e); }
-    };
-
-    // ★修正: 保存したらエディタ画面に飛ぶ
-    window.saveWorkInfo = function() {
-        if(!window.currentWorkId) return;
-        const ratings=[]; document.querySelectorAll('input[name="rating"]:checked').forEach(c=>ratings.push(c.value));
-        const data = {
-            title: document.getElementById('input-title').value,
-            description: document.getElementById('input-summary').value,
-            catchphrase: document.getElementById('input-catch').value,
-            genreMain: document.getElementById('input-genre-main').value,
-            genreSub: document.getElementById('input-genre-sub').value,
-            status: document.querySelector('input[name="novel-status"]:checked')?.value||"in-progress",
-            type: document.querySelector('input[name="novel-type"]:checked')?.value||"original",
-            aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value||"none",
-            ratings: ratings,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        db.collection('works').doc(window.currentWorkId).update(data).then(()=>{
-            // 保存後にエディタタブへ移動
-            activateTab('tab-editor');
-        });
-    };
-
-    function fillWorkInfo(data) {
-        document.getElementById('input-title').value = data.title||"";
-        document.getElementById('input-summary').value = data.description||"";
-        document.getElementById('input-catch').value = data.catchphrase||"";
-        document.getElementById('input-genre-main').value = data.genreMain||"";
-        document.getElementById('input-genre-sub').value = data.genreSub||"";
-        const setRadio=(n,v)=>{const r=document.querySelector(`input[name="${n}"][value="${v}"]`);if(r)r.checked=true;};
-        setRadio("novel-status", data.status||"in-progress"); setRadio("novel-type", data.type||"original"); setRadio("ai-usage", data.aiUsage||"none");
-        const r=data.ratings||[]; document.querySelectorAll('input[name="rating"]').forEach(c=>c.checked=r.includes(c.value));
-        updateCatchCounter(document.getElementById('input-catch'));
-    }
-
-    // ★修正: リスナーは一度だけ登録し、ソートはローカルで行う（消失バグ対策）
+    // --- 3. Work Management (New Logic) ---
+    
+    // ★重要: 作品リストの監視とソート
     function initWorkListener() {
-        if(window.unsubscribeWorks) return; // 既に登録済みなら何もしない
+        if(window.unsubscribeWorks) window.unsubscribeWorks(); // 重複防止
         if(!window.currentUser) return;
-        
-        window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid).onSnapshot(snap => {
-            window.cachedWorksData = [];
-            snap.forEach(d => window.cachedWorksData.push({...d.data(), id:d.id}));
-            renderWorkList();
-        });
+
+        window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid)
+            .onSnapshot(snap => {
+                window.allWorksCache = [];
+                snap.forEach(doc => {
+                    window.allWorksCache.push({ id: doc.id, ...doc.data() });
+                });
+                renderWorkList(); // データが届いたら描画
+            });
     }
 
-    // ★修正: 描画関数を分離して呼び出しやすく
+    // ★重要: メモリ上のデータをソートして表示（これで確実に並びます）
     window.renderWorkList = function() {
-        const listEl = document.getElementById('work-list'); if(!listEl) return;
-        const sortKey = document.getElementById('sort-order').value; // updated | created
+        const listEl = document.getElementById('work-list'); 
+        if(!listEl || !window.allWorksCache) return;
+        
+        const sortKey = document.getElementById('sort-order').value; // 'created' or 'updated'
         const filterStatus = document.getElementById('filter-status').value;
-        
-        listEl.innerHTML = '';
-        let works = [...window.cachedWorksData];
-        
-        if(filterStatus !== 'all') works = works.filter(w => w.status === filterStatus);
-        
-        works.sort((a,b) => {
-            if(a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
-            const tA = (sortKey==='created' ? a.createdAt : a.updatedAt)?.toMillis() || 0;
-            const tB = (sortKey==='created' ? b.createdAt : b.updatedAt)?.toMillis() || 0;
-            return tB - tA;
+
+        // フィルタリング
+        let works = window.allWorksCache.filter(w => {
+            if(filterStatus === 'all') return true;
+            return w.status === filterStatus;
         });
-        
+
+        // ソート（ピン留め最優先 -> 指定キーの降順）
+        works.sort((a, b) => {
+            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1; // true(ピン)が先
+            
+            const timeA = (sortKey === 'created' ? a.createdAt : a.updatedAt)?.toMillis() || 0;
+            const timeB = (sortKey === 'created' ? b.createdAt : b.updatedAt)?.toMillis() || 0;
+            
+            return timeB - timeA; // 新しい順
+        });
+
+        listEl.innerHTML = '';
         works.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
     }
 
@@ -214,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const pad=n=>n.toString().padStart(2,'0');
             return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
-        // 文字数を独立行に配置
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
                 <div class="work-title">${data.isPinned?'<span style="color:#4caf50;margin-right:4px;">★</span>':''}${escapeHtml(data.title||'無題')}</div>
@@ -231,10 +188,133 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
         return div;
     }
+
+    // 既存作品を開く
+    window.openWork = async function(id, initTab='tab-info') {
+        window.currentWorkId = id; 
+        window.currentChapterId = null; 
+        saveAppState('workspace');
+        
+        // ボタン表記を「戻る」に固定
+        const backBtn = document.getElementById('back-to-top');
+        if(backBtn) backBtn.textContent = "戻る";
+
+        const workDoc = await db.collection('works').doc(id).get();
+        if(!workDoc.exists) return;
+        
+        fillWorkInfo(workDoc.data());
+        
+        // 古いデータ形式のマイグレーション（contentがあれば第1話にする）
+        const chSnap = await db.collection('works').doc(id).collection('chapters').get();
+        if(chSnap.empty && workDoc.data().content) {
+            await db.collection('works').doc(id).collection('chapters').add({title:"第1話",content:workDoc.data().content,order:1,updatedAt:new Date()});
+            await db.collection('works').doc(id).update({content:""});
+        }
+        
+        await loadChapters();
+        switchView('workspace');
+        activateTab(initTab);
+        toggleTabVisibility(true); // タブを表示
+    };
+
+    // ★重要: 「新規作成」ボタンの挙動変更
+    // DBには保存せず、画面だけ初期化して開く
+    window.createNewWork = function() {
+        if (!window.currentUser) return;
+        window.currentWorkId = null; // IDなし＝未保存状態
+        window.currentChapterId = null;
+        
+        // 入力フォームを空にする
+        fillWorkInfo({});
+        
+        // ボタン表記
+        const backBtn = document.getElementById('back-to-top');
+        if(backBtn) backBtn.textContent = "中止して戻る";
+
+        switchView('workspace');
+        activateTab('tab-info'); // 作品情報タブを強制
+        toggleTabVisibility(false); // 保存するまで他のタブ（執筆など）は隠す
+    };
+
+    // ★重要: 「作品情報を保存」ボタンの挙動変更
+    window.saveWorkInfo = async function() {
+        if(!window.currentUser) return;
+        
+        const ratings=[]; 
+        document.querySelectorAll('input[name="rating"]:checked').forEach(c=>ratings.push(c.value));
+        
+        const data = {
+            uid: window.currentUser.uid,
+            title: document.getElementById('input-title').value || "無題の物語",
+            description: document.getElementById('input-summary').value,
+            catchphrase: document.getElementById('input-catch').value,
+            genreMain: document.getElementById('input-genre-main').value,
+            genreSub: document.getElementById('input-genre-sub').value,
+            status: document.querySelector('input[name="novel-status"]:checked')?.value||"in-progress",
+            type: document.querySelector('input[name="novel-type"]:checked')?.value||"original",
+            aiUsage: document.querySelector('input[name="ai-usage"]:checked')?.value||"none",
+            ratings: ratings,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (!window.currentWorkId) {
+            // ★新規作成: ここで初めてDBに保存
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            data.totalChars = 0;
+            data.isPinned = false;
+            
+            const docRef = await db.collection('works').add(data);
+            window.currentWorkId = docRef.id;
+            
+            // 自動で第1話を作成
+            await db.collection('works').doc(docRef.id).collection('chapters').add({
+                title: "第1話", content: "", order: 1, updatedAt: new Date()
+            });
+            
+            alert("作品を作成しました！\n執筆画面へ移動します。");
+        } else {
+            // 更新
+            await db.collection('works').doc(window.currentWorkId).update(data);
+            alert("作品情報を更新しました。");
+        }
+        
+        // IDが確定したので全タブ有効化し、エディタへ移動
+        toggleTabVisibility(true);
+        const backBtn = document.getElementById('back-to-top');
+        if(backBtn) backBtn.textContent = "戻る";
+        
+        await loadChapters();
+        activateTab('tab-editor');
+    };
+
+    // 未保存時は他のタブを押せないようにする制御
+    function toggleTabVisibility(enable) {
+        const tabs = ['tab-editor', 'tab-plot', 'tab-char', 'tab-common-memo'];
+        tabs.forEach(tid => {
+            const btn = document.querySelector(`.tab-btn[data-tab="${tid}"]`);
+            if(btn) {
+                btn.style.opacity = enable ? "1" : "0.3";
+                btn.style.pointerEvents = enable ? "auto" : "none";
+            }
+        });
+    }
+
+    function fillWorkInfo(data) {
+        document.getElementById('input-title').value = data.title||"";
+        document.getElementById('input-summary').value = data.description||"";
+        document.getElementById('input-catch').value = data.catchphrase||"";
+        document.getElementById('input-genre-main').value = data.genreMain||"";
+        document.getElementById('input-genre-sub').value = data.genreSub||"";
+        const setRadio=(n,v)=>{const r=document.querySelector(`input[name="${n}"][value="${v}"]`);if(r)r.checked=true;};
+        setRadio("novel-status", data.status||"in-progress"); setRadio("novel-type", data.type||"original"); setRadio("ai-usage", data.aiUsage||"none");
+        const r=data.ratings||[]; document.querySelectorAll('input[name="rating"]').forEach(c=>c.checked=r.includes(c.value));
+        updateCatchCounter(document.getElementById('input-catch'));
+    }
+
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete();};
     window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
 
-/* Story Builder V1.40 script.js - Part 2/3 */
+/* Story Builder V1.50 script.js - Part 2/3 */
 
     // --- Editor & Chapter ---
     window.initEditorToolbar = function() {
@@ -269,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleRow=document.createElement('div'); titleRow.className='chapter-title-row'; titleRow.innerHTML=`<textarea id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル" rows="1"></textarea>`;
         const edCon=document.createElement('div'); edCon.id='editor-container'; edCon.style.cssText="flex:1;position:relative;border:1px solid #555;background:#111;overflow:hidden;"; edCon.innerHTML=`<textarea id="main-editor" class="main-textarea" style="width:100%;height:100%;border:none;" placeholder="本文..."></textarea>`;
         const footer=document.createElement('div'); footer.className='editor-footer-row';
-        // フッター内の「戻る」ボタンなども配置
         footer.innerHTML=`<button class="btn-custom btn-small btn-red" id="del-ch-btn">削除</button><div style="display:flex;gap:8px;align-items:center;"><button class="toolbar-btn-footer" id="undo-btn">◀️</button><button class="toolbar-btn-footer" id="redo-btn">▶️</button><span style="color:#555;">|</span><button class="toolbar-btn-footer mobile-only" id="back-list-btn">🔙</button><button class="btn-custom btn-small" id="quick-save-btn">保存</button></div>`;
 
         mainArea.appendChild(header); mainArea.appendChild(titleRow); mainArea.appendChild(edCon); mainArea.appendChild(footer);
@@ -354,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
 
-/* Story Builder V1.40 script.js - Part 3/3 */
+/* Story Builder V1.50 script.js - Part 3/3 */
 
     // --- Plot ---
     window.loadPlots = function() {
@@ -583,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Events
     bindClick('diary-widget',()=>switchView('stats')); bindClick('btn-common-memo',()=>switchView('memo')); 
-    // ★修正: 「保存して戻る」ボタンのIDのまま、中身の挙動を switchView('top') に変更
+    // 「戻る」ボタン：保存せずにTOPへ戻る
     bindClick('back-to-top',()=>switchView('top'));
     bindClick('back-from-stats',()=>switchView('top')); bindClick('back-from-memo',()=>switchView('top')); bindClick('create-new-work-btn',createNewWork); bindClick('save-work-info-btn',saveWorkInfo);
     bindClick('preview-close-btn',closePreview); bindClick('preview-mode-btn',togglePreviewMode); bindClick('preview-setting-btn',openPreviewSettings); bindClick('history-close-btn',()=>document.getElementById('history-modal').style.display='none'); bindClick('history-restore-btn',restoreHistory);
@@ -592,11 +671,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('plot-add-new-btn',()=>openPlotEditor(null)); bindClick('char-add-new-btn',()=>openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',saveCharItem); bindClick('char-edit-delete',deleteCharItem);
     
     document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.getAttribute('data-tab'))));
-    
-    // ★修正: ソート/フィルタのchangeイベントで renderWorkList を呼ぶように修正
+    // ★修正: イベントリスナーを新しい描画関数に紐づけ
     const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',renderWorkList);
     const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',renderWorkList);
-    
     const edEl=document.getElementById('main-editor');if(edEl)edEl.addEventListener('input',()=>{updateCharCount();trackDailyProgress();});
     const cEl=document.getElementById('input-catch');if(cEl)cEl.addEventListener('input',function(){updateCatchCounter(this);});
     const iconInput=document.getElementById('char-icon-input');
