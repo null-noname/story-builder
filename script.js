@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingPlotId = null;
     window.editingCharId = null;
     
-    // データ保持用
     window.allWorksCache = []; 
     window.unsubscribeWorks = null;
     
@@ -190,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.currentWorkId = null; window.currentChapterId = null;
         window.fillWorkInfo({});
         const backBtn = document.getElementById('back-to-top');
-        if(backBtn) backBtn.textContent = "中止して戻る";
+        if(backBtn) backBtn.textContent = "戻る";
         window.switchView('workspace'); window.activateTab('tab-info'); window.toggleTabVisibility(false);
     };
 
@@ -216,10 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const docRef = await db.collection('works').add(data);
             window.currentWorkId = docRef.id;
             await db.collection('works').doc(docRef.id).collection('chapters').add({title: "第1話", content: "", order: 1, updatedAt: new Date()});
-            alert("作品を作成しました！\n執筆画面へ移動します。");
         } else {
             await db.collection('works').doc(window.currentWorkId).update(data);
-            alert("作品情報を更新しました。");
         }
         window.toggleTabVisibility(true);
         const backBtn = document.getElementById('back-to-top');
@@ -371,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await ref.collection('history').add({content:c,savedAt:firebase.firestore.FieldValue.serverTimestamp()});
         await ref.update({title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
         window.saveDailyLogToFirestore(); window.loadChapters();
-        if(nv)window.switchView(nv); else if(alert!==false)alert("保存しました");
+        if(nv)window.switchView(nv); 
     };
     window.addNewChapter=async()=>{
         if(!window.currentWorkId)return; const s=await db.collection('works').doc(window.currentWorkId).collection('chapters').get();
@@ -494,7 +491,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
     
-    // キャラ詳細：閲覧モードと編集モードの切り替え
+    // --- Define Char Functions BEFORE Binding ---
+    window.saveCharItem=async function(){ 
+        const getData=id=>document.getElementById('char-'+id)?.value||""; 
+        const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||""; 
+        const birthM = document.getElementById('char-birth-m').value; 
+        const birthD = document.getElementById('char-birth-d').value; 
+        const d={ name:getData('name'), ruby:getData('ruby'), alias:getData('alias'), age:getData('age'), height:getData('height'), role:getData('role'), birthM: birthM, birthD: birthD, appearance:getData('appearance'), personality:getData('personality'), ability:getData('ability'), background:getData('background'), memo:getData('memo'), iconBase64:ib, updatedAt:firebase.firestore.FieldValue.serverTimestamp() }; 
+        if(window.editingCharId) await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d); 
+        else{ const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('characters').add(d); } 
+        // alertなし、画面維持
+        loadCharacters(); 
+    };
+    
+    window.deleteCharItem=async function(){if(window.editingCharId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();document.getElementById('char-edit-view').style.display='none';loadCharacters();}}; 
+    window.moveChar=async function(id,dir){await moveItem('characters',id,dir);loadCharacters();}; 
+    async function moveItem(col,id,dir){const snap=await db.collection('works').doc(window.currentWorkId).collection(col).orderBy('order','asc').get();let items=[];snap.forEach(d=>items.push({id:d.id,...d.data()}));const idx=items.findIndex(i=>i.id===id);if(idx===-1)return;const tIdx=idx+dir;if(tIdx<0||tIdx>=items.length)return;[items[idx],items[tIdx]]=[items[tIdx],items[idx]];const batch=db.batch();items.forEach((it,i)=>{batch.update(db.collection('works').doc(window.currentWorkId).collection(col).doc(it.id),{order:i+1});});await batch.commit();}
+
     window.openCharEditor=function(id){
         window.editingCharId=id; const v = document.getElementById('char-view-mode'); const e = document.getElementById('char-edit-mode'); const t = document.getElementById('char-header-title'); const btn = document.getElementById('char-mode-toggle');
         const fields=['name','ruby','alias','age','height','role','appearance','personality','ability','background','memo']; fields.forEach(f=>{ const el=document.getElementById('char-'+f); if(el)el.value=""; });
@@ -502,10 +515,40 @@ document.addEventListener('DOMContentLoaded', () => {
         if(id){
             db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc=>{
                 if(doc.exists){
-                    const d=doc.data(); const setV=(eid,val)=>{document.getElementById('cv-'+eid).textContent=val||'-';};
-                    setV('name',d.name); setV('role',d.role); setV('age',d.age?d.age+'歳':'-'); setV('height',d.height?d.height+'cm':'-'); setV('personality',d.personality); setV('appearance',d.appearance); setV('background',d.background); setV('memo',d.memo);
-                    let birthStr = '-'; if(d.birthM && d.birthD) birthStr = `${d.birthM}月${d.birthD}日`; else if(d.birth) birthStr = d.birth; document.getElementById('cv-birth').textContent = birthStr;
-                    const iconDiv = document.getElementById('cv-icon'); if(d.iconBase64) iconDiv.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`; else iconDiv.innerHTML='👤';
+                    const d=doc.data(); 
+                    // 閲覧モードUI構築
+                    let birthStr = '-'; if(d.birthM && d.birthD) birthStr = `${d.birthM}月${d.birthD}日`; else if(d.birth) birthStr = d.birth; 
+                    const iconSrc = d.iconBase64 || "";
+                    const iconHtml = iconSrc ? `<img src="${iconSrc}" class="cv-h-icon">` : `<div class="cv-h-icon" style="display:flex;align-items:center;justify-content:center;font-size:40px;">👤</div>`;
+                    
+                    v.innerHTML = `
+                        <div class="char-view-header">
+                            ${iconHtml}
+                            <div class="cv-h-info">
+                                <div class="cv-h-ruby">${escapeHtml(d.ruby||'')}</div>
+                                <div class="cv-h-name">${escapeHtml(d.name)}</div>
+                                <div class="cv-h-grid">
+                                    <div class="cv-h-label">役職</div><div class="cv-h-val">${escapeHtml(d.role||'-')}</div>
+                                    <div class="cv-h-label">身長</div><div class="cv-h-val">${escapeHtml(d.height?d.height+'cm':'-')}</div>
+                                    <div class="cv-h-label">年齢</div><div class="cv-h-val">${escapeHtml(d.age?d.age+'歳':'-')}</div>
+                                    <div class="cv-h-label">誕生日</div><div class="cv-h-val">${escapeHtml(birthStr)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cv-section"><div class="cv-section-title">性格</div><div class="cv-section-body">${escapeHtml(d.personality||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">見た目</div><div class="cv-section-body">${escapeHtml(d.appearance||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">特技・能力</div><div class="cv-section-body">${escapeHtml(d.ability||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">生い立ち・背景</div><div class="cv-section-body">${escapeHtml(d.background||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">その他メモ</div><div class="cv-section-body">${escapeHtml(d.memo||'')}</div></div>
+                        <div style="text-align:center;margin-top:20px;"><button id="char-mode-to-edit" class="btn-custom" style="padding:10px 40px;">編集モード</button></div>
+                    `;
+                    
+                    // バインド
+                    document.getElementById('char-mode-to-edit').onclick = () => {
+                        v.style.display='none'; e.style.display='block'; t.textContent = "編集"; 
+                        const delBtn = document.getElementById('char-delete-btn'); if(delBtn) delBtn.style.display = 'block';
+                    };
+
                     fields.forEach(f=>{ const el=document.getElementById('char-'+f); if(el)el.value=d[f]||""; }); if(d.birthM) document.getElementById('char-birth-m').value = d.birthM; if(d.birthD) document.getElementById('char-birth-d').value = d.birthD;
                     if(d.iconBase64){ const p=document.getElementById('char-icon-preview'); p.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`; p.setAttribute('data-base64',d.iconBase64); }
                     v.style.display='block'; e.style.display='none'; t.textContent = "詳細"; 
@@ -515,10 +558,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { v.style.display='none'; e.style.display='block'; t.textContent = "新規作成"; const delBtn = document.getElementById('char-delete-btn'); if(delBtn) delBtn.style.display = 'none'; }
         document.getElementById('char-edit-view').style.display='flex';
     };
-    
-    // --- Define Char Functions BEFORE Binding ---
-    window.saveCharItem=async function(){ const getData=id=>document.getElementById('char-'+id)?.value||""; const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||""; const birthM = document.getElementById('char-birth-m').value; const birthD = document.getElementById('char-birth-d').value; const d={ name:getData('name'), ruby:getData('ruby'), alias:getData('alias'), age:getData('age'), height:getData('height'), role:getData('role'), birthM: birthM, birthD: birthD, appearance:getData('appearance'), personality:getData('personality'), ability:getData('ability'), background:getData('background'), memo:getData('memo'), iconBase64:ib, updatedAt:firebase.firestore.FieldValue.serverTimestamp() }; if(window.editingCharId) await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d); else{ const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('characters').add(d); } document.getElementById('char-edit-view').style.display='none'; loadCharacters(); };
-    window.deleteCharItem=async function(){if(window.editingCharId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();document.getElementById('char-edit-view').style.display='none';loadCharacters();}}; window.moveChar=async function(id,dir){await moveItem('characters',id,dir);loadCharacters();}; async function moveItem(col,id,dir){const snap=await db.collection('works').doc(window.currentWorkId).collection(col).orderBy('order','asc').get();let items=[];snap.forEach(d=>items.push({id:d.id,...d.data()}));const idx=items.findIndex(i=>i.id===id);if(idx===-1)return;const tIdx=idx+dir;if(tIdx<0||tIdx>=items.length)return;[items[idx],items[tIdx]]=[items[tIdx],items[idx]];const batch=db.batch();items.forEach((it,i)=>{batch.update(db.collection('works').doc(window.currentWorkId).collection(col).doc(it.id),{order:i+1});});await batch.commit();}
 
     // Misc
     window.loadMemoList=()=>{if(!window.currentUser)return;const c=document.getElementById('memo-list-container');if(!c)return;c.innerHTML='';db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{let m=[];s.forEach(d=>m.push({id:d.id,...d.data()}));m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'memo')));});};
@@ -535,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyPreviewLayout(){const r=document.documentElement.style;const s=18*parseFloat(window.appSettings.prFontScale);r.setProperty('--pr-font-size',s+'px');r.setProperty('--pr-height',(s*parseInt(window.appSettings.prVerticalChars))+'px');}
     window.openEditorSettings=()=>document.getElementById('editor-settings-modal').style.display='flex'; window.saveEditorSettings=()=>{window.appSettings.edLetterSpacing=document.getElementById('es-letter-spacing').value;window.appSettings.edLineHeight=document.getElementById('es-line-height').value;window.appSettings.edWidth=document.getElementById('es-width').value;window.appSettings.edFontSize=document.getElementById('es-font-size').value;localStorage.setItem('sb_app_settings',JSON.stringify(window.appSettings));applySettingsToDOM();document.getElementById('editor-settings-modal').style.display='none';};
     window.loadLocalSettings=()=>{const s=localStorage.getItem('sb_app_settings');if(s)try{window.appSettings={...window.appSettings,...JSON.parse(s)};}catch(e){}applySettingsToDOM();}; function applySettingsToDOM(){const r=document.documentElement.style;r.setProperty('--ed-font-size',window.appSettings.edFontSize+'px');r.setProperty('--ed-line-height',window.appSettings.edLineHeight);r.setProperty('--ed-letter-spacing',window.appSettings.edLetterSpacing+'em');r.setProperty('--ed-width',window.appSettings.edWidth+'%');}
-    window.openReplaceModal=()=>document.getElementById('replace-modal').style.display='flex'; window.executeReplace=()=>{const s=document.getElementById('replace-search-input').value;const r=document.getElementById('replace-target-input').value;if(!s)return;const e=document.getElementById('main-editor');const rg=new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');const c=(e.value.match(rg)||[]).length;if(c===0){alert("なし");return;}e.value=e.value.replace(rg,r);alert(c+"件置換");document.getElementById('replace-modal').style.display='none';updateCharCount();};
+    window.openReplaceModal=()=>document.getElementById('replace-modal').style.display='flex'; window.executeReplace=()=>{const s=document.getElementById('replace-search-input').value;const r=document.getElementById('replace-target-input').value;if(!s)return;const e=document.getElementById('main-editor');const rg=new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');const c=(e.value.match(rg)||[]).length;if(c===0){alert("なし");return;}e.value=e.value.replace(rg,r);document.getElementById('replace-modal').style.display='none';updateCharCount();};
     window.openHistoryModal=function(){if(!window.currentWorkId||!window.currentChapterId){alert("作品または章が開かれていません");return;}document.getElementById('history-modal').style.display='flex';loadHistoryList();};
     function loadHistoryList(){const l=document.getElementById('history-list');l.innerHTML='Loading...';db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).collection('history').orderBy('savedAt','desc').limit(20).get().then(s=>{l.innerHTML='';s.forEach((d,i)=>{const dt=d.data();const date=dt.savedAt?new Date(dt.savedAt.toDate()):new Date();const div=document.createElement('div');div.className='history-item';div.textContent=`${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()} (${dt.content.length}字)`;div.onclick=()=>showDiff(dt.content,div);l.appendChild(div);if(i===0)div.click();});});}
     function showDiff(old,el){document.querySelectorAll('.history-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');window.currentHistoryData=old;const cur=document.getElementById('main-editor').value;const diff=Diff.diffLines(old,cur);const d=document.getElementById('history-diff-view');d.innerHTML='';diff.forEach(p=>{const s=document.createElement('span');s.className=p.added?'diff-added':p.removed?'diff-removed':'';s.textContent=p.value;d.appendChild(s);});}
