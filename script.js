@@ -1,6 +1,6 @@
 /* Story Builder V1.50 script.js - Part 1/3 */
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. Config & Helpers (Defined First) ---
+    // --- 1. Config & State ---
     const firebaseConfig = {
         apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
         authDomain: "story-builder-app.firebaseapp.com",
@@ -21,8 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingPlotId = null;
     window.editingCharId = null;
     
+    // データ保持用
     window.allWorksCache = []; 
     window.unsubscribeWorks = null;
+    
     window.chapterListMode = 'normal';
     window.lastContentLength = 0;
     window.todayAddedCount = 0;
@@ -40,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         memoEditor: document.getElementById('memo-editor-view')
     };
 
-    // ★重要: ヘルパー関数を先に定義（これが原因でエラーになっていました）
+    // --- Helper Functions ---
     window.escapeHtml = (s) => {
         if(!s) return "";
         return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));
@@ -76,17 +78,20 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
         if (views[name]) {
             views[name].style.display = 'flex';
+            
+            // TOPに戻ったときの処理
             if(name === 'top') {
-                window.initWorkListener(); 
                 window.loadDailyLog();
                 window.currentWorkId = null; 
-            } else {
-                if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
+                // ★修正: ここでの再読み込みをやめ、常時接続にします
+                if(window.allWorksCache.length > 0) window.renderWorkList();
             }
+
             if(name === 'memo') window.loadMemoList();
             if(name === 'stats') window.loadStats();
             if(name === 'workspace') window.loadMemoListForWorkspace();
             
+            // 状態保存
             if(!(name === 'workspace' && !window.currentWorkId)) {
                 localStorage.setItem('sb_last_view', name);
             }
@@ -124,9 +129,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 3. Work Management ---
+    // ★重要: 作品リストの監視（常時接続）
     window.initWorkListener = function() {
-        if(window.unsubscribeWorks) window.unsubscribeWorks();
+        if(window.unsubscribeWorks) return; // 既に接続済みなら何もしない
         if(!window.currentUser) return;
+        
         window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid)
             .onSnapshot(snap => {
                 window.allWorksCache = [];
@@ -137,19 +144,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.renderWorkList = function() {
         const listEl = document.getElementById('work-list'); 
-        if(!listEl || !window.allWorksCache) return;
+        if(!listEl) return;
+        
+        if (!window.allWorksCache || window.allWorksCache.length === 0) {
+            listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">作品がありません</div>';
+            return;
+        }
+
         const sortKey = document.getElementById('sort-order').value;
         const filterStatus = document.getElementById('filter-status').value;
+        
         let works = window.allWorksCache.filter(w => {
             if(filterStatus === 'all') return true;
             return w.status === filterStatus;
         });
+        
         works.sort((a, b) => {
             if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1; 
             const timeA = (sortKey === 'created' ? a.createdAt : a.updatedAt)?.toMillis() || 0;
             const timeB = (sortKey === 'created' ? b.createdAt : b.updatedAt)?.toMillis() || 0;
             return timeB - timeA;
         });
+        
         listEl.innerHTML = '';
         works.forEach(d => listEl.appendChild(window.createWorkItem(d.id, d)));
     };
@@ -255,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete();};
-    window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});}; 
+    window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
 
 /* Story Builder V1.50 script.js - Part 2/3 */
 
@@ -520,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else{ const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('characters').add(d); } 
         // alertなし、画面維持
         loadCharacters(); 
+        alert("保存しました");
     };
     
     window.deleteCharItem=async function(){if(window.editingCharId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();document.getElementById('char-edit-view').style.display='none';loadCharacters();}}; 
@@ -599,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.restoreHistory=async()=>{if(window.currentHistoryData!==null&&confirm("復元しますか？")){document.getElementById('main-editor').value=window.currentHistoryData;document.getElementById('history-modal').style.display='none';await saveCurrentChapter(null,false);}};
     window.toggleVerticalMode=()=>{const e=document.getElementById('main-editor');const b=document.getElementById('btn-writing-mode');if(e){e.classList.toggle('vertical-mode');b.textContent=e.classList.contains('vertical-mode')?'横':'縦';}};
     window.insertTextAtCursor=(t)=>{const e=document.getElementById('main-editor');if(!e)return;const s=e.selectionStart;const end=e.selectionEnd;e.value=e.value.substring(0,s)+t+e.value.substring(end);e.selectionStart=e.selectionEnd=s+t.length;e.focus();window.updateCharCount();window.trackDailyProgress();};
-    window.insertRuby=()=>{const p=prompt("親文字");if(!p)return;const r=prompt("ルビ");if(!r)return;insertTextAtCursor(`｜${p}《${r}》`);}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';window.updateCharCount();}; window.escapeHtml=(s)=>{if(!s)return"";return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));};
+    window.insertRuby=()=>{const p=prompt("親文字");if(!p)return;const r=prompt("ルビ");if(!r)return;insertTextAtCursor(`｜${p}《${r}》`);}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';window.updateCharCount();}; window.updateCharCount=()=>{const e=document.getElementById('main-editor');const c=document.getElementById('editor-char-counter');if(!c)return;if(window.charCountMode==='total'){c.textContent=`総: ${e.value.length}`;c.style.color='#fff';}else{c.textContent=`全: ${e.value.replace(/\s/g,'').length}`;c.style.color='#89b4fa';}}; window.updateCatchCounter=(el)=>{const r=35-el.value.length;const c=document.getElementById('c-count');if(c){c.textContent=`(残${r})`;c.style.color=r<0?'#f66':'#89b4fa';}}; window.escapeHtml=(s)=>{if(!s)return"";return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));};
     
     // --- 3. Events Binding ---
     function bindClick(id,h){const e=document.getElementById(id);if(e)e.addEventListener('click',h);}
@@ -631,6 +648,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.currentUser = user;
             if(loginScreen) loginScreen.style.display='none';
             if(mainApp) mainApp.style.display='block';
+            
+            // ★ログイン時に一度だけリスナー起動
+            window.initWorkListener();
             await window.loadDailyLog(); 
             window.loadLocalSettings();
             
