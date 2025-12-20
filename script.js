@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editingPlotId = null;
     window.editingCharId = null;
     
+    // データ保持用
     window.allWorksCache = []; 
     window.unsubscribeWorks = null;
     
@@ -30,9 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.pendingLogSave = null;
     window.writingChart = null;
     window.dailyHistory = [0,0,0,0,0,0,0];
-    window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
+    window.dragSrcEl = null;
+    window.currentHistoryData = null;
     window.tempTimelineData = [];
 
+    window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
+
+    const loginScreen = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    const loginBtn = document.getElementById('google-login-btn');
     const views = {
         top: document.getElementById('top-view'),
         workspace: document.getElementById('workspace-view'),
@@ -41,16 +48,18 @@ document.addEventListener('DOMContentLoaded', () => {
         memoEditor: document.getElementById('memo-editor-view')
     };
 
-    // --- 2. Core Functions (Defined FIRST) ---
+    if (loginBtn) loginBtn.addEventListener('click', () => {
+        auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => alert("ログインエラー: "+e.message));
+    });
 
-    // 画面切り替え
+    // --- 2. Auth & View Functions ---
     window.switchView = function(name) {
         Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
         if (views[name]) {
             views[name].style.display = 'flex';
             
             if(name === 'top') {
-                window.initWorkListener(); // 定義済み関数を呼び出す
+                window.initWorkListener(); 
                 window.loadDailyLog();
                 window.currentWorkId = null; 
             } else {
@@ -61,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(name === 'stats') window.loadStats();
             if(name === 'workspace') window.loadMemoListForWorkspace();
             
-            // 状態保存（workspaceでIDがない場合は保存しない）
             if(!(name === 'workspace' && !window.currentWorkId)) {
                 localStorage.setItem('sb_last_view', name);
             }
@@ -98,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.saveAppState('workspace');
     };
 
-    // 作品リスト管理
+    // --- 3. Work Management ---
     window.initWorkListener = function() {
         if(window.unsubscribeWorks) window.unsubscribeWorks();
         if(!window.currentUser) return;
@@ -154,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return div;
     };
 
-    // 作品を開く
     window.openWork = async function(id, initTab='tab-info') {
         window.currentWorkId = id; 
         window.currentChapterId = null; 
@@ -178,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.toggleTabVisibility(true);
     };
 
-    // 新規作成
     window.createNewWork = function() {
         if (!window.currentUser) return;
         window.currentWorkId = null; window.currentChapterId = null;
@@ -188,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.switchView('workspace'); window.activateTab('tab-info'); window.toggleTabVisibility(false);
     };
 
-    // 作品情報保存
     window.saveWorkInfo = async function() {
         if(!window.currentUser) return;
         const ratings=[]; document.querySelectorAll('input[name="rating"]:checked').forEach(c=>ratings.push(c.value));
@@ -488,6 +493,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.movePlot = async function(id, dir) { await moveItem('plots', id, dir); loadPlots(); };
 
     window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
+    
+    // キャラ詳細：閲覧モードと編集モードの切り替え
     window.openCharEditor=function(id){
         window.editingCharId=id; const v = document.getElementById('char-view-mode'); const e = document.getElementById('char-edit-mode'); const t = document.getElementById('char-header-title'); const btn = document.getElementById('char-mode-toggle');
         const fields=['name','ruby','alias','age','height','role','appearance','personality','ability','background','memo']; fields.forEach(f=>{ const el=document.getElementById('char-'+f); if(el)el.value=""; });
@@ -508,8 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { v.style.display='none'; e.style.display='block'; t.textContent = "新規作成"; const delBtn = document.getElementById('char-delete-btn'); if(delBtn) delBtn.style.display = 'none'; }
         document.getElementById('char-edit-view').style.display='flex';
     };
-    bindClick('char-mode-to-edit', () => { document.getElementById('char-view-mode').style.display='none'; document.getElementById('char-edit-mode').style.display='block'; document.getElementById('char-header-title').textContent = "編集"; const delBtn = document.getElementById('char-delete-btn'); if(delBtn) delBtn.style.display = 'block'; });
-    bindClick('char-delete-btn', deleteCharItem);
+    
+    // --- Define Char Functions BEFORE Binding ---
     window.saveCharItem=async function(){ const getData=id=>document.getElementById('char-'+id)?.value||""; const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||""; const birthM = document.getElementById('char-birth-m').value; const birthD = document.getElementById('char-birth-d').value; const d={ name:getData('name'), ruby:getData('ruby'), alias:getData('alias'), age:getData('age'), height:getData('height'), role:getData('role'), birthM: birthM, birthD: birthD, appearance:getData('appearance'), personality:getData('personality'), ability:getData('ability'), background:getData('background'), memo:getData('memo'), iconBase64:ib, updatedAt:firebase.firestore.FieldValue.serverTimestamp() }; if(window.editingCharId) await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d); else{ const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('characters').add(d); } document.getElementById('char-edit-view').style.display='none'; loadCharacters(); };
     window.deleteCharItem=async function(){if(window.editingCharId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();document.getElementById('char-edit-view').style.display='none';loadCharacters();}}; window.moveChar=async function(id,dir){await moveItem('characters',id,dir);loadCharacters();}; async function moveItem(col,id,dir){const snap=await db.collection('works').doc(window.currentWorkId).collection(col).orderBy('order','asc').get();let items=[];snap.forEach(d=>items.push({id:d.id,...d.data()}));const idx=items.findIndex(i=>i.id===id);if(idx===-1)return;const tIdx=idx+dir;if(tIdx<0||tIdx>=items.length)return;[items[idx],items[tIdx]]=[items[tIdx],items[idx]];const batch=db.batch();items.forEach((it,i)=>{batch.update(db.collection('works').doc(window.currentWorkId).collection(col).doc(it.id),{order:i+1});});await batch.commit();}
 
@@ -545,8 +552,13 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('preview-close-btn',window.closePreview); bindClick('preview-mode-btn',window.togglePreviewMode); bindClick('preview-setting-btn',window.openPreviewSettings); bindClick('history-close-btn',()=>document.getElementById('history-modal').style.display='none'); bindClick('history-restore-btn',window.restoreHistory);
     bindClick('es-cancel',()=>document.getElementById('editor-settings-modal').style.display='none'); bindClick('es-save',window.saveEditorSettings); bindClick('ps-cancel',()=>document.getElementById('preview-settings-modal').style.display='none'); bindClick('ps-save',window.savePreviewSettings); bindClick('replace-cancel-btn',()=>document.getElementById('replace-modal').style.display='none'); bindClick('replace-execute-btn',window.executeReplace);
     bindClick('add-new-memo-btn',()=>window.openMemoEditor(null,'memo')); bindClick('ws-add-new-memo-btn',()=>window.openMemoEditor(null,'workspace')); bindClick('memo-editor-save',window.saveMemo); bindClick('memo-editor-cancel',()=>window.switchView(window.previousView)); bindClick('memo-editor-delete',()=>window.deleteMemo(window.editingMemoId,window.previousView));
-    bindClick('plot-add-new-btn',()=>window.openPlotEditor(null)); bindClick('char-add-new-btn',()=>window.openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',window.saveCharItem);
+    bindClick('plot-add-new-btn',()=>window.openPlotEditor(null)); bindClick('char-add-new-btn',()=>window.openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none');
     
+    // イベント登録の順序修正（必ず関数定義の後に）
+    bindClick('char-edit-save',window.saveCharItem);
+    bindClick('char-delete-btn', window.deleteCharItem);
+    bindClick('char-mode-to-edit', () => { document.getElementById('char-view-mode').style.display='none'; document.getElementById('char-edit-mode').style.display='block'; document.getElementById('char-header-title').textContent = "編集"; const delBtn = document.getElementById('char-delete-btn'); if(delBtn) delBtn.style.display = 'block'; });
+
     document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>window.activateTab(btn.getAttribute('data-tab'))));
     const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',window.renderWorkList);
     const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',window.renderWorkList);
