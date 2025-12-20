@@ -61,12 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadDailyLog(); 
             loadLocalSettings();
             
-            // リロード時の復帰処理（修正版）
             const lv = localStorage.getItem('sb_last_view');
             const lw = localStorage.getItem('sb_last_work');
             
             if (lv === 'workspace' && lw && lw !== "null") {
-                // ワークスペース復帰を試みる
                 await openWork(lw, localStorage.getItem('sb_last_tab') || 'tab-editor');
                 const lc = localStorage.getItem('sb_last_chapter');
                 if (lc) setTimeout(()=>document.querySelector(`.chapter-item[data-id="${lc}"]`)?.click(), 500);
@@ -99,7 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(name === 'stats') loadStats();
             if(name === 'workspace') loadMemoListForWorkspace();
             
-            // 状態保存（workspaceでIDがない場合は保存しない）
             if(!(name === 'workspace' && !window.currentWorkId)) {
                 localStorage.setItem('sb_last_view', name);
             }
@@ -265,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const editorTab = document.getElementById('tab-editor'); if(!editorTab) return;
         editorTab.innerHTML=''; editorTab.style.flexDirection='row'; editorTab.classList.remove('mobile-editor-active');
         
-        // サイドバー構築
         const sidebar = document.createElement('div'); sidebar.id='chapter-sidebar'; sidebar.className='chapter-sidebar';
         sidebar.innerHTML=`
             <div class="sidebar-header">
@@ -406,7 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
     
-    // --- Export Functions ---
     window.saveWorkAsTxt = async () => {
         if (!window.currentWorkId) return;
         const s = await db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order', 'asc').get();
@@ -445,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(fmt==='pdf') content = content.replace(/\n/g, '<br>');
             title = "characters";
         } else if (type === 'memo_ws') {
-            const s = await db.collection('memos').where('uid', '==', window.currentUser.uid).get(); // 簡易化のため全件取得フィルタ
+            const s = await db.collection('memos').where('uid', '==', window.currentUser.uid).get(); 
             s.forEach(d => { const da = d.data(); content += `■${da.title}\n${da.content}\n\n`; });
              if(fmt==='pdf') content = content.replace(/\n/g, '<br>');
             title = "memos";
@@ -649,9 +644,102 @@ document.addEventListener('DOMContentLoaded', () => {
         db.collection('daily_logs').doc(`${window.currentUser.uid}_${s}`).set({uid:window.currentUser.uid,date:s,count:window.todayAddedCount,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     };
 
-    window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div><div class="char-role">${escapeHtml(d.role)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
-    window.openCharEditor=function(id){window.editingCharId=id;const fields=['name','ruby','alias','age','birth','role','height','appearance','personality','ability','background','memo'];const p=document.getElementById('char-icon-preview');const hb=document.querySelector('#char-edit-view #char-edit-back');if(hb)hb.textContent="← 戻る";if(id){db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc=>{if(doc.exists){const d=doc.data();fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value=d[f]||"";});if(d.iconBase64){p.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;p.setAttribute('data-base64',d.iconBase64);}else{p.innerHTML='👤';p.removeAttribute('data-base64');}}});}else{fields.forEach(f=>{const e=document.getElementById('char-'+f);if(e)e.value="";});p.innerHTML='👤';p.removeAttribute('data-base64');}document.getElementById('char-edit-view').style.display='flex';};
-    window.saveCharItem=async function(){const getData=id=>document.getElementById('char-'+id)?.value||"";const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||"";const d={name:getData('name'),ruby:getData('ruby'),alias:getData('alias'),age:getData('age'),birth:getData('birth'),role:getData('role'),height:getData('height'),appearance:getData('appearance'),personality:getData('personality'),ability:getData('ability'),background:getData('background'),memo:getData('memo'),iconBase64:ib,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingCharId)await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d);else{const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get();d.order=s.size+1;d.createdAt=firebase.firestore.FieldValue.serverTimestamp();await db.collection('works').doc(window.currentWorkId).collection('characters').add(d);}document.getElementById('char-edit-view').style.display='none';loadCharacters();};
+    window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
+    
+    // キャラ詳細：閲覧モードと編集モードの切り替え
+    window.openCharEditor=function(id){
+        window.editingCharId=id;
+        const v = document.getElementById('char-view-mode');
+        const e = document.getElementById('char-edit-mode');
+        const t = document.getElementById('char-header-title');
+        const btn = document.getElementById('char-mode-toggle');
+        
+        // 編集フォームの初期化
+        const fields=['name','ruby','alias','age','height','role','appearance','personality','ability','background','memo'];
+        fields.forEach(f=>{ const el=document.getElementById('char-'+f); if(el)el.value=""; });
+        document.getElementById('char-birth-m').value="";
+        document.getElementById('char-birth-d').value="";
+        document.getElementById('char-icon-preview').innerHTML='👤';
+        document.getElementById('char-icon-preview').removeAttribute('data-base64');
+
+        if(id){
+            // 既存データ読み込み -> 閲覧モード
+            db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(doc=>{
+                if(doc.exists){
+                    const d=doc.data();
+                    // Viewにセット
+                    const setV=(eid,val)=>{document.getElementById('cv-'+eid).textContent=val||'-';};
+                    setV('name',d.name); setV('role',d.role); setV('age',d.age?d.age+'歳':'-'); setV('height',d.height?d.height+'cm':'-');
+                    setV('personality',d.personality); setV('appearance',d.appearance); setV('background',d.background); setV('memo',d.memo);
+                    
+                    // 誕生日の表示
+                    let birthStr = '-';
+                    if(d.birthM && d.birthD) birthStr = `${d.birthM}月${d.birthD}日`;
+                    else if(d.birth) birthStr = d.birth; // 旧データ互換
+                    document.getElementById('cv-birth').textContent = birthStr;
+
+                    const iconDiv = document.getElementById('cv-icon');
+                    if(d.iconBase64) iconDiv.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+                    else iconDiv.innerHTML='👤';
+
+                    // Editフォームにもセット
+                    fields.forEach(f=>{ const el=document.getElementById('char-'+f); if(el)el.value=d[f]||""; });
+                    if(d.birthM) document.getElementById('char-birth-m').value = d.birthM;
+                    if(d.birthD) document.getElementById('char-birth-d').value = d.birthD;
+                    // 旧データのパース
+                    if(!d.birthM && d.birth){
+                         // 簡易的な数字抽出 (例: 1024 -> 10, 24 は難しいので、そのまま入れておくか、空にする)
+                         // ここではあえて空にする（新形式へ移行のため）
+                    }
+
+                    if(d.iconBase64){
+                        const p=document.getElementById('char-icon-preview');
+                        p.innerHTML=`<img src="${d.iconBase64}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+                        p.setAttribute('data-base64',d.iconBase64);
+                    }
+                    
+                    v.style.display='block'; e.style.display='none';
+                    t.textContent = "詳細"; btn.textContent = "編集"; btn.style.display="block";
+                    btn.onclick = () => {
+                        v.style.display='none'; e.style.display='block';
+                        t.textContent = "編集"; btn.style.display="none";
+                    };
+                }
+            });
+        } else {
+            // 新規作成 -> いきなり編集モード
+            v.style.display='none'; e.style.display='block';
+            t.textContent = "新規作成"; btn.style.display="none";
+        }
+        document.getElementById('char-edit-view').style.display='flex';
+    };
+
+    window.saveCharItem=async function(){
+        const getData=id=>document.getElementById('char-'+id)?.value||"";
+        const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||"";
+        
+        const birthM = document.getElementById('char-birth-m').value;
+        const birthD = document.getElementById('char-birth-d').value;
+
+        const d={
+            name:getData('name'), ruby:getData('ruby'), alias:getData('alias'),
+            age:getData('age'), height:getData('height'), role:getData('role'),
+            birthM: birthM, birthD: birthD,
+            appearance:getData('appearance'), personality:getData('personality'),
+            ability:getData('ability'), background:getData('background'), memo:getData('memo'),
+            iconBase64:ib, updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        if(window.editingCharId) await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d);
+        else{
+            const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get();
+            d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection('works').doc(window.currentWorkId).collection('characters').add(d);
+        }
+        document.getElementById('char-edit-view').style.display='none';
+        loadCharacters();
+    };
+
     window.deleteCharItem=async function(){if(window.editingCharId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();document.getElementById('char-edit-view').style.display='none';loadCharacters();}};
     window.moveChar=async function(id,dir){await moveItem('characters',id,dir);loadCharacters();};
     async function moveItem(col,id,dir){const snap=await db.collection('works').doc(window.currentWorkId).collection(col).orderBy('order','asc').get();let items=[];snap.forEach(d=>items.push({id:d.id,...d.data()}));const idx=items.findIndex(i=>i.id===id);if(idx===-1)return;const tIdx=idx+dir;if(tIdx<0||tIdx>=items.length)return;[items[idx],items[tIdx]]=[items[tIdx],items[idx]];const batch=db.batch();items.forEach((it,i)=>{batch.update(db.collection('works').doc(window.currentWorkId).collection(col).doc(it.id),{order:i+1});});await batch.commit();}
