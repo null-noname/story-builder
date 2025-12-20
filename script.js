@@ -262,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const editorTab = document.getElementById('tab-editor'); if(!editorTab) return;
         editorTab.innerHTML=''; editorTab.style.flexDirection='row'; editorTab.classList.remove('mobile-editor-active');
         
+        // サイドバー構築
         const sidebar = document.createElement('div'); sidebar.id='chapter-sidebar'; sidebar.className='chapter-sidebar';
         sidebar.innerHTML=`
             <div class="sidebar-header">
@@ -501,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const t=document.getElementById('plot-edit-title'); const c=document.getElementById('plot-edit-content'); const ty=document.getElementById('plot-edit-type');
         
         const header = document.querySelector('#plot-edit-view .edit-overlay-header');
-        header.innerHTML = `<button id="plot-edit-back" class="btn-custom btn-small">← 戻る</button><span style="font-weight:bold;">プロット編集</span><div style="width:50px;"></div>`;
+        header.innerHTML = `<button id="plot-edit-back" class="btn-custom btn-small">← 保存して戻る</button><span style="font-weight:bold;">プロット編集</span><div style="width:50px;"></div>`;
         document.getElementById('plot-edit-back').onclick = () => document.getElementById('plot-edit-view').style.display='none';
 
         const body = document.querySelector('#plot-edit-view .edit-overlay-body');
@@ -699,20 +700,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     v.style.display='block'; e.style.display='none';
-                    t.textContent = "詳細"; btn.textContent = "編集"; btn.style.display="block";
-                    btn.onclick = () => {
-                        v.style.display='none'; e.style.display='block';
-                        t.textContent = "編集"; btn.style.display="none";
-                    };
+                    t.textContent = "詳細"; 
+                    
+                    // モード切替ボタンの制御
+                    const delBtn = document.getElementById('char-delete-btn');
+                    if(delBtn) delBtn.style.display = 'none'; // 閲覧時はヘッダー削除ボタン隠す? → 指示は「右上に削除」なので常時表示でもよいが、編集時の方が自然。
+                    // 指示: 「右上に削除、下を保存にして」「編集は真ん中にして」
+                    // 閲覧モード: 真ん中に「編集モード」ボタン。右上に削除あってもいいが、誤爆防止で編集モード時のみにするか。
+                    // ここでは編集モード時のみ右上に削除を表示し、閲覧モードでは隠す。
                 }
             });
         } else {
             // 新規作成 -> いきなり編集モード
             v.style.display='none'; e.style.display='block';
-            t.textContent = "新規作成"; btn.style.display="none";
+            t.textContent = "新規作成"; 
+            const delBtn = document.getElementById('char-delete-btn');
+            if(delBtn) delBtn.style.display = 'none'; // 新規なので削除ボタンなし
         }
         document.getElementById('char-edit-view').style.display='flex';
     };
+    
+    // 閲覧モードから編集モードへ
+    bindClick('char-mode-to-edit', () => {
+        document.getElementById('char-view-mode').style.display='none';
+        document.getElementById('char-edit-mode').style.display='block';
+        document.getElementById('char-header-title').textContent = "編集";
+        const delBtn = document.getElementById('char-delete-btn');
+        if(delBtn) delBtn.style.display = 'block'; // 編集モードで削除ボタン表示
+    });
+
+    // 削除ボタン（ヘッダー）
+    bindClick('char-delete-btn', deleteCharItem);
 
     window.saveCharItem=async function(){
         const getData=id=>document.getElementById('char-'+id)?.value||"";
@@ -793,7 +811,11 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('preview-close-btn',closePreview); bindClick('preview-mode-btn',togglePreviewMode); bindClick('preview-setting-btn',openPreviewSettings); bindClick('history-close-btn',()=>document.getElementById('history-modal').style.display='none'); bindClick('history-restore-btn',restoreHistory);
     bindClick('es-cancel',()=>document.getElementById('editor-settings-modal').style.display='none'); bindClick('es-save',saveEditorSettings); bindClick('ps-cancel',()=>document.getElementById('preview-settings-modal').style.display='none'); bindClick('ps-save',savePreviewSettings); bindClick('replace-cancel-btn',()=>document.getElementById('replace-modal').style.display='none'); bindClick('replace-execute-btn',executeReplace);
     bindClick('add-new-memo-btn',()=>openMemoEditor(null,'memo')); bindClick('ws-add-new-memo-btn',()=>openMemoEditor(null,'workspace')); bindClick('memo-editor-save',saveMemo); bindClick('memo-editor-cancel',()=>switchView(window.previousView)); bindClick('memo-editor-delete',()=>deleteMemo(window.editingMemoId,window.previousView));
-    bindClick('plot-add-new-btn',()=>openPlotEditor(null)); bindClick('char-add-new-btn',()=>openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',saveCharItem); bindClick('char-edit-delete',deleteCharItem);
+    bindClick('plot-add-new-btn',()=>openPlotEditor(null)); bindClick('char-add-new-btn',()=>openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none');
+    
+    // char-edit-save, char-edit-deleteは動的制御のため、ここで固定バインドしない（openCharEditor内で制御、またはscript内で静的バインド）
+    // 今回は静的に配置したのでバインド
+    bindClick('char-edit-save',saveCharItem);
     
     document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.getAttribute('data-tab'))));
     
