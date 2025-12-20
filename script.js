@@ -1,6 +1,6 @@
 /* Story Builder V1.50 script.js - Part 1/3 */
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. Config & State ---
+    // --- 1. Config & Helpers (Defined First) ---
     const firebaseConfig = {
         apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
         authDomain: "story-builder-app.firebaseapp.com",
@@ -23,22 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.allWorksCache = []; 
     window.unsubscribeWorks = null;
-    
     window.chapterListMode = 'normal';
     window.lastContentLength = 0;
     window.todayAddedCount = 0;
     window.pendingLogSave = null;
     window.writingChart = null;
     window.dailyHistory = [0,0,0,0,0,0,0];
-    window.dragSrcEl = null;
-    window.currentHistoryData = null;
     window.tempTimelineData = [];
-
     window.appSettings = { edLetterSpacing:0, edLineHeight:1.8, edWidth:100, edFontSize:16, prVerticalChars:20, prLinesPage:20, prFontScale:1.0 };
 
-    const loginScreen = document.getElementById('login-screen');
-    const mainApp = document.getElementById('main-app');
-    const loginBtn = document.getElementById('google-login-btn');
     const views = {
         top: document.getElementById('top-view'),
         workspace: document.getElementById('workspace-view'),
@@ -47,16 +40,42 @@ document.addEventListener('DOMContentLoaded', () => {
         memoEditor: document.getElementById('memo-editor-view')
     };
 
+    // ★重要: ヘルパー関数を先に定義（これが原因でエラーになっていました）
+    window.escapeHtml = (s) => {
+        if(!s) return "";
+        return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));
+    };
+    
+    window.updateCatchCounter = (el) => {
+        const r = 35 - el.value.length;
+        const c = document.getElementById('c-count');
+        if(c){ c.textContent = `(残${r})`; c.style.color = r < 0 ? '#f66' : '#89b4fa'; }
+    };
+
+    window.updateCharCount = () => {
+        const e = document.getElementById('main-editor');
+        const c = document.getElementById('editor-char-counter');
+        if(!c) return;
+        if(window.charCountMode === 'total'){
+            c.textContent = `総: ${e.value.length}`; c.style.color = '#fff';
+        } else {
+            c.textContent = `全: ${e.value.replace(/\s/g,'').length}`; c.style.color = '#89b4fa';
+        }
+    };
+
+    // --- 2. Auth & View Functions ---
+    const loginScreen = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    const loginBtn = document.getElementById('google-login-btn');
+
     if (loginBtn) loginBtn.addEventListener('click', () => {
         auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => alert("ログインエラー: "+e.message));
     });
 
-    // --- 2. Auth & View Functions ---
     window.switchView = function(name) {
         Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
         if (views[name]) {
             views[name].style.display = 'flex';
-            
             if(name === 'top') {
                 window.initWorkListener(); 
                 window.loadDailyLog();
@@ -64,7 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
             }
-
             if(name === 'memo') window.loadMemoList();
             if(name === 'stats') window.loadStats();
             if(name === 'workspace') window.loadMemoListForWorkspace();
@@ -146,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         div.innerHTML = `
             <div class="work-info" onclick="openWork('${id}')">
-                <div class="work-title">${data.isPinned?'<span style="color:#4caf50;margin-right:4px;">★</span>':''}${escapeHtml(data.title||'無題')}</div>
+                <div class="work-title">${data.isPinned?'<span style="color:#4caf50;margin-right:4px;">★</span>':''}${window.escapeHtml(data.title||'無題')}</div>
                 <div class="work-meta-container">
                     <div class="work-meta-row">作成: ${fmt(data.createdAt)}</div>
                     <div class="work-meta-row">更新: ${fmt(data.updatedAt)}</div>
@@ -237,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete();};
-    window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
+    window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});}; 
 
 /* Story Builder V1.50 script.js - Part 2/3 */
 
@@ -336,13 +354,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(window.currentChapterId===doc.id)div.classList.add('active');
                 total+=(d.content||"").replace(/\s/g,'').length;
                 if(window.chapterListMode==='reorder'){
-                    div.setAttribute('draggable','true'); div.innerHTML=`<span class="chapter-list-title">${escapeHtml(d.title)}</span><span class="drag-handle">||</span>`;
+                    div.setAttribute('draggable','true'); div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="drag-handle">||</span>`;
                     const h=div.querySelector('.drag-handle'); h.addEventListener('touchstart',handleTouchStart,{passive:false}); h.addEventListener('touchmove',handleTouchMove,{passive:false}); h.addEventListener('touchend',handleTouchEnd);
                     addDragEvents(div);
                 } else if(window.chapterListMode==='delete'){
-                    div.innerHTML=`<span class="chapter-list-title">${escapeHtml(d.title)}</span><span class="chapter-delete-icon" onclick="deleteTargetChapter('${doc.id}')">🗑️</span>`;
+                    div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-delete-icon" onclick="deleteTargetChapter('${doc.id}')">🗑️</span>`;
                 } else {
-                    div.innerHTML=`<span class="chapter-list-title">${escapeHtml(d.title)}</span><span class="chapter-list-count">(${d.content?.length||0}字)</span>`;
+                    div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-list-count">(${d.content?.length||0}字)</span>`;
                     div.onclick=()=>selectChapter(doc.id,d);
                 }
                 list.appendChild(div);
@@ -396,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.saveWorkAsPdf = async () => {
         if (!window.currentWorkId) return;
         const s = await db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order', 'asc').get();
-        let html = `<div style="padding:20px; font-family:serif;">`; s.forEach(doc => { const d = doc.data(); html += `<h2>${escapeHtml(d.title)}</h2><div style="white-space:pre-wrap; margin-bottom:20px; font-size:12px;">${escapeHtml(d.content)}</div><hr>`; }); html += `</div>`;
+        let html = `<div style="padding:20px; font-family:serif;">`; s.forEach(doc => { const d = doc.data(); html += `<h2>${window.escapeHtml(d.title)}</h2><div style="white-space:pre-wrap; margin-bottom:20px; font-size:12px;">${window.escapeHtml(d.content)}</div><hr>`; }); html += `</div>`;
         html2pdf().from(html).save("novel_export.pdf");
     };
     window.exportData = async (type, fmt) => {
@@ -437,9 +455,9 @@ document.addEventListener('DOMContentLoaded', () => {
             snap.forEach(doc=>{
                 const d=doc.data(); const div=document.createElement('div');
                 const isTL = d.type === 'timeline'; div.className = 'plot-card';
-                let previewHtml = ""; if(!isTL) { previewHtml = `<div class="plot-card-preview" style="margin-top:5px;font-size:13px;color:#aaa;white-space:pre-wrap;max-height:60px;overflow:hidden;">${escapeHtml(d.content)}</div>`; }
+                let previewHtml = ""; if(!isTL) { previewHtml = `<div class="plot-card-preview" style="margin-top:5px;font-size:13px;color:#aaa;white-space:pre-wrap;max-height:60px;overflow:hidden;">${window.escapeHtml(d.content)}</div>`; }
                 const label = isTL ? 'TL' : 'メモ'; const col = isTL ? '#ffb74d' : '#89b4fa';
-                div.innerHTML = `<div class="plot-card-header" style="display:flex;justify-content:space-between;align-items:center;"><div class="plot-card-title" style="font-weight:bold;color:${isTL?'#ddd':'#89b4fa'};">${escapeHtml(d.title||'無題')} <span style="font-size:10px;color:${col};border:1px solid ${col};padding:1px 4px;border-radius:3px;margin-left:5px;">${label}</span></div><div class="plot-actions" style="display:flex;gap:5px;"><div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div><div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',1)">▼</div></div></div>${previewHtml}`;
+                div.innerHTML = `<div class="plot-card-header" style="display:flex;justify-content:space-between;align-items:center;"><div class="plot-card-title" style="font-weight:bold;color:${isTL?'#ddd':'#89b4fa'};">${window.escapeHtml(d.title||'無題')} <span style="font-size:10px;color:${col};border:1px solid ${col};padding:1px 4px;border-radius:3px;margin-left:5px;">${label}</span></div><div class="plot-actions" style="display:flex;gap:5px;"><div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',-1)">▲</div><div class="sort-btn" onclick="event.stopPropagation();movePlot('${doc.id}',1)">▼</div></div></div>${previewHtml}`;
                 div.onclick=()=>openPlotEditor(doc.id); c.appendChild(div);
             });
         });
@@ -475,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById('plot-timeline-editor'); if(window.tempTimelineData.length === 0) window.tempTimelineData.push({time:"", text:""});
         el.innerHTML = window.tempTimelineData.map((row, i) => {
             let [datePart, timePart] = (row.time || "").split(' '); if(!timePart) { timePart = ""; }
-            return `<div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden; min-height:60px;"><div style="width:70px; border-right:1px solid #444; display:flex; flex-direction:column; background:#151515;"><input type="text" class="tl-date-input" data-idx="${i}" value="${escapeHtml(datePart||'')}" style="background:transparent; border:none; border-bottom:1px solid #333; color:#fff; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;"><input type="text" class="tl-time-input" data-idx="${i}" value="${escapeHtml(timePart||'')}" style="background:transparent; border:none; color:#ddd; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;"></div><div style="flex:1; display:flex; align-items:center;"><textarea class="tl-text-input" data-idx="${i}" rows="1" style="width:100%; background:transparent; border:none; color:#fff; resize:none; padding:10px; line-height:1.5; overflow:hidden; min-height:50px;">${escapeHtml(row.text)}</textarea></div><div style="width:32px; display:flex; flex-direction:column; background:#222; border-left:1px solid #444;"><button onclick="moveTLRow(${i},-1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▲</button><button onclick="moveTLRow(${i},1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▼</button><button onclick="deleteTLRow(${i})" style="flex:1; border:none; background:#500; color:#fff; cursor:pointer; font-size:14px;">×</button></div></div>`;
+            return `<div style="display:flex; align-items:stretch; margin-bottom:5px; background:#000; border:1px solid #444; border-radius:4px; overflow:hidden; min-height:60px;"><div style="width:70px; border-right:1px solid #444; display:flex; flex-direction:column; background:#151515;"><input type="text" class="tl-date-input" data-idx="${i}" value="${window.escapeHtml(datePart||'')}" style="background:transparent; border:none; border-bottom:1px solid #333; color:#fff; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;"><input type="text" class="tl-time-input" data-idx="${i}" value="${window.escapeHtml(timePart||'')}" style="background:transparent; border:none; color:#ddd; text-align:center; width:100%; font-size:12px; height:50%; outline:none; padding:0;"></div><div style="flex:1; display:flex; align-items:center;"><textarea class="tl-text-input" data-idx="${i}" rows="1" style="width:100%; background:transparent; border:none; color:#fff; resize:none; padding:10px; line-height:1.5; overflow:hidden; min-height:50px;">${window.escapeHtml(row.text)}</textarea></div><div style="width:32px; display:flex; flex-direction:column; background:#222; border-left:1px solid #444;"><button onclick="moveTLRow(${i},-1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▲</button><button onclick="moveTLRow(${i},1)" style="flex:1; border:none; background:transparent; color:#fff; cursor:pointer; font-size:10px; border-bottom:1px solid #333;">▼</button><button onclick="deleteTLRow(${i})" style="flex:1; border:none; background:#500; color:#fff; cursor:pointer; font-size:14px;">×</button></div></div>`;
         }).join('') + `<button onclick="addTLRow()" class="btn-custom btn-full" style="margin-top:10px;">＋ 行を追加</button>`;
         const updateTimeData = (idx) => { const d = el.querySelector(`.tl-date-input[data-idx="${idx}"]`).value; const t = el.querySelector(`.tl-time-input[data-idx="${idx}"]`).value; window.tempTimelineData[idx].time = (d + " " + t).trim(); };
         el.querySelectorAll('.tl-date-input').forEach(e => e.oninput = (ev) => updateTimeData(ev.target.dataset.idx)); el.querySelectorAll('.tl-time-input').forEach(e => e.oninput = (ev) => updateTimeData(ev.target.dataset.idx));
@@ -489,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deletePlotItem = async function() { if(window.editingPlotId && confirm("削除しますか？")){ await db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete(); document.getElementById('plot-edit-view').style.display='none'; loadPlots(); } };
     window.movePlot = async function(id, dir) { await moveItem('plots', id, dir); loadPlots(); };
 
-    window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${escapeHtml(d.name)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
+    window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${window.escapeHtml(d.name)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').textContent=snap.size+"体";});};
     
     // --- Define Char Functions BEFORE Binding ---
     window.saveCharItem=async function(){ 
@@ -525,21 +543,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="char-view-header">
                             ${iconHtml}
                             <div class="cv-h-info">
-                                <div class="cv-h-ruby">${escapeHtml(d.ruby||'')}</div>
-                                <div class="cv-h-name">${escapeHtml(d.name)}</div>
+                                <div class="cv-h-ruby">${window.escapeHtml(d.ruby||'')}</div>
+                                <div class="cv-h-name">${window.escapeHtml(d.name)}</div>
                                 <div class="cv-h-grid">
-                                    <div class="cv-h-label">役職</div><div class="cv-h-val">${escapeHtml(d.role||'-')}</div>
-                                    <div class="cv-h-label">身長</div><div class="cv-h-val">${escapeHtml(d.height?d.height+'cm':'-')}</div>
-                                    <div class="cv-h-label">年齢</div><div class="cv-h-val">${escapeHtml(d.age?d.age+'歳':'-')}</div>
-                                    <div class="cv-h-label">誕生日</div><div class="cv-h-val">${escapeHtml(birthStr)}</div>
+                                    <div class="cv-h-label">役職</div><div class="cv-h-val">${window.escapeHtml(d.role||'-')}</div>
+                                    <div class="cv-h-label">身長</div><div class="cv-h-val">${window.escapeHtml(d.height?d.height+'cm':'-')}</div>
+                                    <div class="cv-h-label">年齢</div><div class="cv-h-val">${window.escapeHtml(d.age?d.age+'歳':'-')}</div>
+                                    <div class="cv-h-label">誕生日</div><div class="cv-h-val">${window.escapeHtml(birthStr)}</div>
                                 </div>
                             </div>
                         </div>
-                        <div class="cv-section"><div class="cv-section-title">性格</div><div class="cv-section-body">${escapeHtml(d.personality||'')}</div></div>
-                        <div class="cv-section"><div class="cv-section-title">見た目</div><div class="cv-section-body">${escapeHtml(d.appearance||'')}</div></div>
-                        <div class="cv-section"><div class="cv-section-title">特技・能力</div><div class="cv-section-body">${escapeHtml(d.ability||'')}</div></div>
-                        <div class="cv-section"><div class="cv-section-title">生い立ち・背景</div><div class="cv-section-body">${escapeHtml(d.background||'')}</div></div>
-                        <div class="cv-section"><div class="cv-section-title">その他メモ</div><div class="cv-section-body">${escapeHtml(d.memo||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">性格</div><div class="cv-section-body">${window.escapeHtml(d.personality||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">見た目</div><div class="cv-section-body">${window.escapeHtml(d.appearance||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">特技・能力</div><div class="cv-section-body">${window.escapeHtml(d.ability||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">生い立ち・背景</div><div class="cv-section-body">${window.escapeHtml(d.background||'')}</div></div>
+                        <div class="cv-section"><div class="cv-section-title">その他メモ</div><div class="cv-section-body">${window.escapeHtml(d.memo||'')}</div></div>
                         <div style="text-align:center;margin-top:20px;"><button id="char-mode-to-edit" class="btn-custom" style="padding:10px 40px;">編集モード</button></div>
                     `;
                     
@@ -562,26 +580,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Misc
     window.loadMemoList=()=>{if(!window.currentUser)return;const c=document.getElementById('memo-list-container');if(!c)return;c.innerHTML='';db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{let m=[];s.forEach(d=>m.push({id:d.id,...d.data()}));m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'memo')));});};
     window.loadMemoListForWorkspace=()=>{if(!window.currentUser)return;const c=document.getElementById('ws-memo-list-container');if(!c)return;c.innerHTML='';db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{let m=[];s.forEach(d=>m.push({id:d.id,...d.data()}));m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'workspace')));});};
-    function createMemoCard(id,data,view){const d=document.createElement('div');d.className='memo-card';d.innerHTML=`<div class="memo-header"><span class="memo-title">${escapeHtml(data.title)}</span><div><button class="memo-btn" onclick="openMemoEditor('${id}','${view}')">編集</button><button class="memo-btn memo-btn-delete" onclick="deleteMemo('${id}','${view}')">削除</button></div></div><div class="memo-divider"></div><div class="memo-text">${escapeHtml(data.content)}</div>`;return d;}
+    function createMemoCard(id,data,view){const d=document.createElement('div');d.className='memo-card';d.innerHTML=`<div class="memo-header"><span class="memo-title">${window.escapeHtml(data.title)}</span><div><button class="memo-btn" onclick="openMemoEditor('${id}','${view}')">編集</button><button class="memo-btn memo-btn-delete" onclick="deleteMemo('${id}','${view}')">削除</button></div></div><div class="memo-divider"></div><div class="memo-text">${window.escapeHtml(data.content)}</div>`;return d;}
     window.openMemoEditor=(id,v)=>{window.editingMemoId=id;window.previousView=v;if(id){db.collection('memos').doc(id).get().then(d=>{const da=d.data();document.getElementById('memo-editor-title').value=da.title;document.getElementById('memo-editor-content').value=da.content;switchView('memoEditor');});}else{document.getElementById('memo-editor-title').value="";document.getElementById('memo-editor-content').value="";switchView('memoEditor');}};
     window.saveMemo=()=>{const t=document.getElementById('memo-editor-title').value||"新規メモ";const c=document.getElementById('memo-editor-content').value;const d={uid:window.currentUser.uid,title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingMemoId)db.collection('memos').doc(window.editingMemoId).update(d).then(()=>switchView(window.previousView));else{d.createdAt=firebase.firestore.FieldValue.serverTimestamp();db.collection('memos').add(d).then(()=>switchView(window.previousView));}};
     window.deleteMemo=(id,v)=>{if(confirm("削除しますか？"))db.collection('memos').doc(id).delete().then(()=>(v==='memo'?loadMemoList:loadMemoListForWorkspace)());};
     window.loadStats=function(){db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);loadDailyLog();const ctx=document.getElementById('writingChart').getContext('2d');if(window.writingChart)window.writingChart.destroy();window.writingChart=new Chart(ctx,{type:'bar',data:{labels:window.graphLabels,datasets:[{data:window.dailyHistory,backgroundColor:'#89b4fa',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#444'}},x:{grid:{display:false}}}}});};
     window.trackDailyProgress=function(){const e=document.getElementById('main-editor');if(!e)return;const diff=e.value.length-window.lastContentLength;if(diff>0){window.todayAddedCount+=diff;window.dailyHistory[6]=window.todayAddedCount;document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`;if(window.writingChart){window.writingChart.data.datasets[0].data=window.dailyHistory;window.writingChart.update();}if(window.pendingLogSave)clearTimeout(window.pendingLogSave);window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000);}window.lastContentLength=e.value.length;};
-    window.showPreview=function(){const e=document.getElementById('main-editor');const c=document.getElementById('preview-content');document.getElementById('preview-modal').style.display='flex';c.innerHTML=escapeHtml(e.value).replace(/\n/g,'<br>').replace(/[\|｜]([^《]+?)《(.+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');applyPreviewLayout();};
+    window.showPreview=function(){const e=document.getElementById('main-editor');const c=document.getElementById('preview-content');document.getElementById('preview-modal').style.display='flex';c.innerHTML=window.escapeHtml(e.value).replace(/\n/g,'<br>').replace(/[\|｜]([^《]+?)《(.+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');applyPreviewLayout();};
     window.closePreview=()=>document.getElementById('preview-modal').style.display='none'; window.togglePreviewMode=()=>{const c=document.getElementById('preview-content');c.classList.toggle('vertical-mode');document.getElementById('preview-mode-btn').textContent=c.classList.contains('vertical-mode')?'横読み':'縦読み';};
     window.openPreviewSettings=()=>document.getElementById('preview-settings-modal').style.display='flex'; window.savePreviewSettings=()=>{window.appSettings.prVerticalChars=document.getElementById('ps-vertical-chars').value;window.appSettings.prLinesPage=document.getElementById('ps-lines-page').value;window.appSettings.prFontScale=document.getElementById('ps-font-scale').value;localStorage.setItem('sb_app_settings',JSON.stringify(window.appSettings));applyPreviewLayout();document.getElementById('preview-settings-modal').style.display='none';};
     function applyPreviewLayout(){const r=document.documentElement.style;const s=18*parseFloat(window.appSettings.prFontScale);r.setProperty('--pr-font-size',s+'px');r.setProperty('--pr-height',(s*parseInt(window.appSettings.prVerticalChars))+'px');}
     window.openEditorSettings=()=>document.getElementById('editor-settings-modal').style.display='flex'; window.saveEditorSettings=()=>{window.appSettings.edLetterSpacing=document.getElementById('es-letter-spacing').value;window.appSettings.edLineHeight=document.getElementById('es-line-height').value;window.appSettings.edWidth=document.getElementById('es-width').value;window.appSettings.edFontSize=document.getElementById('es-font-size').value;localStorage.setItem('sb_app_settings',JSON.stringify(window.appSettings));applySettingsToDOM();document.getElementById('editor-settings-modal').style.display='none';};
     window.loadLocalSettings=()=>{const s=localStorage.getItem('sb_app_settings');if(s)try{window.appSettings={...window.appSettings,...JSON.parse(s)};}catch(e){}applySettingsToDOM();}; function applySettingsToDOM(){const r=document.documentElement.style;r.setProperty('--ed-font-size',window.appSettings.edFontSize+'px');r.setProperty('--ed-line-height',window.appSettings.edLineHeight);r.setProperty('--ed-letter-spacing',window.appSettings.edLetterSpacing+'em');r.setProperty('--ed-width',window.appSettings.edWidth+'%');}
-    window.openReplaceModal=()=>document.getElementById('replace-modal').style.display='flex'; window.executeReplace=()=>{const s=document.getElementById('replace-search-input').value;const r=document.getElementById('replace-target-input').value;if(!s)return;const e=document.getElementById('main-editor');const rg=new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');const c=(e.value.match(rg)||[]).length;if(c===0){alert("なし");return;}e.value=e.value.replace(rg,r);document.getElementById('replace-modal').style.display='none';updateCharCount();};
+    window.openReplaceModal=()=>document.getElementById('replace-modal').style.display='flex'; window.executeReplace=()=>{const s=document.getElementById('replace-search-input').value;const r=document.getElementById('replace-target-input').value;if(!s)return;const e=document.getElementById('main-editor');const rg=new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');const c=(e.value.match(rg)||[]).length;if(c===0){alert("なし");return;}e.value=e.value.replace(rg,r);document.getElementById('replace-modal').style.display='none';window.updateCharCount();};
     window.openHistoryModal=function(){if(!window.currentWorkId||!window.currentChapterId){alert("作品または章が開かれていません");return;}document.getElementById('history-modal').style.display='flex';loadHistoryList();};
     function loadHistoryList(){const l=document.getElementById('history-list');l.innerHTML='Loading...';db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).collection('history').orderBy('savedAt','desc').limit(20).get().then(s=>{l.innerHTML='';s.forEach((d,i)=>{const dt=d.data();const date=dt.savedAt?new Date(dt.savedAt.toDate()):new Date();const div=document.createElement('div');div.className='history-item';div.textContent=`${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()} (${dt.content.length}字)`;div.onclick=()=>showDiff(dt.content,div);l.appendChild(div);if(i===0)div.click();});});}
     function showDiff(old,el){document.querySelectorAll('.history-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');window.currentHistoryData=old;const cur=document.getElementById('main-editor').value;const diff=Diff.diffLines(old,cur);const d=document.getElementById('history-diff-view');d.innerHTML='';diff.forEach(p=>{const s=document.createElement('span');s.className=p.added?'diff-added':p.removed?'diff-removed':'';s.textContent=p.value;d.appendChild(s);});}
     window.restoreHistory=async()=>{if(window.currentHistoryData!==null&&confirm("復元しますか？")){document.getElementById('main-editor').value=window.currentHistoryData;document.getElementById('history-modal').style.display='none';await saveCurrentChapter(null,false);}};
     window.toggleVerticalMode=()=>{const e=document.getElementById('main-editor');const b=document.getElementById('btn-writing-mode');if(e){e.classList.toggle('vertical-mode');b.textContent=e.classList.contains('vertical-mode')?'横':'縦';}};
-    window.insertTextAtCursor=(t)=>{const e=document.getElementById('main-editor');if(!e)return;const s=e.selectionStart;const end=e.selectionEnd;e.value=e.value.substring(0,s)+t+e.value.substring(end);e.selectionStart=e.selectionEnd=s+t.length;e.focus();updateCharCount();trackDailyProgress();};
-    window.insertRuby=()=>{const p=prompt("親文字");if(!p)return;const r=prompt("ルビ");if(!r)return;insertTextAtCursor(`｜${p}《${r}》`);}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';updateCharCount();}; window.updateCharCount=()=>{const e=document.getElementById('main-editor');const c=document.getElementById('editor-char-counter');if(!c)return;if(window.charCountMode==='total'){c.textContent=`総: ${e.value.length}`;c.style.color='#fff';}else{c.textContent=`全: ${e.value.replace(/\s/g,'').length}`;c.style.color='#89b4fa';}}; window.updateCatchCounter=(el)=>{const r=35-el.value.length;const c=document.getElementById('c-count');if(c){c.textContent=`(残${r})`;c.style.color=r<0?'#f66':'#89b4fa';}}; window.escapeHtml=(s)=>{if(!s)return"";return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));};
+    window.insertTextAtCursor=(t)=>{const e=document.getElementById('main-editor');if(!e)return;const s=e.selectionStart;const end=e.selectionEnd;e.value=e.value.substring(0,s)+t+e.value.substring(end);e.selectionStart=e.selectionEnd=s+t.length;e.focus();window.updateCharCount();window.trackDailyProgress();};
+    window.insertRuby=()=>{const p=prompt("親文字");if(!p)return;const r=prompt("ルビ");if(!r)return;insertTextAtCursor(`｜${p}《${r}》`);}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';window.updateCharCount();}; window.escapeHtml=(s)=>{if(!s)return"";return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));};
     
     // --- 3. Events Binding ---
     function bindClick(id,h){const e=document.getElementById(id);if(e)e.addEventListener('click',h);}
@@ -593,7 +611,6 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('add-new-memo-btn',()=>window.openMemoEditor(null,'memo')); bindClick('ws-add-new-memo-btn',()=>window.openMemoEditor(null,'workspace')); bindClick('memo-editor-save',window.saveMemo); bindClick('memo-editor-cancel',()=>window.switchView(window.previousView)); bindClick('memo-editor-delete',()=>window.deleteMemo(window.editingMemoId,window.previousView));
     bindClick('plot-add-new-btn',()=>window.openPlotEditor(null)); bindClick('char-add-new-btn',()=>window.openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none');
     
-    // イベント登録の順序修正（必ず関数定義の後に）
     bindClick('char-edit-save',window.saveCharItem);
     bindClick('char-delete-btn', window.deleteCharItem);
     bindClick('char-mode-to-edit', () => { document.getElementById('char-view-mode').style.display='none'; document.getElementById('char-edit-mode').style.display='block'; document.getElementById('char-header-title').textContent = "編集"; const delBtn = document.getElementById('char-delete-btn'); if(delBtn) delBtn.style.display = 'block'; });
@@ -609,7 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 4. Initialization ---
     window.initEditorToolbar();
     
-    // Auth Listener (Last to run)
     auth.onAuthStateChanged(async user => {
         if (user) {
             window.currentUser = user;
