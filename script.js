@@ -207,6 +207,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!workDoc.exists) return;
         window.fillWorkInfo(workDoc.data());
         
+        // エクスポートボタン表示制御
+        const infoBtns = document.getElementById('info-export-btns');
+        if(infoBtns) infoBtns.style.display = 'flex';
+        const plotBtns = document.getElementById('plot-export-btns');
+        if(plotBtns) plotBtns.style.display = 'block';
+        const charBtns = document.getElementById('char-export-btns');
+        if(charBtns) charBtns.style.display = 'block';
+
         const chSnap = await db.collection('works').doc(id).collection('chapters').get();
         if(chSnap.empty && workDoc.data().content) {
             await db.collection('works').doc(id).collection('chapters').add({title:"第1話",content:workDoc.data().content,order:1,updatedAt:new Date()});
@@ -222,8 +230,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.currentUser) return;
         window.currentWorkId = null; window.currentChapterId = null;
         window.fillWorkInfo({});
+        
+        // エクスポートボタン非表示
+        const infoBtns = document.getElementById('info-export-btns');
+        if(infoBtns) infoBtns.style.display = 'none';
+        const plotBtns = document.getElementById('plot-export-btns');
+        if(plotBtns) plotBtns.style.display = 'none';
+        const charBtns = document.getElementById('char-export-btns');
+        if(charBtns) charBtns.style.display = 'none';
+
         const backBtn = document.getElementById('back-to-top');
-        if(backBtn) backBtn.textContent = "戻る";
+        if(backBtn) backBtn.textContent = "戻る"; // 指示通り戻る
         window.switchView('workspace'); window.activateTab('tab-info'); window.toggleTabVisibility(false);
     };
 
@@ -249,8 +266,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const docRef = await db.collection('works').add(data);
             window.currentWorkId = docRef.id;
             await db.collection('works').doc(docRef.id).collection('chapters').add({title: "第1話", content: "", order: 1, updatedAt: new Date()});
+            alert("作品を作成しました！");
+            
+            // 保存されたのでボタン表示
+            const infoBtns = document.getElementById('info-export-btns');
+            if(infoBtns) infoBtns.style.display = 'flex';
+            const plotBtns = document.getElementById('plot-export-btns');
+            if(plotBtns) plotBtns.style.display = 'block';
+            const charBtns = document.getElementById('char-export-btns');
+            if(charBtns) charBtns.style.display = 'block';
         } else {
             await db.collection('works').doc(window.currentWorkId).update(data);
+            alert("作品情報を更新しました。");
         }
         window.toggleTabVisibility(true);
         const backBtn = document.getElementById('back-to-top');
@@ -421,18 +448,68 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
     
     // Export Functions
+    // 修正：範囲選択ロジック追加、黒文字化
     window.saveWorkAsTxt = async () => {
         if (!window.currentWorkId) return;
-        const s = await db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order', 'asc').get();
-        let txt = ""; s.forEach(doc => { const d = doc.data(); txt += `【${d.title}】\n\n${d.content}\n\n`; });
-        const blob = new Blob([txt], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "novel_export.txt"; a.click();
+        const mode = prompt("【保存範囲の選択】\n\n・「all」と入力：全話を結合して保存\n・「current」または話数（例: 1）を入力：指定の話のみ保存", "all");
+        if(!mode) return;
+
+        let query = db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order', 'asc');
+        const s = await query.get();
+        let txt = "";
+        
+        s.forEach(doc => {
+            const d = doc.data();
+            let target = false;
+            if(mode === 'all') target = true;
+            else if(mode === 'current' && doc.id === window.currentChapterId) target = true;
+            else if(d.order == mode) target = true; // 数字入力対応
+
+            if(target) txt += `【${d.title}】\n\n${d.content}\n\n`; 
+        });
+        
+        if(!txt) { alert("対象の章が見つかりませんでした。"); return; }
+        
+        const blob = new Blob([txt], { type: "text/plain" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "novel_export.txt"; a.click();
     };
+
     window.saveWorkAsPdf = async () => {
         if (!window.currentWorkId) return;
+        const mode = prompt("【PDF保存範囲の選択】\n\n・「all」と入力：全話を結合して保存\n・「current」または話数（例: 1）を入力：指定の話のみ保存", "all");
+        if(!mode) return;
+
         const s = await db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order', 'asc').get();
-        let html = `<div style="padding:20px; font-family:serif;">`; s.forEach(doc => { const d = doc.data(); html += `<h2>${window.escapeHtml(d.title)}</h2><div style="white-space:pre-wrap; margin-bottom:20px; font-size:12px;">${window.escapeHtml(d.content)}</div><hr>`; }); html += `</div>`;
-        html2pdf().from(html).save("novel_export.pdf");
+        let html = `<div style="padding:20px; font-family:serif; color:#000 !important; background:#fff !important;">`; 
+        let found = false;
+
+        s.forEach(doc => { 
+            const d = doc.data(); 
+            let target = false;
+            if(mode === 'all') target = true;
+            else if(mode === 'current' && doc.id === window.currentChapterId) target = true;
+            else if(d.order == mode) target = true;
+
+            if(target){
+                found = true;
+                html += `<h2 style="color:#000;">${window.escapeHtml(d.title)}</h2><div style="white-space:pre-wrap; margin-bottom:20px; font-size:12px; color:#000;">${window.escapeHtml(d.content)}</div><hr style="border-top:1px solid #000;">`; 
+            }
+        }); 
+        html += `</div>`;
+        
+        if(!found) { alert("対象の章が見つかりませんでした。"); return; }
+        
+        // オプション指定で背景白・文字黒を確実に
+        const opt = {
+            margin: 10,
+            filename: 'novel_export.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, backgroundColor: "#ffffff" },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(html).save();
     };
+
     window.exportData = async (type, fmt) => {
         if (!window.currentWorkId && type !== 'memo_common') return;
         let content = "", title = "export";
@@ -454,10 +531,14 @@ document.addEventListener('DOMContentLoaded', () => {
              const s = await db.collection('memos').where('uid', '==', window.currentUser.uid).get(); s.forEach(d => { const da = d.data(); content += `■${da.title}\n${da.content}\n\n`; });
              if(fmt==='pdf') content = content.replace(/\n/g, '<br>'); title = "common_memos";
         }
+        
         if (fmt === 'txt') {
             const blob = new Blob([content], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${title}.txt`; a.click();
         } else {
-            const html = `<div style="font-family:serif; white-space:pre-wrap;">${content}</div>`; html2pdf().from(html).save(`${title}.pdf`);
+            // PDF黒文字化対応
+            const html = `<div style="font-family:serif; white-space:pre-wrap; color:#000 !important; background:#fff !important; padding:20px;">${content}</div>`; 
+            const opt = { margin: 10, filename: `${title}.pdf`, html2canvas: { scale: 2, backgroundColor: "#ffffff" }, jsPDF: { unit: 'mm', format: 'a4' }};
+            html2pdf().set(opt).from(html).save();
         }
     };
 
@@ -616,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.restoreHistory=async()=>{if(window.currentHistoryData!==null&&confirm("復元しますか？")){document.getElementById('main-editor').value=window.currentHistoryData;document.getElementById('history-modal').style.display='none';await saveCurrentChapter(null,false);}};
     window.toggleVerticalMode=()=>{const e=document.getElementById('main-editor');const b=document.getElementById('btn-writing-mode');if(e){e.classList.toggle('vertical-mode');b.textContent=e.classList.contains('vertical-mode')?'横':'縦';}};
     window.insertTextAtCursor=(t)=>{const e=document.getElementById('main-editor');if(!e)return;const s=e.selectionStart;const end=e.selectionEnd;e.value=e.value.substring(0,s)+t+e.value.substring(end);e.selectionStart=e.selectionEnd=s+t.length;e.focus();window.updateCharCount();window.trackDailyProgress();};
-    window.insertRuby=()=>{const p=prompt("親文字");if(!p)return;const r=prompt("ルビ");if(!r)return;insertTextAtCursor(`｜${p}《${r}》`);}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';window.updateCharCount();}; window.updateCharCount=()=>{const e=document.getElementById('main-editor');const c=document.getElementById('editor-char-counter');if(!c)return;if(window.charCountMode==='total'){c.textContent=`総: ${e.value.length}`;c.style.color='#fff';}else{c.textContent=`全: ${e.value.replace(/\s/g,'').length}`;c.style.color='#89b4fa';}}; window.updateCatchCounter=(el)=>{const r=35-el.value.length;const c=document.getElementById('c-count');if(c){c.textContent=`(残${r})`;c.style.color=r<0?'#f66':'#89b4fa';}}; window.escapeHtml=(s)=>{if(!s)return"";return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));};
+    window.insertRuby=()=>{const p=prompt("親文字");if(!p)return;const r=prompt("ルビ");if(!r)return;insertTextAtCursor(`｜${p}《${r}》`);}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';window.updateCharCount();}; window.escapeHtml=(s)=>{if(!s)return"";return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m]));};
     
     // --- 3. Events Binding ---
     function bindClick(id,h){const e=document.getElementById(id);if(e)e.addEventListener('click',h);}
