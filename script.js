@@ -340,7 +340,15 @@ document.addEventListener('DOMContentLoaded', () => {
             {i:'🕒',f:()=>window.openHistoryModal()}
         ];
         
-        tools.forEach(t=>{if(t.s){const s=document.createElement('span');s.textContent='|';s.style.cssText="color:#555;margin:0 5px;";toolbar.appendChild(s);}else{const b=document.createElement('button');b.className='toolbar-btn';b.textContent=t.i;b.onclick=t.f;if(t.id)b.id=t.id;toolbar.appendChild(b);}});
+        tools.forEach(t=>{
+            if(t.s){
+                const s=document.createElement('div');
+                s.style.cssText="width:1px; height:26px; background:#555; margin:0 8px; align-self:center;";
+                toolbar.appendChild(s);
+            } else {
+                const b=document.createElement('button');b.className='toolbar-btn';b.textContent=t.i;b.onclick=t.f;if(t.id)b.id=t.id;toolbar.appendChild(b);
+            }
+        });
         
         header.innerHTML=`<button id="sidebar-toggle-open" class="sidebar-toggle-open-btn" style="display:none;">▶</button>`;
         header.appendChild(toolbar);
@@ -651,7 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openHistoryModal=function(){if(!window.currentWorkId||!window.currentChapterId){alert("作品または章が開かれていません");return;}document.getElementById('history-modal').style.display='flex';loadHistoryList();};
     function loadHistoryList(){const l=document.getElementById('history-list');l.innerHTML='Loading...';db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).collection('history').orderBy('savedAt','desc').limit(20).get().then(s=>{l.innerHTML='';s.forEach((d,i)=>{const dt=d.data();const date=dt.savedAt?new Date(dt.savedAt.toDate()):new Date();const div=document.createElement('div');div.className='history-item';div.textContent=`${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()} (${dt.content.length}字)`;div.onclick=()=>showDiff(dt.content,div);l.appendChild(div);if(i===0)div.click();});});}
     
-    // ■ 修正箇所：diffChars -> diffLines に変更
     function showDiff(old,el){document.querySelectorAll('.history-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');window.currentHistoryData=old;const cur=document.getElementById('main-editor').value;const diff=Diff.diffLines(old,cur);const d=document.getElementById('history-diff-view');d.innerHTML='';diff.forEach(p=>{const s=document.createElement('span');s.className=p.added?'diff-added':p.removed?'diff-removed':'';s.textContent=p.value;d.appendChild(s);});}
     
     window.restoreHistory=async()=>{if(window.currentHistoryData!==null&&confirm("復元しますか？")){document.getElementById('main-editor').value=window.currentHistoryData;document.getElementById('history-modal').style.display='none';await saveCurrentChapter(null,false);}};
@@ -677,7 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindClick('plot-add-new-btn',()=>openPlotEditor(null)); bindClick('char-add-new-btn',()=>openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',saveCharItem); bindClick('char-edit-delete',deleteCharItem);
     
     document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.getAttribute('data-tab'))));
-    // イベントリスナーの修正
+    
     const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',renderWorkList);
     const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',renderWorkList);
     const edEl=document.getElementById('main-editor');if(edEl)edEl.addEventListener('input',()=>{updateCharCount();trackDailyProgress();});
