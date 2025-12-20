@@ -61,18 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadDailyLog(); 
             loadLocalSettings();
             
-            // リロード時の復帰処理
+            // リロード時の復帰処理（修正版）
             const lv = localStorage.getItem('sb_last_view');
-            if (lv === 'workspace') {
-                const lw = localStorage.getItem('sb_last_work');
-                if (lw && lw !== "null") {
-                    await openWork(lw, localStorage.getItem('sb_last_tab') || 'tab-editor');
-                    const lc = localStorage.getItem('sb_last_chapter');
-                    if (lc) setTimeout(()=>document.querySelector(`.chapter-item[data-id="${lc}"]`)?.click(), 500);
-                } else {
-                    switchView('top');
-                }
-            } else if (lv && views[lv]) {
+            const lw = localStorage.getItem('sb_last_work');
+            
+            if (lv === 'workspace' && lw && lw !== "null") {
+                // ワークスペース復帰を試みる
+                await openWork(lw, localStorage.getItem('sb_last_tab') || 'tab-editor');
+                const lc = localStorage.getItem('sb_last_chapter');
+                if (lc) setTimeout(()=>document.querySelector(`.chapter-item[data-id="${lc}"]`)?.click(), 500);
+            } else if (lv && views[lv] && lv !== 'workspace') {
                 switchView(lv);
             } else {
                 switchView('top');
@@ -89,11 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (views[name]) {
             views[name].style.display = 'flex';
             
-            // TOP画面に入るときだけリスナーを起動、出るときは解除
             if(name === 'top') {
                 initWorkListener();
                 loadDailyLog();
-                window.currentWorkId = null; // TOPに戻ったら選択解除
+                window.currentWorkId = null; 
             } else {
                 if(window.unsubscribeWorks) { window.unsubscribeWorks(); window.unsubscribeWorks = null; }
             }
@@ -102,10 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if(name === 'stats') loadStats();
             if(name === 'workspace') loadMemoListForWorkspace();
             
-            // 新規作成中の「戻る」でゴミデータを残さないため、WorkIdがない場合はTOPとみなして保存
-            if(name === 'workspace' && !window.currentWorkId) {
-                // 保存しない（ステートに残さない）
-            } else {
+            // 状態保存（workspaceでIDがない場合は保存しない）
+            if(!(name === 'workspace' && !window.currentWorkId)) {
                 localStorage.setItem('sb_last_view', name);
             }
         }
@@ -119,47 +114,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if(activeTab) localStorage.setItem('sb_last_tab', activeTab.getAttribute('data-tab'));
     }
 
-    // --- 3. Work Management (New Logic) ---
-    
-    // ★重要: 作品リストの監視とソート
+    // --- 3. Work Management ---
     function initWorkListener() {
-        if(window.unsubscribeWorks) window.unsubscribeWorks(); // 重複防止
+        if(window.unsubscribeWorks) window.unsubscribeWorks();
         if(!window.currentUser) return;
-
         window.unsubscribeWorks = db.collection('works').where('uid','==',window.currentUser.uid)
             .onSnapshot(snap => {
                 window.allWorksCache = [];
-                snap.forEach(doc => {
-                    window.allWorksCache.push({ id: doc.id, ...doc.data() });
-                });
-                renderWorkList(); // データが届いたら描画
+                snap.forEach(doc => { window.allWorksCache.push({ id: doc.id, ...doc.data() }); });
+                renderWorkList();
             });
     }
 
-    // ★重要: メモリ上のデータをソートして表示（これで確実に並びます）
     window.renderWorkList = function() {
         const listEl = document.getElementById('work-list'); 
         if(!listEl || !window.allWorksCache) return;
-        
-        const sortKey = document.getElementById('sort-order').value; // 'created' or 'updated'
+        const sortKey = document.getElementById('sort-order').value;
         const filterStatus = document.getElementById('filter-status').value;
-
-        // フィルタリング
         let works = window.allWorksCache.filter(w => {
             if(filterStatus === 'all') return true;
             return w.status === filterStatus;
         });
-
-        // ソート（ピン留め最優先 -> 指定キーの降順）
         works.sort((a, b) => {
-            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1; // true(ピン)が先
-            
+            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1; 
             const timeA = (sortKey === 'created' ? a.createdAt : a.updatedAt)?.toMillis() || 0;
             const timeB = (sortKey === 'created' ? b.createdAt : b.updatedAt)?.toMillis() || 0;
-            
-            return timeB - timeA; // 新しい順
+            return timeB - timeA;
         });
-
         listEl.innerHTML = '';
         works.forEach(d => listEl.appendChild(createWorkItem(d.id, d)));
     }
@@ -189,60 +170,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return div;
     }
 
-    // 既存作品を開く
     window.openWork = async function(id, initTab='tab-info') {
         window.currentWorkId = id; 
         window.currentChapterId = null; 
         saveAppState('workspace');
         
-        // ボタン表記を「戻る」に固定
         const backBtn = document.getElementById('back-to-top');
         if(backBtn) backBtn.textContent = "戻る";
 
         const workDoc = await db.collection('works').doc(id).get();
         if(!workDoc.exists) return;
-        
         fillWorkInfo(workDoc.data());
         
-        // 古いデータ形式のマイグレーション（contentがあれば第1話にする）
         const chSnap = await db.collection('works').doc(id).collection('chapters').get();
         if(chSnap.empty && workDoc.data().content) {
             await db.collection('works').doc(id).collection('chapters').add({title:"第1話",content:workDoc.data().content,order:1,updatedAt:new Date()});
             await db.collection('works').doc(id).update({content:""});
         }
-        
         await loadChapters();
         switchView('workspace');
         activateTab(initTab);
-        toggleTabVisibility(true); // タブを表示
+        toggleTabVisibility(true);
     };
 
-    // ★重要: 「新規作成」ボタンの挙動変更
-    // DBには保存せず、画面だけ初期化して開く
     window.createNewWork = function() {
         if (!window.currentUser) return;
-        window.currentWorkId = null; // IDなし＝未保存状態
-        window.currentChapterId = null;
-        
-        // 入力フォームを空にする
+        window.currentWorkId = null; window.currentChapterId = null;
         fillWorkInfo({});
-        
-        // ボタン表記
         const backBtn = document.getElementById('back-to-top');
         if(backBtn) backBtn.textContent = "中止して戻る";
-
-        switchView('workspace');
-        activateTab('tab-info'); // 作品情報タブを強制
-        toggleTabVisibility(false); // 保存するまで他のタブ（執筆など）は隠す
+        switchView('workspace'); activateTab('tab-info'); toggleTabVisibility(false);
     };
 
-    // ★重要: 「作品情報を保存」ボタンの挙動変更
     window.saveWorkInfo = async function() {
         if(!window.currentUser) return;
-        
-        const ratings=[]; 
-        document.querySelectorAll('input[name="rating"]:checked').forEach(c=>ratings.push(c.value));
-        
+        const ratings=[]; document.querySelectorAll('input[name="rating"]:checked').forEach(c=>ratings.push(c.value));
         const data = {
             uid: window.currentUser.uid,
             title: document.getElementById('input-title').value || "無題の物語",
@@ -256,46 +218,28 @@ document.addEventListener('DOMContentLoaded', () => {
             ratings: ratings,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-
         if (!window.currentWorkId) {
-            // ★新規作成: ここで初めてDBに保存
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            data.totalChars = 0;
-            data.isPinned = false;
-            
+            data.totalChars = 0; data.isPinned = false;
             const docRef = await db.collection('works').add(data);
             window.currentWorkId = docRef.id;
-            
-            // 自動で第1話を作成
-            await db.collection('works').doc(docRef.id).collection('chapters').add({
-                title: "第1話", content: "", order: 1, updatedAt: new Date()
-            });
-            
+            await db.collection('works').doc(docRef.id).collection('chapters').add({title: "第1話", content: "", order: 1, updatedAt: new Date()});
             alert("作品を作成しました！\n執筆画面へ移動します。");
         } else {
-            // 更新
             await db.collection('works').doc(window.currentWorkId).update(data);
             alert("作品情報を更新しました。");
         }
-        
-        // IDが確定したので全タブ有効化し、エディタへ移動
         toggleTabVisibility(true);
         const backBtn = document.getElementById('back-to-top');
         if(backBtn) backBtn.textContent = "戻る";
-        
-        await loadChapters();
-        activateTab('tab-editor');
+        await loadChapters(); activateTab('tab-editor');
     };
 
-    // 未保存時は他のタブを押せないようにする制御
     function toggleTabVisibility(enable) {
         const tabs = ['tab-editor', 'tab-plot', 'tab-char', 'tab-common-memo'];
         tabs.forEach(tid => {
             const btn = document.querySelector(`.tab-btn[data-tab="${tid}"]`);
-            if(btn) {
-                btn.style.opacity = enable ? "1" : "0.3";
-                btn.style.pointerEvents = enable ? "auto" : "none";
-            }
+            if(btn) { btn.style.opacity = enable ? "1" : "0.3"; btn.style.pointerEvents = enable ? "auto" : "none"; }
         });
     }
 
@@ -321,8 +265,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const editorTab = document.getElementById('tab-editor'); if(!editorTab) return;
         editorTab.innerHTML=''; editorTab.style.flexDirection='row'; editorTab.classList.remove('mobile-editor-active');
         
+        // サイドバー構築
         const sidebar = document.createElement('div'); sidebar.id='chapter-sidebar'; sidebar.className='chapter-sidebar';
-        sidebar.innerHTML=`<div class="sidebar-header"><div style="display:flex;align-items:center;flex:1;"><span style="font-weight:bold;">話一覧</span><div style="flex:1;"></div><button class="btn-custom btn-small" id="add-chapter-btn">＋</button><button class="chapter-menu-btn" id="chapter-menu-toggle">≡</button><div id="chapter-menu-overlay" class="chapter-menu-overlay"><div class="chapter-menu-item" onclick="setChapterMode('reorder')">並び替え</div><div class="chapter-menu-item" onclick="setChapterMode('delete')">削除モード</div><div class="chapter-menu-item" onclick="setChapterMode('normal')">閉じる</div></div></div></div><div id="chapter-list" class="chapter-list scrollable"></div><div class="sidebar-footer"><small id="total-work-chars">0字</small><button id="sidebar-toggle-close" class="sidebar-toggle-btn">◀</button></div>`;
+        sidebar.innerHTML=`
+            <div class="sidebar-header">
+                <div style="display:flex;align-items:center;flex:1;">
+                    <span style="font-weight:bold;">話一覧</span>
+                    <div style="flex:1;"></div>
+                    <button class="btn-custom btn-small" id="add-chapter-btn">＋</button>
+                    <button class="chapter-menu-btn" id="chapter-menu-toggle">≡</button>
+                    <div id="chapter-menu-overlay" class="chapter-menu-overlay">
+                        <div class="chapter-menu-item" onclick="setChapterMode('reorder')">並び替え</div>
+                        <div class="chapter-menu-item" onclick="saveWorkAsTxt()">TXTで保存</div>
+                        <div class="chapter-menu-item" onclick="saveWorkAsPdf()">PDFで保存</div>
+                        <div class="chapter-menu-item" onclick="setChapterMode('delete')">削除モード</div>
+                        <div class="chapter-menu-item" onclick="setChapterMode('normal')">閉じる</div>
+                    </div>
+                </div>
+            </div>
+            <div id="chapter-list" class="chapter-list scrollable"></div>
+            <div class="sidebar-footer">
+                <small id="total-work-chars">0字</small>
+                <button id="sidebar-toggle-close" class="sidebar-toggle-btn">◀</button>
+            </div>`;
         editorTab.appendChild(sidebar);
 
         const mainArea = document.createElement('div'); mainArea.className='editor-main-area';
@@ -440,6 +405,65 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTouchMove(e){if(!window.touchSrcEl)return;e.preventDefault();const t=e.touches[0];const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.chapter-item');if(el&&el!==window.touchSrcEl&&el.parentNode===window.touchSrcEl.parentNode)swapNodes(window.touchSrcEl,el);}
     function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}}
     async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
+    
+    // --- Export Functions ---
+    window.saveWorkAsTxt = async () => {
+        if (!window.currentWorkId) return;
+        const s = await db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order', 'asc').get();
+        let txt = "";
+        s.forEach(doc => { const d = doc.data(); txt += `【${d.title}】\n\n${d.content}\n\n`; });
+        const blob = new Blob([txt], { type: "text/plain" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "novel_export.txt"; a.click();
+    };
+
+    window.saveWorkAsPdf = async () => {
+        if (!window.currentWorkId) return;
+        const s = await db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order', 'asc').get();
+        let html = `<div style="padding:20px; font-family:serif;">`;
+        s.forEach(doc => { const d = doc.data(); html += `<h2>${escapeHtml(d.title)}</h2><div style="white-space:pre-wrap; margin-bottom:20px; font-size:12px;">${escapeHtml(d.content)}</div><hr>`; });
+        html += `</div>`;
+        html2pdf().from(html).save("novel_export.pdf");
+    };
+
+    window.exportData = async (type, fmt) => {
+        if (!window.currentWorkId && type !== 'memo_common') return;
+        let content = "", title = "export";
+        if (type === 'info') {
+            const t = document.getElementById('input-title').value; const s = document.getElementById('input-summary').value;
+            const c = document.getElementById('input-catch').value;
+            content = `タイトル: ${t}\n\nあらすじ:\n${s}\n\nキャッチコピー:\n${c}`;
+            if(fmt==='pdf') content = content.replace(/\n/g, '<br>');
+            title = "work_info";
+        } else if (type === 'plot') {
+            const s = await db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('order', 'asc').get();
+            s.forEach(d => { const da = d.data(); content += `■${da.title} (${da.type})\n${da.content}\n\n`; });
+            if(fmt==='pdf') content = content.replace(/\n/g, '<br>');
+            title = "plots";
+        } else if (type === 'char') {
+            const s = await db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order', 'asc').get();
+            s.forEach(d => { const da = d.data(); content += `■${da.name}\n${da.role || ''}\n${da.memo || ''}\n\n`; });
+            if(fmt==='pdf') content = content.replace(/\n/g, '<br>');
+            title = "characters";
+        } else if (type === 'memo_ws') {
+            const s = await db.collection('memos').where('uid', '==', window.currentUser.uid).get(); // 簡易化のため全件取得フィルタ
+            s.forEach(d => { const da = d.data(); content += `■${da.title}\n${da.content}\n\n`; });
+             if(fmt==='pdf') content = content.replace(/\n/g, '<br>');
+            title = "memos";
+        } else if (type === 'memo_common') {
+             const s = await db.collection('memos').where('uid', '==', window.currentUser.uid).get();
+            s.forEach(d => { const da = d.data(); content += `■${da.title}\n${da.content}\n\n`; });
+             if(fmt==='pdf') content = content.replace(/\n/g, '<br>');
+            title = "common_memos";
+        }
+
+        if (fmt === 'txt') {
+            const blob = new Blob([content], { type: "text/plain" });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${title}.txt`; a.click();
+        } else {
+            const html = `<div style="font-family:serif; white-space:pre-wrap;">${content}</div>`;
+            html2pdf().from(html).save(`${title}.pdf`);
+        }
+    };
 
 /* Story Builder V1.50 script.js - Part 3/3 */
 
