@@ -10,3 +10,4 @@
 .short-mode .editor-main-area{display:flex!important;width:100%!important}
 .short-mode #sidebar-toggle-open{display:none!important}
 .short-mode #back-list-btn{display:none!important}
+.short-mode .toolbar-btn{font-size:20px;padding:8px 12px}
