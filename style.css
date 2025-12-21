@@ -4,7 +4,9 @@
 .tl-view-time{width:90px;padding:10px;background:#1a1a1a;border-right:1px solid #444;font-size:12px;color:#aaa;display:flex;align-items:center;justify-content:center;text-align:center;word-break:break-all}
 .tl-view-text{flex:1;padding:10px;font-size:14px;color:#ddd;white-space:pre-wrap}
 .work-badge{font-size:10px;padding:2px 6px;border-radius:3px;margin-left:8px;font-weight:normal;color:#fff;border:1px solid #555;vertical-align:middle;display:inline-block}
-.work-badge.long{background:var(--active-green);border-color:#4caf50}
-.work-badge.short{background:#333;border-color:#666;color:#ccc}
+.work-badge.long{background:#ff9800;border-color:#ff9800}
+.work-badge.short{background:#2196f3;border-color:#2196f3}
 .short-mode .chapter-sidebar{display:none!important}
+.short-mode .editor-main-area{display:flex!important;width:100%!important}
 .short-mode #sidebar-toggle-open{display:none!important}
+.short-mode #back-list-btn{display:none!important}
