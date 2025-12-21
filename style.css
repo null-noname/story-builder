@@ -16,3 +16,4 @@
 .cv-val{font-size:15px;color:#eee;font-weight:bold}
 .cv-spacer{flex:1}
 #tab-editor{display:flex;height:100%}
+.stats-card .unit{font-size:14px!important;color:var(--text-white)!important;margin-left:2px;font-weight:normal!important}
