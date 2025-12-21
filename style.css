@@ -17,4 +17,4 @@
 #tab-editor{flex-direction:row!important;display:flex;height:100%}
 @media(max-width:600px){#tab-editor{flex-direction:column!important}}
 .stats-card .unit{font-size:14px!important;color:var(--text-white)!important;margin-left:2px;font-weight:normal!important}
-.btn-d-blue{background-color:#0d47a1!important;color:#fff;border:none}.btn-d-green{background-color:#1b5e20!important;color:#fff;border:none}.btn-d-red{background-color:#b71c1c!important;color:#fff;border:none}.btn-brown{background-color:#8d6e63!important;color:#fff;border:none}.btn-d-gray{background-color:#424242!important;color:#fff;border:1px solid #666}
+.btn-d-blue{background-color:#303f9f!important;color:#fff;border:none}.btn-d-green{background-color:#1b5e20!important;color:#fff;border:none}.btn-d-red{background-color:#880e4f!important;color:#fff;border:none}.btn-brown{background-color:#8d6e63!important;color:#fff;border:none}.btn-d-gray{background-color:#424242!important;color:#fff;border:1px solid #666}
