@@ -17,8 +17,21 @@ document.addEventListener('DOMContentLoaded', () => {
     window.escapeHtml = (s) => { if(!s) return ""; return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m])); };
     window.updateCatchCounter = (el) => { const r = 35 - el.value.length; const c = document.getElementById('c-count'); if(c){ c.textContent = `(残${r})`; c.style.color = r < 0 ? '#f66' : '#89b4fa'; } };
     window.updateCharCount = () => { const e = document.getElementById('main-editor'); const c = document.getElementById('editor-char-counter'); if(!c) return; if(window.charCountMode === 'total'){ c.textContent = `総: ${e.value.length}`; c.style.color = '#fff'; } else { c.textContent = `全: ${e.value.replace(/\s/g,'').length}`; c.style.color = '#89b4fa'; } };
+    
+    // --- Login Logic (Modified for Mobile/WebView) ---
     const loginScreen = document.getElementById('login-screen'); const mainApp = document.getElementById('main-app'); const loginBtn = document.getElementById('google-login-btn');
-    if (loginBtn) loginBtn.addEventListener('click', () => { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => alert("ログインエラー: "+e.message)); });
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(error => {
+                console.error("Popup login failed", error);
+                // Fallback to redirect if popup fails
+                auth.signInWithRedirect(provider).catch(e => alert("ログイン失敗: " + e.message));
+            });
+        });
+    }
+    // Handle redirect result
+    auth.getRedirectResult().catch(e => console.error("Redirect Login Error:", e));
     
     // --- [Section 3] Navigation ---
     window.switchView = function(name) {
@@ -44,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.fillWorkInfo = function(data) { document.getElementById('input-title').value = data.title||""; document.getElementById('input-summary').value = data.description||""; document.getElementById('input-catch').value = data.catchphrase||""; document.getElementById('input-genre-main').value = data.genreMain||""; document.getElementById('input-genre-sub').value = data.genreSub||""; const setRadio=(n,v)=>{const r=document.querySelector(`input[name="${n}"][value="${v}"]`);if(r)r.checked=true;}; setRadio("novel-status", data.status||"in-progress"); setRadio("novel-type", data.type||"original"); setRadio("ai-usage", data.aiUsage||"none"); const r=data.ratings||[]; document.querySelectorAll('input[name="rating"]').forEach(c=>c.checked=r.includes(c.value)); window.updateCatchCounter(document.getElementById('input-catch')); };
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete();};
     window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
+
 /* script.js - Part 2 */
     // --- [Section 5] Editor (Writing) ---
     window.initEditorToolbar = function() {
@@ -53,7 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar.innerHTML=`<div class="sidebar-header"><div style="display:flex;align-items:center;flex:1;"><span style="font-weight:bold;">話一覧</span><div style="flex:1;"></div><button class="btn-custom btn-small" id="add-chapter-btn">＋</button><button class="chapter-menu-btn" id="chapter-menu-toggle">≡</button><div id="chapter-menu-overlay" class="chapter-menu-overlay"><div class="chapter-menu-item" onclick="setChapterMode('reorder')">並び替え</div><div class="chapter-menu-item" onclick="saveWorkAsPdf('all')">全話保存 (PDF)</div><div class="chapter-menu-item" onclick="saveWorkAsTxt('current')">単話保存 (TXT)</div><div class="chapter-menu-item" onclick="setChapterMode('delete')">削除モード</div><div class="chapter-menu-item" onclick="setChapterMode('normal')">閉じる</div></div></div></div><div id="chapter-list" class="chapter-list scrollable"></div><div class="sidebar-footer"><small id="total-work-chars">0字</small><button id="sidebar-toggle-close" class="sidebar-toggle-btn">◀</button></div>`;
         editorTab.appendChild(sidebar);
         const mainArea = document.createElement('div'); mainArea.className='editor-main-area'; const header = document.createElement('div'); header.className='editor-header'; const toolbar = document.createElement('div'); toolbar.className='editor-toolbar';
-        const tools=[{i:'📖',f:()=>window.showPreview()},{i:⚙️',f:()=>window.openEditorSettings()},{s:1},{id:'btn-writing-mode',i:'縦',f:()=>window.toggleVerticalMode()},{i:'置換',f:()=>window.openReplaceModal()},{i:'ﾙﾋﾞ',f:()=>window.insertRuby()},{i:'―',f:()=>window.insertDash()},{i:'🕒',f:()=>window.openHistoryModal()}];
+        // [修正] 歯車アイコンのクォーテーション抜けを修正
+        const tools=[{i:'📖',f:()=>window.showPreview()},{i:'⚙️',f:()=>window.openEditorSettings()},{s:1},{id:'btn-writing-mode',i:'縦',f:()=>window.toggleVerticalMode()},{i:'置換',f:()=>window.openReplaceModal()},{i:'ﾙﾋﾞ',f:()=>window.insertRuby()},{i:'―',f:()=>window.insertDash()},{i:'🕒',f:()=>window.openHistoryModal()}];
         tools.forEach(t=>{if(t.s){const s=document.createElement('div');s.style.cssText="width:1px; height:26px; background:#555; margin:0 8px; align-self:center;";toolbar.appendChild(s);}else{const b=document.createElement('button');b.className='toolbar-btn';b.textContent=t.i;b.onclick=t.f;if(t.id)b.id=t.id;toolbar.appendChild(b);}});
         header.innerHTML=`<button id="sidebar-toggle-open" class="sidebar-toggle-open-btn" style="display:none;">▶</button>`; header.appendChild(toolbar); const cnt=document.createElement('div'); cnt.className='char-count-display'; cnt.id='editor-char-counter'; cnt.textContent='0文字'; cnt.onclick=toggleCharCountMode; header.appendChild(cnt);
         const titleRow=document.createElement('div'); titleRow.className='chapter-title-row'; titleRow.innerHTML=`<textarea id="chapter-title-input" class="chapter-title-input" placeholder="サブタイトル" rows="1"></textarea>`;
