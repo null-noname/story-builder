@@ -198,45 +198,38 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteMemo=(id,v)=>{const dest=v||'top';if(!id){window.switchView(dest);return;}if(confirm("削除しますか？"))db.collection('memos').doc(id).delete().then(()=>{if(dest==='memo')loadMemoList();else loadMemoListForWorkspace();window.switchView(dest);});};
     
     // --- [Stats & Initialization] ---
+    // [Fix] Stats Loading and syncing logic
     window.loadStats=function(){
         db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);
-        window.loadDailyLog().then(() => {
-            // Force refresh text content
-            document.getElementById('stat-today').innerHTML = window.todayAddedCount + '<span class="unit">字</span>';
-        });
+        window.loadDailyLog();
     };
     
-    // [Fix] Corrected daily log loading and synchronization
     window.loadDailyLog = async function() { 
         if(!window.currentUser) return; 
         const range = parseInt(document.getElementById('stat-range').value || "7"); 
         const now = new Date(); window.graphLabels = []; window.dailyHistory = []; 
         const reads = []; 
-        
         for(let i=range-1; i>=0; i--) { 
             const d = new Date(now); d.setDate(now.getDate() - i); 
             const key = d.toISOString().slice(0,10); 
             window.graphLabels.push((d.getMonth()+1)+'/'+d.getDate()); 
             reads.push(db.collection('users').doc(window.currentUser.uid).collection('stats').doc(key).get()); 
         } 
-        
         const snaps = await Promise.all(reads); 
         snaps.forEach(s => window.dailyHistory.push(s.exists ? s.data().count : 0)); 
         
-        // Sync global variable
+        // Sync Latest Count
         const todayKey = new Date().toISOString().slice(0,10);
-        const todayDoc = snaps[snaps.length - 1]; // Last one is today
-        window.todayAddedCount = todayDoc.exists ? todayDoc.data().count : 0;
-
-        document.getElementById('widget-today-count').innerHTML = window.todayAddedCount + '<span class="unit">字</span>'; 
-        const totalWeek = window.dailyHistory.reduce((a,b)=>a+b,0);
-        document.getElementById('widget-weekly-count').innerHTML = totalWeek + '<span class="unit">字</span>'; 
+        const lastSnap = snaps[snaps.length-1];
+        if(lastSnap.exists) window.todayAddedCount = lastSnap.data().count;
         
-        // Update Stats View elements if visible
-        const sToday = document.getElementById('stat-today');
-        const sWeek = document.getElementById('stat-week');
-        if(sToday) sToday.innerHTML = window.todayAddedCount + '<span class="unit">字</span>'; 
-        if(sWeek) sWeek.innerHTML = totalWeek + '<span class="unit">字</span>'; 
+        const disp = window.todayAddedCount + '<span class="unit">字</span>';
+        const wTotal = window.dailyHistory.reduce((a,b)=>a+b,0) + '<span class="unit">字</span>';
+        
+        document.getElementById('widget-today-count').innerHTML = disp; 
+        document.getElementById('widget-weekly-count').innerHTML = wTotal; 
+        const st = document.getElementById('stat-today'); if(st) st.innerHTML = disp;
+        const sw = document.getElementById('stat-week'); if(sw) sw.innerHTML = wTotal;
 
         const ctx = document.getElementById('writingChart'); 
         if(ctx){ 
@@ -247,29 +240,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.saveDailyLogToFirestore = function() { if(!window.currentUser) return; const key = new Date().toISOString().slice(0,10); db.collection('users').doc(window.currentUser.uid).collection('stats').doc(key).set({count: window.todayAddedCount, date: key}, {merge:true}); };
     
-    // [Fix] Update daily progress based on char count logic (removed white spaces)
+    // [Fix] Updated tracking to use unified char count (no whitespace)
     window.trackDailyProgress=function(){
         const e=document.getElementById('main-editor'); if(!e)return;
         const currentLen = window.countChars(e.value);
         const diff = currentLen - window.lastContentLength;
-        
         if(diff > 0){
             window.todayAddedCount += diff;
-            window.dailyHistory[window.dailyHistory.length-1] = window.todayAddedCount;
+            window.dailyHistory[window.dailyHistory.length-1]=window.todayAddedCount;
             
-            // Sync all displays
-            const strCount = `${window.todayAddedCount}<span class="unit">字</span>`;
-            document.getElementById('widget-today-count').innerHTML = strCount;
-            const sToday = document.getElementById('stat-today'); if(sToday) sToday.innerHTML = strCount;
-
+            const disp = window.todayAddedCount + '<span class="unit">字</span>';
+            document.getElementById('widget-today-count').innerHTML = disp;
+            const st = document.getElementById('stat-today'); if(st) st.innerHTML = disp;
+            
             if(window.writingChart){
-                window.writingChart.data.datasets[0].data = window.dailyHistory;
+                window.writingChart.data.datasets[0].data=window.dailyHistory;
                 window.writingChart.update();
             }
-            if(window.pendingLogSave) clearTimeout(window.pendingLogSave);
-            window.pendingLogSave = setTimeout(saveDailyLogToFirestore, 3000);
+            if(window.pendingLogSave)clearTimeout(window.pendingLogSave);
+            window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000);
         }
-        window.lastContentLength = currentLen;
+        window.lastContentLength=currentLen;
     };
     
     window.showPreview=function(){const e=document.getElementById('main-editor');const c=document.getElementById('preview-content');document.getElementById('preview-modal').style.display='flex';c.innerHTML=window.escapeHtml(e.value).replace(/\n/g,'<br>').replace(/[\|｜]([^《]+?)《(.+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');applyPreviewLayout();}; window.closePreview=()=>document.getElementById('preview-modal').style.display='none'; 
@@ -278,13 +269,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openEditorSettings=()=>document.getElementById('editor-settings-modal').style.display='flex'; window.saveEditorSettings=()=>{window.appSettings.edLetterSpacing=document.getElementById('es-letter-spacing').value;window.appSettings.edLineHeight=document.getElementById('es-line-height').value;window.appSettings.edWidth=document.getElementById('es-width').value;window.appSettings.edFontSize=document.getElementById('es-font-size').value;localStorage.setItem('sb_app_settings',JSON.stringify(window.appSettings));applySettingsToDOM();document.getElementById('editor-settings-modal').style.display='none';}; window.loadLocalSettings=()=>{const s=localStorage.getItem('sb_app_settings');if(s)try{window.appSettings={...window.appSettings,...JSON.parse(s)};}catch(e){}applySettingsToDOM();const dBtn=document.getElementById('preview-mode-btn');if(dBtn)dBtn.textContent='縦';}; function applySettingsToDOM(){const r=document.documentElement.style;r.setProperty('--ed-font-size',window.appSettings.edFontSize+'px');r.setProperty('--ed-line-height',window.appSettings.edLineHeight);r.setProperty('--ed-letter-spacing',window.appSettings.edLetterSpacing+'em');r.setProperty('--ed-width',window.appSettings.edWidth+'%');} 
     window.openReplaceModal=()=>document.getElementById('replace-modal').style.display='flex'; window.executeReplace=()=>{const s=document.getElementById('replace-search-input').value;const r=document.getElementById('replace-target-input').value;if(!s)return;const e=document.getElementById('main-editor');const rg=new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');const c=(e.value.match(rg)||[]).length;if(c===0){alert("なし");return;}e.value=e.value.replace(rg,r);document.getElementById('replace-modal').style.display='none';window.updateCharCount();};
     window.openRubyModal=()=>document.getElementById('ruby-modal').style.display='flex'; window.executeRuby=()=>{const p=document.getElementById('ruby-parent-input').value;const r=document.getElementById('ruby-text-input').value;if(p&&r){insertTextAtCursor(`｜${p}《${r}》`);document.getElementById('ruby-modal').style.display='none';}else{alert("未入力");}};
-    window.openHistoryModal=function(){if(!window.currentWorkId||!window.currentChapterId){alert("作品または章が開かれていません");return;}document.getElementById('history-modal').style.display='flex';loadHistoryList();}; function loadHistoryList(){const l=document.getElementById('history-list');l.innerHTML='Loading...';db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).collection('history').orderBy('savedAt','desc').limit(20).get().then(s=>{l.innerHTML='';s.forEach((d,i)=>{const dt=d.data();const date=dt.savedAt?new Date(dt.savedAt.toDate()):new Date();const div=document.createElement('div');div.className='history-item';div.textContent=`${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()} (${dt.content.length}字)`;div.onclick=()=>showDiff(dt.content,div);l.appendChild(div);if(i===0)div.click();});});} function showDiff(old,el){document.querySelectorAll('.history-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');window.currentHistoryData=old;const cur=document.getElementById('main-editor').value;const diff=Diff.diffLines(old,cur);const d=document.getElementById('history-diff-view');d.innerHTML='';diff.forEach(p=>{const s=document.createElement('span');s.className=p.added?'diff-added':p.removed?'diff-removed':'';s.textContent=p.value;d.appendChild(s);});} window.restoreHistory=async()=>{if(window.currentHistoryData!==null&&confirm("復元しますか？")){document.getElementById('main-editor').value=window.currentHistoryData;document.getElementById('history-modal').style.display='none';await saveCurrentChapter(null,false);}}; window.toggleVerticalMode=()=>{const e=document.getElementById('main-editor');const b=document.getElementById('btn-writing-mode');if(e){e.classList.toggle('vertical-mode');b.textContent=e.classList.contains('vertical-mode')?'横':'縦';}}; window.insertTextAtCursor=(t)=>{const e=document.getElementById('main-editor');if(!e)return;const s=e.selectionStart;const end=e.selectionEnd;e.value=e.value.substring(0,s)+t+e.value.substring(end);e.selectionStart=e.selectionEnd=s+t.length;e.focus();window.updateCharCount();window.trackDailyProgress();}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';window.updateCharCount();};
+    window.openHistoryModal=function(){if(!window.currentWorkId||!window.currentChapterId){alert("作品または章が開かれていません");return;}document.getElementById('history-modal').style.display='flex';loadHistoryList();}; function loadHistoryList(){const l=document.getElementById('history-list');l.innerHTML='Loading...';db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).collection('history').orderBy('savedAt','desc').limit(20).get().then(s=>{l.innerHTML='';s.forEach((d,i)=>{const dt=d.data();const date=dt.savedAt?new Date(dt.savedAt.toDate()):new Date();const div=document.createElement('div');div.className='history-item';div.textContent=`${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()} (${window.countChars(dt.content)}字)`;div.onclick=()=>showDiff(dt.content,div);l.appendChild(div);if(i===0)div.click();});});} function showDiff(old,el){document.querySelectorAll('.history-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');window.currentHistoryData=old;const cur=document.getElementById('main-editor').value;const diff=Diff.diffLines(old,cur);const d=document.getElementById('history-diff-view');d.innerHTML='';diff.forEach(p=>{const s=document.createElement('span');s.className=p.added?'diff-added':p.removed?'diff-removed':'';s.textContent=p.value;d.appendChild(s);});} window.restoreHistory=async()=>{if(window.currentHistoryData!==null&&confirm("復元しますか？")){document.getElementById('main-editor').value=window.currentHistoryData;document.getElementById('history-modal').style.display='none';await saveCurrentChapter(null,false);}}; window.toggleVerticalMode=()=>{const e=document.getElementById('main-editor');const b=document.getElementById('btn-writing-mode');if(e){e.classList.toggle('vertical-mode');b.textContent=e.classList.contains('vertical-mode')?'横':'縦';}}; window.insertTextAtCursor=(t)=>{const e=document.getElementById('main-editor');if(!e)return;const s=e.selectionStart;const end=e.selectionEnd;e.value=e.value.substring(0,s)+t+e.value.substring(end);e.selectionStart=e.selectionEnd=s+t.length;e.focus();window.updateCharCount();window.trackDailyProgress();}; window.insertDash=()=>insertTextAtCursor("――"); window.toggleCharCountMode=()=>{window.charCountMode=window.charCountMode==='total'?'pure':'total';window.updateCharCount();};
     function bindClick(id,h){const e=document.getElementById(id);if(e)e.addEventListener('click',h);}
     bindClick('diary-widget',()=>window.switchView('stats')); bindClick('btn-common-memo',()=>window.switchView('memo')); bindClick('back-to-top',()=>window.switchView('top')); bindClick('back-from-stats',()=>window.switchView('top')); bindClick('back-from-memo',()=>window.switchView('top')); bindClick('create-new-work-btn',window.createNewWork); bindClick('save-work-info-btn',window.saveWorkInfo); bindClick('preview-close-btn',window.closePreview); bindClick('preview-mode-btn',window.togglePreviewMode); bindClick('preview-setting-btn',window.openPreviewSettings); bindClick('history-close-btn',()=>document.getElementById('history-modal').style.display='none'); bindClick('history-restore-btn',window.restoreHistory); bindClick('es-cancel',()=>document.getElementById('editor-settings-modal').style.display='none'); bindClick('es-save',window.saveEditorSettings); bindClick('ps-cancel',()=>document.getElementById('preview-settings-modal').style.display='none'); bindClick('ps-save',window.savePreviewSettings); bindClick('replace-cancel-btn',()=>document.getElementById('replace-modal').style.display='none'); bindClick('replace-execute-btn',window.executeReplace); bindClick('ruby-cancel-btn',()=>document.getElementById('ruby-modal').style.display='none'); bindClick('ruby-execute-btn',window.executeRuby); bindClick('add-new-memo-btn',()=>window.openMemoEditor(null,'memo')); bindClick('ws-add-new-memo-btn',()=>window.openMemoEditor(null,'workspace')); bindClick('memo-editor-save',window.saveMemo); bindClick('memo-editor-back-left',()=>window.switchView(window.previousView||'top')); bindClick('memo-editor-delete-right',()=>window.deleteMemo(window.editingMemoId,window.previousView)); bindClick('plot-add-new-btn',()=>window.openPlotEditor(null)); bindClick('char-add-new-btn',()=>window.openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',window.saveCharItem); bindClick('char-delete-btn', window.deleteCharItem); bindClick('memo-editor-export-txt', ()=>window.exportSingleItem('memo', window.editingMemoId, 'txt')); 
     // Removed PDF export bindings for plot and char buttons (as buttons were removed from HTML)
     document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>window.activateTab(btn.getAttribute('data-tab')))); const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',window.renderWorkList); const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',window.renderWorkList); const edEl=document.getElementById('main-editor');if(edEl)edEl.addEventListener('input',()=>{window.updateCharCount();window.trackDailyProgress();}); const cEl=document.getElementById('input-catch');if(cEl)cEl.addEventListener('input',function(){window.updateCatchCounter(this);}); const rangeEl=document.getElementById('stat-range'); if(rangeEl)rangeEl.addEventListener('change',window.loadDailyLog);
     const iconInput=document.getElementById('char-icon-input'); if(iconInput)iconInput.addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');const x=c.getContext('2d');const M=150;let w=i.width,h=i.height;if(w>h){if(w>M){h*=M/w;w=M;}}else{if(h>M){w*=M/h;h=M;}}c.width=w;c.height=h;x.drawImage(i,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);const p=document.getElementById('char-icon-preview');p.innerHTML=`<img src="${d}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;p.setAttribute('data-base64',d);};i.src=ev.target.result;};r.readAsDataURL(f);});
-    window.initEditorToolbar();
+    
+    // [Fix] Wrap initialization in try-catch to prevent login blocking
+    try { window.initEditorToolbar(); } catch(e) { console.error("Toolbar init failed (safe to ignore on login)", e); }
+    
     auth.onAuthStateChanged(async user => {
         if (user) {
             window.currentUser = user; if(loginScreen) loginScreen.style.display='none'; if(mainApp) mainApp.style.display='block'; window.initWorkListener(); await window.loadDailyLog(); window.loadLocalSettings();
