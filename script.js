@@ -14,9 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- [Section 2] Auth & View Helpers ---
     const views = { top: document.getElementById('top-view'), workspace: document.getElementById('workspace-view'), stats: document.getElementById('stats-view'), memo: document.getElementById('memo-view'), memoEditor: document.getElementById('memo-editor-view') };
     window.escapeHtml = (s) => { if(!s) return ""; return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m])); };
-    // [Fix] Catchphrase counter color logic
-    window.updateCatchCounter = (el) => { if(!el) return; const r = 35 - el.value.length; const c = document.getElementById('c-count'); if(c){ c.textContent = `(残${r})`; if(r < 0) c.style.color = '#f66'; else c.style.color = ''; /* Use CSS default */ } };
-    window.updateCharCount = () => { const e = document.getElementById('main-editor'); if(!e) return; const c = document.getElementById('editor-char-counter'); if(!c) return; if(window.charCountMode === 'total'){ c.textContent = `総: ${e.value.length}`; c.style.color = '#fff'; } else { c.textContent = `全: ${e.value.replace(/\s/g,'').length}`; c.style.color = ''; } };
+    window.updateCatchCounter = (el) => { if(!el) return; const r = 35 - el.value.length; const c = document.getElementById('c-count'); if(c){ c.textContent = `(残${r})`; if(r < 0) c.style.color = '#f66'; else c.style.color = ''; } };
+    
+    // [Fix] Unified character counting logic (remove whitespace)
+    window.countChars = (str) => { return (str || "").replace(/\s/g, '').length; };
+    
+    window.updateCharCount = () => { const e = document.getElementById('main-editor'); if(!e) return; const c = document.getElementById('editor-char-counter'); if(!c) return; if(window.charCountMode === 'total'){ c.textContent = `総: ${e.value.length}`; c.style.color = '#fff'; } else { c.textContent = `全: ${window.countChars(e.value)}`; c.style.color = ''; } };
+    
     const loginScreen = document.getElementById('login-screen'); const mainApp = document.getElementById('main-app'); const loginBtn = document.getElementById('google-login-btn');
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
@@ -110,9 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if(eid('redo-btn')) eid('redo-btn').onclick=()=>{const e=eid('main-editor');if(e){e.focus();document.execCommand('redo');}};
     };
     window.setChapterMode=(m)=>{window.chapterListMode=m;window.loadChapters();}; window.toggleSidebar=()=>{const s=document.getElementById('chapter-sidebar');const b=document.getElementById('sidebar-toggle-open');if(s){s.classList.toggle('collapsed');if(b)b.style.display=s.classList.contains('collapsed')?'block':'none';}}; window.showMobileEditor=()=>{if(window.innerWidth<=600)document.getElementById('tab-editor')?.classList.add('mobile-editor-active');}; window.showMobileChapterList=()=>{document.getElementById('tab-editor')?.classList.remove('mobile-editor-active');};
-    window.loadChapters = function() { if(!window.currentWorkId) return Promise.resolve(); const list=document.getElementById('chapter-list'); if(!list) return Promise.resolve(); list.innerHTML='Loading...'; return db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order','asc').get().then(snap=>{ list.innerHTML=''; let total=0; if(snap.empty){list.innerHTML='<div style="padding:10px;color:#aaa;">章なし</div>';return;} snap.forEach(doc=>{ const d=doc.data(); const div=document.createElement('div'); div.className='chapter-item'; div.setAttribute('data-id',doc.id); if(window.currentChapterId===doc.id)div.classList.add('active'); total+=(d.content||"").replace(/\s/g,'').length; if(window.chapterListMode==='reorder'){ div.setAttribute('draggable','true'); div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="drag-handle">||</span>`; const h=div.querySelector('.drag-handle'); h.addEventListener('touchstart',handleTouchStart,{passive:false}); h.addEventListener('touchmove',handleTouchMove,{passive:false}); h.addEventListener('touchend',handleTouchEnd); addDragEvents(div); } else if(window.chapterListMode==='delete'){ div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-delete-icon" onclick="deleteTargetChapter('${doc.id}')">🗑️</span>`; } else { div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-list-count">(${d.content?.length||0}字)</span>`; div.onclick=()=>selectChapter(doc.id,d); } list.appendChild(div); }); const totalEl = document.getElementById('total-work-chars'); if(totalEl) totalEl.textContent=`合計: ${total}文字`; }); };
-    window.selectChapter=(id,d)=>{ window.currentChapterId=id; window.saveAppState('workspace'); document.getElementById('main-editor').value=d.content||""; window.lastContentLength=(d.content||"").length; if(document.getElementById('chapter-title-input'))document.getElementById('chapter-title-input').value=d.title||""; window.updateCharCount(); document.querySelectorAll('.chapter-item').forEach(e=>e.classList.remove('active')); document.querySelector(`.chapter-item[data-id="${id}"]`)?.classList.add('active'); window.showMobileEditor(); };
-    window.saveCurrentChapter=async(nv,alert)=>{ if(!window.currentWorkId||!window.currentChapterId){if(nv)window.switchView(nv);return;} const c=document.getElementById('main-editor').value; const t=document.getElementById('chapter-title-input').value||"無題"; if(c.length>20000) return; const ref=db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId); await ref.collection('history').add({content:c,savedAt:firebase.firestore.FieldValue.serverTimestamp()}); await ref.update({title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}); const count = c.replace(/\s/g,'').length; if(window.currentWorkLength==='short'){ await db.collection('works').doc(window.currentWorkId).update({totalChars: count}); } else { /* Update Total Logic */ const all = await db.collection('works').doc(window.currentWorkId).collection('chapters').get(); let total=0; all.forEach(d=>total+=(d.data().content||"").replace(/\s/g,'').length); await db.collection('works').doc(window.currentWorkId).update({totalChars: total}); } window.saveDailyLogToFirestore(); window.loadChapters(); if(nv)window.switchView(nv); };
+    window.loadChapters = function() { if(!window.currentWorkId) return Promise.resolve(); const list=document.getElementById('chapter-list'); if(!list) return Promise.resolve(); list.innerHTML='Loading...'; return db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order','asc').get().then(snap=>{ list.innerHTML=''; let total=0; if(snap.empty){list.innerHTML='<div style="padding:10px;color:#aaa;">章なし</div>';return;} snap.forEach(doc=>{ const d=doc.data(); const div=document.createElement('div'); div.className='chapter-item'; div.setAttribute('data-id',doc.id); if(window.currentChapterId===doc.id)div.classList.add('active'); 
+        // [Fix] Count characters without whitespace for chapter list
+        const charCount = window.countChars(d.content);
+        total += charCount; 
+        if(window.chapterListMode==='reorder'){ div.setAttribute('draggable','true'); div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="drag-handle">||</span>`; const h=div.querySelector('.drag-handle'); h.addEventListener('touchstart',handleTouchStart,{passive:false}); h.addEventListener('touchmove',handleTouchMove,{passive:false}); h.addEventListener('touchend',handleTouchEnd); addDragEvents(div); } else if(window.chapterListMode==='delete'){ div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-delete-icon" onclick="deleteTargetChapter('${doc.id}')">🗑️</span>`; } else { div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-list-count">(${charCount}字)</span>`; div.onclick=()=>selectChapter(doc.id,d); } list.appendChild(div); }); const totalEl = document.getElementById('total-work-chars'); if(totalEl) totalEl.textContent=`合計: ${total}文字`; }); };
+    window.selectChapter=(id,d)=>{ window.currentChapterId=id; window.saveAppState('workspace'); document.getElementById('main-editor').value=d.content||""; window.lastContentLength=document.getElementById('main-editor').value.length; if(document.getElementById('chapter-title-input'))document.getElementById('chapter-title-input').value=d.title||""; window.updateCharCount(); document.querySelectorAll('.chapter-item').forEach(e=>e.classList.remove('active')); document.querySelector(`.chapter-item[data-id="${id}"]`)?.classList.add('active'); window.showMobileEditor(); };
+    window.saveCurrentChapter=async(nv,alert)=>{ if(!window.currentWorkId||!window.currentChapterId){if(nv)window.switchView(nv);return;} const c=document.getElementById('main-editor').value; const t=document.getElementById('chapter-title-input').value||"無題"; if(c.length>20000) return; const ref=db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId); await ref.collection('history').add({content:c,savedAt:firebase.firestore.FieldValue.serverTimestamp()}); await ref.update({title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}); const count = window.countChars(c); if(window.currentWorkLength==='short'){ await db.collection('works').doc(window.currentWorkId).update({totalChars: count}); } else { /* Update Total Logic */ const all = await db.collection('works').doc(window.currentWorkId).collection('chapters').get(); let total=0; all.forEach(d=>total+=window.countChars(d.data().content)); await db.collection('works').doc(window.currentWorkId).update({totalChars: total}); } window.saveDailyLogToFirestore(); window.loadChapters(); if(nv)window.switchView(nv); };
     window.addNewChapter=async()=>{ if(!window.currentWorkId)return; const s=await db.collection('works').doc(window.currentWorkId).collection('chapters').get(); if(s.size>=1000) return; const t = `第${s.size+1}話`; await db.collection('works').doc(window.currentWorkId).collection('chapters').add({title:t,content:"",order:s.size+1,updatedAt:new Date()});window.loadChapters(); };
     window.deleteCurrentChapter=async()=>{if(window.currentChapterId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).delete();window.currentChapterId=null;document.getElementById('main-editor').value="";window.showMobileChapterList();window.loadChapters();}}; window.deleteTargetChapter=async(id)=>{if(confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('chapters').doc(id).delete();window.loadChapters();}};
     function addDragEvents(i){i.addEventListener('dragstart',function(e){window.dragSrcEl=this;e.dataTransfer.effectAllowed='move';this.classList.add('dragging');});i.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';return false;});i.addEventListener('drop',function(e){e.stopPropagation();if(window.dragSrcEl!==this){swapNodes(window.dragSrcEl,this);updateOrderInDB();}return false;});i.addEventListener('dragend',function(){this.classList.remove('dragging');});} function swapNodes(n1,n2){const p=n1.parentNode;if(p!==n2.parentNode)return;const t=document.createElement("div");p.insertBefore(t,n1);p.insertBefore(n1,n2);p.insertBefore(n2,t);p.removeChild(t);} function handleTouchStart(e){window.touchSrcEl=e.target.closest('.chapter-item');if(window.touchSrcEl){window.touchSrcEl.classList.add('dragging');e.preventDefault();}} function handleTouchMove(e){if(!window.touchSrcEl)return;e.preventDefault();const t=e.touches[0];const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.chapter-item');if(el&&el!==window.touchSrcEl&&el.parentNode===window.touchSrcEl.parentNode)swapNodes(window.touchSrcEl,el);} function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}} async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
@@ -159,7 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('plot-edit-back')) document.getElementById('plot-edit-back').onclick = () => { if(document.getElementById('plot-edit-mode').style.display==='block' && window.editingPlotId){ openPlotViewer(window.editingPlotId); } else { document.getElementById('plot-edit-view').style.display='none'; } }; 
     
     // --- [Section 7] Characters ---
-    window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${window.escapeHtml(d.name)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});document.getElementById('stat-chars').innerHTML=snap.size+'<span class="unit">体</span>';});};
+    // [Fix] Restored Total Character Count update logic
+    window.loadCharacters=function(){const c=document.getElementById('char-items-container');if(!c||!window.currentWorkId)return;db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('order','asc').get().then(snap=>{c.innerHTML='';
+    document.getElementById('stat-chars').innerHTML=snap.size+'<span class="unit">体</span>'; // Update Stats
+    if(snap.empty){c.innerHTML='<div style="padding:20px;text-align:center;color:#555;">キャラなし</div>';return;}snap.forEach(doc=>{const d=doc.data();const card=document.createElement('div');card.className='char-card';const img=d.iconBase64?`<img src="${d.iconBase64}" class="char-icon">`:'<div class="char-icon">👤</div>';card.innerHTML=`<div class="char-sort-controls"><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',-1)">▲</button><button class="char-sort-btn" onclick="event.stopPropagation();moveChar('${doc.id}',1)">▼</button></div>${img}<div class="char-name">${window.escapeHtml(d.name)}</div>`;card.onclick=()=>openCharEditor(doc.id);c.appendChild(card);});});};
+    
     window.saveCharItem=async function(){ const getV=id=>document.getElementById('char-'+id)?.value||""; const ib=document.getElementById('char-icon-preview').getAttribute('data-base64')||""; const birthM = document.getElementById('char-birth-m').value; const birthD = document.getElementById('char-birth-d').value; const nameLast=getV('name-last'), nameFirst=getV('name-first'); const d={ nameLast:nameLast, nameFirst:nameFirst, name:(nameLast+" "+nameFirst).trim(), rubyLast:getV('ruby-last'), rubyFirst:getV('ruby-first'), ruby:(getV('ruby-last')+" "+getV('ruby-first')).trim(), alias:getV('alias'), age:getV('age'), height:getV('height'), role:getV('role'), birthM: birthM, birthD: birthD, appearance:getV('appearance'), personality:getV('personality'), ability:getV('ability'), background:getV('background'), memo:getV('memo'), iconBase64:ib, updatedAt:firebase.firestore.FieldValue.serverTimestamp() }; if(window.editingCharId) await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d); else{ const s=await db.collection('works').doc(window.currentWorkId).collection('characters').get(); d.order=s.size+1; d.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('works').doc(window.currentWorkId).collection('characters').add(d); } if(window.editingCharId) { openCharEditor(window.editingCharId); } else { document.getElementById('char-edit-view').style.display='none'; loadCharacters(); } }; window.deleteCharItem=async function(){if(window.editingCharId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete();document.getElementById('char-edit-view').style.display='none';loadCharacters();}}; window.moveChar=async function(id,dir){await moveItem('characters',id,dir);loadCharacters();}; async function moveItem(col,id,dir){const snap=await db.collection('works').doc(window.currentWorkId).collection(col).orderBy('order','asc').get();let items=[];snap.forEach(d=>items.push({id:d.id,...d.data()}));const idx=items.findIndex(i=>i.id===id);if(idx===-1)return;const tIdx=idx+dir;if(tIdx<0||tIdx>=items.length)return;[items[idx],items[tIdx]]=[items[tIdx],items[idx]];const batch=db.batch();items.forEach((it,i)=>{batch.update(db.collection('works').doc(window.currentWorkId).collection(col).doc(it.id),{order:i+1});});await batch.commit();}
     
     // [修正] あだ名の表示（HTML生成）を追加しました
@@ -186,10 +198,80 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteMemo=(id,v)=>{const dest=v||'top';if(!id){window.switchView(dest);return;}if(confirm("削除しますか？"))db.collection('memos').doc(id).delete().then(()=>{if(dest==='memo')loadMemoList();else loadMemoListForWorkspace();window.switchView(dest);});};
     
     // --- [Stats & Initialization] ---
-    window.loadStats=function(){db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);window.loadDailyLog();};
-    window.loadDailyLog = async function() { if(!window.currentUser) return; const range = parseInt(document.getElementById('stat-range').value || "7"); const now = new Date(); window.graphLabels = []; window.dailyHistory = []; const reads = []; for(let i=range-1; i>=0; i--) { const d = new Date(now); d.setDate(now.getDate() - i); const key = d.toISOString().slice(0,10); window.graphLabels.push((d.getMonth()+1)+'/'+d.getDate()); reads.push(db.collection('users').doc(window.currentUser.uid).collection('stats').doc(key).get()); } const snaps = await Promise.all(reads); snaps.forEach(s => window.dailyHistory.push(s.exists ? s.data().count : 0)); window.todayAddedCount = window.dailyHistory[range-1]; document.getElementById('widget-today-count').innerHTML = window.todayAddedCount + '<span class="unit">字</span>'; document.getElementById('stat-week').innerHTML = window.dailyHistory.reduce((a,b)=>a+b,0) + '<span class="unit">字</span>'; const ctx = document.getElementById('writingChart'); if(ctx){ if(window.writingChart) window.writingChart.destroy(); window.writingChart=new Chart(ctx,{type:'bar',data:{labels:window.graphLabels,datasets:[{data:window.dailyHistory,backgroundColor:'#33691e',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#444'}},x:{grid:{display:false}}}}}); } };
+    window.loadStats=function(){
+        db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);
+        window.loadDailyLog().then(() => {
+            // Force refresh text content
+            document.getElementById('stat-today').innerHTML = window.todayAddedCount + '<span class="unit">字</span>';
+        });
+    };
+    
+    // [Fix] Corrected daily log loading and synchronization
+    window.loadDailyLog = async function() { 
+        if(!window.currentUser) return; 
+        const range = parseInt(document.getElementById('stat-range').value || "7"); 
+        const now = new Date(); window.graphLabels = []; window.dailyHistory = []; 
+        const reads = []; 
+        
+        for(let i=range-1; i>=0; i--) { 
+            const d = new Date(now); d.setDate(now.getDate() - i); 
+            const key = d.toISOString().slice(0,10); 
+            window.graphLabels.push((d.getMonth()+1)+'/'+d.getDate()); 
+            reads.push(db.collection('users').doc(window.currentUser.uid).collection('stats').doc(key).get()); 
+        } 
+        
+        const snaps = await Promise.all(reads); 
+        snaps.forEach(s => window.dailyHistory.push(s.exists ? s.data().count : 0)); 
+        
+        // Sync global variable
+        const todayKey = new Date().toISOString().slice(0,10);
+        const todayDoc = snaps[snaps.length - 1]; // Last one is today
+        window.todayAddedCount = todayDoc.exists ? todayDoc.data().count : 0;
+
+        document.getElementById('widget-today-count').innerHTML = window.todayAddedCount + '<span class="unit">字</span>'; 
+        const totalWeek = window.dailyHistory.reduce((a,b)=>a+b,0);
+        document.getElementById('widget-weekly-count').innerHTML = totalWeek + '<span class="unit">字</span>'; 
+        
+        // Update Stats View elements if visible
+        const sToday = document.getElementById('stat-today');
+        const sWeek = document.getElementById('stat-week');
+        if(sToday) sToday.innerHTML = window.todayAddedCount + '<span class="unit">字</span>'; 
+        if(sWeek) sWeek.innerHTML = totalWeek + '<span class="unit">字</span>'; 
+
+        const ctx = document.getElementById('writingChart'); 
+        if(ctx){ 
+            if(window.writingChart) window.writingChart.destroy(); 
+            window.writingChart=new Chart(ctx,{type:'bar',data:{labels:window.graphLabels,datasets:[{data:window.dailyHistory,backgroundColor:'#33691e',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#444'}},x:{grid:{display:false}}}}}); 
+        } 
+    };
+    
     window.saveDailyLogToFirestore = function() { if(!window.currentUser) return; const key = new Date().toISOString().slice(0,10); db.collection('users').doc(window.currentUser.uid).collection('stats').doc(key).set({count: window.todayAddedCount, date: key}, {merge:true}); };
-    window.trackDailyProgress=function(){const e=document.getElementById('main-editor');if(!e)return;const diff=e.value.length-window.lastContentLength;if(diff>0){window.todayAddedCount+=diff;window.dailyHistory[window.dailyHistory.length-1]=window.todayAddedCount;document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`;if(window.writingChart){window.writingChart.data.datasets[0].data=window.dailyHistory;window.writingChart.update();}if(window.pendingLogSave)clearTimeout(window.pendingLogSave);window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000);}window.lastContentLength=e.value.length;};
+    
+    // [Fix] Update daily progress based on char count logic (removed white spaces)
+    window.trackDailyProgress=function(){
+        const e=document.getElementById('main-editor'); if(!e)return;
+        const currentLen = window.countChars(e.value);
+        const diff = currentLen - window.lastContentLength;
+        
+        if(diff > 0){
+            window.todayAddedCount += diff;
+            window.dailyHistory[window.dailyHistory.length-1] = window.todayAddedCount;
+            
+            // Sync all displays
+            const strCount = `${window.todayAddedCount}<span class="unit">字</span>`;
+            document.getElementById('widget-today-count').innerHTML = strCount;
+            const sToday = document.getElementById('stat-today'); if(sToday) sToday.innerHTML = strCount;
+
+            if(window.writingChart){
+                window.writingChart.data.datasets[0].data = window.dailyHistory;
+                window.writingChart.update();
+            }
+            if(window.pendingLogSave) clearTimeout(window.pendingLogSave);
+            window.pendingLogSave = setTimeout(saveDailyLogToFirestore, 3000);
+        }
+        window.lastContentLength = currentLen;
+    };
+    
     window.showPreview=function(){const e=document.getElementById('main-editor');const c=document.getElementById('preview-content');document.getElementById('preview-modal').style.display='flex';c.innerHTML=window.escapeHtml(e.value).replace(/\n/g,'<br>').replace(/[\|｜]([^《]+?)《(.+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');applyPreviewLayout();}; window.closePreview=()=>document.getElementById('preview-modal').style.display='none'; 
     window.togglePreviewMode=()=>{const c=document.getElementById('preview-content');c.classList.toggle('vertical-mode');document.getElementById('preview-mode-btn').textContent=c.classList.contains('vertical-mode')?'横':'縦';}; 
     window.openPreviewSettings=()=>document.getElementById('preview-settings-modal').style.display='flex'; window.savePreviewSettings=()=>{window.appSettings.prVerticalChars=document.getElementById('ps-vertical-chars').value;window.appSettings.prLinesPage=document.getElementById('ps-lines-page').value;window.appSettings.prFontScale=document.getElementById('ps-font-scale').value;localStorage.setItem('sb_app_settings',JSON.stringify(window.appSettings));applyPreviewLayout();document.getElementById('preview-settings-modal').style.display='none';}; function applyPreviewLayout(){const r=document.documentElement.style;const s=18*parseFloat(window.appSettings.prFontScale);r.setProperty('--pr-font-size',s+'px');r.setProperty('--pr-height',(s*parseInt(window.appSettings.prVerticalChars))+'px');} 
