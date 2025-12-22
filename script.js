@@ -1,4 +1,4 @@
-/* script.js - Part 1 */
+/* script.js - Fixed Version */
 document.addEventListener('DOMContentLoaded', () => {
     // --- [Section 1] System & Config ---
     const firebaseConfig = { apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU", authDomain: "story-builder-app.firebaseapp.com", projectId: "story-builder-app", storageBucket: "story-builder-app.firebasestorage.app", messagingSenderId: "763153451684", appId: "1:763153451684:web:37a447d4cafb4abe41f431" };
@@ -101,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteWork = (e,id)=>{e.stopPropagation();if(confirm("削除しますか？"))db.collection('works').doc(id).delete().then(window.loadStats);};
     window.togglePin = (e,id,s)=>{e.stopPropagation();db.collection('works').doc(id).update({isPinned:s});};
 
-/* script.js - Part 2 */
     // --- [Section 5] Editor (Writing) ---
     window.initEditorToolbar = function() {
         const editorTab = document.getElementById('tab-editor'); if(!editorTab) return;
@@ -150,7 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else { const html = `<div style="font-family:serif; white-space:pre-wrap; color:#000 !important; background:#fff !important; padding:20px; font-size:18px !important; line-height:1.8 !important;">${content.replace(/\n/g,'<br>')}</div>`; const opt = { margin: 10, filename: `${title}.pdf`, html2canvas: { scale: 2, backgroundColor: "#ffffff" }, jsPDF: { unit: 'mm', format: 'a4' }}; html2pdf().set(opt).from(html).save(); }
     };
 
-/* script.js - Part 3 */
     // --- [Section 6] Plots ---
     window.loadPlots=()=>{if(!window.currentWorkId)return;const c=document.getElementById('plot-items-container');c.innerHTML='';db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('updatedAt','desc').get().then(s=>{s.forEach(d=>c.appendChild(createPlotCard(d.id,d.data())));});};
     function createPlotCard(id,d){
@@ -168,11 +166,78 @@ document.addEventListener('DOMContentLoaded', () => {
         el.onclick=(e)=>{ if(!e.target.closest('button')) window.openPlotEditor(id); else if(e.target.textContent==='編集') window.openPlotEditor(id); };
         return el;
     }
-    window.openPlotEditor=(id)=>{window.editingPlotId=id;const v=document.getElementById('plot-edit-view');v.style.display='flex';document.getElementById('plot-view-mode').style.display='none';document.getElementById('plot-edit-mode').style.display='block';const del=document.getElementById('plot-delete-btn');const tit=document.getElementById('plot-edit-title');const typ=document.getElementById('plot-edit-type');const con=document.getElementById('plot-edit-content');if(id){del.style.display='block';db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(s=>{const d=s.data();tit.value=d.title;typ.value=d.type;con.value=d.content;});}else{del.style.display='none';tit.value='';typ.value='memo';con.value='';}};
-    window.savePlotItem=()=>{if(!window.currentWorkId)return;const t=document.getElementById('plot-edit-title').value||"無題";const tp=document.getElementById('plot-edit-type').value;const c=document.getElementById('plot-edit-content').value;const d={title:t,type:tp,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingPlotId)db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(d);else{d.createdAt=firebase.firestore.FieldValue.serverTimestamp();db.collection('works').doc(window.currentWorkId).collection('plots').add(d);}
-        db.collection('works').doc(window.currentWorkId).update({updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
-        document.getElementById('plot-edit-view').style.display='none';window.loadPlots();
+    
+    // --- [FIXED SECTION START] ---
+    window.openPlotEditor = (id) => {
+        window.editingPlotId = id;
+        const v = document.getElementById('plot-edit-view');
+        v.style.display = 'flex';
+        document.getElementById('plot-view-mode').style.display = 'none';
+        document.getElementById('plot-edit-mode').style.display = 'block';
+        const del = document.getElementById('plot-delete-btn');
+        const tit = document.getElementById('plot-edit-title');
+        const typ = document.getElementById('plot-edit-type');
+        const con = document.getElementById('plot-edit-content');
+        if (id) {
+            del.style.display = 'block';
+            db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(s => {
+                const d = s.data();
+                tit.value = d.title;
+                typ.value = d.type;
+                // [FIX] Convert JSON to Text for Timeline editing
+                if(d.type === 'timeline') {
+                    try {
+                        const tl = JSON.parse(d.content);
+                        let textVal = "";
+                        tl.forEach(r => { textVal += `[${r.time}] ${r.text}\n`; });
+                        con.value = textVal;
+                    } catch(e) { con.value = d.content; }
+                } else {
+                    con.value = d.content;
+                }
+            });
+        } else {
+            del.style.display = 'none';
+            tit.value = '';
+            typ.value = 'memo';
+            con.value = '';
+        }
     };
+
+    window.savePlotItem = () => {
+        if (!window.currentWorkId) return;
+        const t = document.getElementById('plot-edit-title').value || "無題";
+        const tp = document.getElementById('plot-edit-type').value;
+        const c = document.getElementById('plot-edit-content').value;
+        let contentToSave = c;
+        
+        // [FIX] Convert Text to JSON for Timeline saving
+        if(tp === 'timeline') {
+            const lines = c.split('\n');
+            const tlData = [];
+            lines.forEach(line => {
+                const match = line.match(/^\[(.+?)\]\s*(.*)$/);
+                if(match) {
+                    tlData.push({ time: match[1], text: match[2] });
+                } else if(line.trim()) {
+                    tlData.push({ time: "", text: line });
+                }
+            });
+            contentToSave = JSON.stringify(tlData);
+        }
+
+        const d = { title: t, type: tp, content: contentToSave, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        if (window.editingPlotId) db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(d);
+        else {
+            d.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            db.collection('works').doc(window.currentWorkId).collection('plots').add(d);
+        }
+        db.collection('works').doc(window.currentWorkId).update({ updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        document.getElementById('plot-edit-view').style.display = 'none';
+        window.loadPlots();
+    };
+    // --- [FIXED SECTION END] ---
+
     window.deletePlotItem=()=>{if(window.editingPlotId&&confirm("削除しますか？")){db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete().then(()=>{document.getElementById('plot-edit-view').style.display='none';window.loadPlots();});}};
     
     // --- [Section 7] Characters ---
@@ -272,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-/* script.js - Part 4 */
     // --- [Section 8] Memos (Common & Workspace) ---
     window.loadMemoList=()=>{if(!window.currentUser)return;const c=document.getElementById('memo-list-container');if(!c)return;c.innerHTML='';db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{let m=[];s.forEach(d=>m.push({id:d.id,...d.data()}));m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'memo')));});}; window.loadMemoListForWorkspace=()=>{if(!window.currentUser)return;const c=document.getElementById('ws-memo-list-container');if(!c)return;c.innerHTML='';db.collection('memos').where('uid','==',window.currentUser.uid).get().then(s=>{let m=[];s.forEach(d=>m.push({id:d.id,...d.data()}));m.sort((a,b)=>(b.updatedAt?.toMillis()||0)-(a.updatedAt?.toMillis()||0));m.forEach(d=>c.appendChild(createMemoCard(d.id,d,'workspace')));});}; function createMemoCard(id,data,view){const d=document.createElement('div');d.className='memo-card';d.innerHTML=`<div class="memo-header"><span class="memo-title">${window.escapeHtml(data.title)}</span><div><button class="memo-btn btn-d-blue" onclick="openMemoEditor('${id}','${view}')">編集</button><button class="memo-btn btn-d-red" onclick="deleteMemo('${id}','${view}')">削除</button></div></div><div class="memo-divider"></div><div class="memo-text">${window.escapeHtml(data.content)}</div>`;return d;} 
     window.openMemoEditor=(id,v)=>{window.editingMemoId=id;window.previousView=v;const delBtn=document.getElementById('memo-editor-delete-right');if(id){delBtn.style.display='block';db.collection('memos').doc(id).get().then(d=>{const da=d.data();document.getElementById('memo-editor-title').value=da.title;document.getElementById('memo-editor-content').value=da.content;switchView('memoEditor');});}else{document.getElementById('memo-editor-title').value="";document.getElementById('memo-editor-content').value="";delBtn.style.display='none';switchView('memoEditor');}};
