@@ -99,14 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
             });
         }
-        // ★【修正】エディタを作成したタイミングで、必ず入力監視イベントを再登録する
-        const mainEd = document.getElementById('main-editor');
-        if(mainEd) {
-            mainEd.addEventListener('input', () => {
-                window.updateCharCount();
-                if(window.trackDailyProgress) window.trackDailyProgress();
-            });
-        }
+        // ★修正: ここでのイベント登録は削除し、Part 4のDelegationに任せる
     };
     window.setChapterMode=(m)=>{window.chapterListMode=m;window.loadChapters();}; window.toggleSidebar=()=>{const s=document.getElementById('chapter-sidebar');const b=document.getElementById('sidebar-toggle-open');if(s){s.classList.toggle('collapsed');if(b)b.style.display=s.classList.contains('collapsed')?'block':'none';}}; window.showMobileEditor=()=>{if(window.innerWidth<=600)document.getElementById('tab-editor')?.classList.add('mobile-editor-active');}; window.showMobileChapterList=()=>{document.getElementById('tab-editor')?.classList.remove('mobile-editor-active');};
     window.loadChapters = function() { if(!window.currentWorkId) return Promise.resolve(); const list=document.getElementById('chapter-list'); if(!list) return Promise.resolve(); list.innerHTML='Loading...'; return db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order','asc').get().then(snap=>{ list.innerHTML=''; let total=0; if(snap.empty){list.innerHTML='<div style="padding:10px;color:#aaa;">章なし</div>';return;} snap.forEach(doc=>{ const d=doc.data(); const div=document.createElement('div'); div.className='chapter-item'; div.setAttribute('data-id',doc.id); if(window.currentChapterId===doc.id)div.classList.add('active'); total+=(d.content||"").replace(/\s/g,'').length; if(window.chapterListMode==='reorder'){ div.setAttribute('draggable','true'); div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="drag-handle">||</span>`; const h=div.querySelector('.drag-handle'); h.addEventListener('touchstart',handleTouchStart,{passive:false}); h.addEventListener('touchmove',handleTouchMove,{passive:false}); h.addEventListener('touchend',handleTouchEnd); addDragEvents(div); } else if(window.chapterListMode==='delete'){ div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-delete-icon" onclick="deleteTargetChapter('${doc.id}')">🗑️</span>`; } else { div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-list-count">(${d.content?.length||0}字)</span>`; div.onclick=()=>selectChapter(doc.id,d); } list.appendChild(div); }); const totalEl = document.getElementById('total-work-chars'); if(totalEl) totalEl.textContent=`合計: ${total}文字`; }); };
@@ -152,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- [Stats & Initialization] ---
     window.loadStats=function(){db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);window.loadDailyLog();};
     
-    // [Updated] Graph color changed to deep green (#33691e)
+    // [FIX] 安全なDailyLog読み込み (Delegation使用時は二重加算ロジックは不要)
     window.loadDailyLog = async function() { 
         if(!window.currentUser) return; 
         const range = parseInt(document.getElementById('stat-range').value || "7"); 
@@ -170,14 +163,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const snaps = await Promise.all(reads); 
         snaps.forEach(s => window.dailyHistory.push(s.exists ? s.data().count : 0)); 
         
-        // ★ロード完了時に、もし既に加算されていたらサーバー値に上乗せする
-        const loadedToday = window.dailyHistory[range-1] || 0;
-        if (window.todayAddedCount > 0) {
-            window.todayAddedCount += loadedToday;
+        // ローカルで加算中のデータがある場合、サーバー値より大きければそちらを優先表示（簡易同期）
+        const serverToday = window.dailyHistory[range-1] || 0;
+        if (window.todayAddedCount > serverToday) {
+            window.dailyHistory[range-1] = window.todayAddedCount;
         } else {
-            window.todayAddedCount = loadedToday;
+            window.todayAddedCount = serverToday;
         }
-        window.dailyHistory[range-1] = window.todayAddedCount;
 
         document.getElementById('widget-today-count').innerHTML = window.todayAddedCount + '<span class="unit">字</span>'; 
         document.getElementById('stat-week').innerHTML = window.dailyHistory.reduce((a,b)=>a+b,0) + '<span class="unit">字</span>'; 
@@ -189,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.saveDailyLogToFirestore = function() { if(!window.currentUser) return; const key = new Date().toISOString().slice(0,10); db.collection('users').doc(window.currentUser.uid).collection('stats').doc(key).set({count: window.todayAddedCount, date: key}, {merge:true}); };
-    window.trackDailyProgress=function(){const e=document.getElementById('main-editor');if(!e)return;const diff=e.value.length-window.lastContentLength;if(diff>0){if(window.dailyHistory.length===0) window.dailyHistory.push(0); window.todayAddedCount+=diff;window.dailyHistory[window.dailyHistory.length-1]=window.todayAddedCount;document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`;if(window.writingChart){window.writingChart.data.datasets[0].data=window.dailyHistory;window.writingChart.update();}if(window.pendingLogSave)clearTimeout(window.pendingLogSave);window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000);}window.lastContentLength=e.value.length;};
+    window.trackDailyProgress=function(targetVal){const e=document.getElementById('main-editor');const val = targetVal || (e ? e.value : "");const diff=val.length-window.lastContentLength;if(diff>0){if(window.dailyHistory.length===0) window.dailyHistory.push(0); window.todayAddedCount+=diff;window.dailyHistory[window.dailyHistory.length-1]=window.todayAddedCount;document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`;if(window.writingChart){window.writingChart.data.datasets[0].data=window.dailyHistory;window.writingChart.update();}if(window.pendingLogSave)clearTimeout(window.pendingLogSave);window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000);}window.lastContentLength=val.length;};
     window.showPreview=function(){const e=document.getElementById('main-editor');const c=document.getElementById('preview-content');document.getElementById('preview-modal').style.display='flex';c.innerHTML=window.escapeHtml(e.value).replace(/\n/g,'<br>').replace(/[\|｜]([^《]+?)《(.+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');applyPreviewLayout();}; window.closePreview=()=>document.getElementById('preview-modal').style.display='none'; 
     window.togglePreviewMode=()=>{const c=document.getElementById('preview-content');c.classList.toggle('vertical-mode');document.getElementById('preview-mode-btn').textContent=c.classList.contains('vertical-mode')?'横読み':'縦読み';}; 
     window.openPreviewSettings=()=>document.getElementById('preview-settings-modal').style.display='flex'; window.savePreviewSettings=()=>{window.appSettings.prVerticalChars=document.getElementById('ps-vertical-chars').value;window.appSettings.prLinesPage=document.getElementById('ps-lines-page').value;window.appSettings.prFontScale=document.getElementById('ps-font-scale').value;localStorage.setItem('sb_app_settings',JSON.stringify(window.appSettings));applyPreviewLayout();document.getElementById('preview-settings-modal').style.display='none';}; function applyPreviewLayout(){const r=document.documentElement.style;const s=18*parseFloat(window.appSettings.prFontScale);r.setProperty('--pr-font-size',s+'px');r.setProperty('--pr-height',(s*parseInt(window.appSettings.prVerticalChars))+'px');} 
@@ -198,9 +190,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openRubyModal=()=>document.getElementById('ruby-modal').style.display='flex'; window.executeRuby=()=>{const p=document.getElementById('ruby-parent-input').value;const r=document.getElementById('ruby-text-input').value;if(p&&r){insertTextAtCursor(`｜${p}《${r}》`);document.getElementById('ruby-modal').style.display='none';}else{alert("未入力");}};
     function bindClick(id,h){const e=document.getElementById(id);if(e)e.addEventListener('click',h);}
     bindClick('diary-widget',()=>window.switchView('stats')); bindClick('btn-common-memo',()=>window.switchView('memo')); bindClick('back-to-top',()=>window.switchView('top')); bindClick('back-from-stats',()=>window.switchView('top')); bindClick('back-from-memo',()=>window.switchView('top')); bindClick('create-new-work-btn',window.createNewWork); bindClick('save-work-info-btn',window.saveWorkInfo); bindClick('preview-close-btn',window.closePreview); bindClick('preview-mode-btn',window.togglePreviewMode); bindClick('preview-setting-btn',window.openPreviewSettings); bindClick('history-close-btn',()=>document.getElementById('history-modal').style.display='none'); bindClick('history-restore-btn',window.restoreHistory); bindClick('es-cancel',()=>document.getElementById('editor-settings-modal').style.display='none'); bindClick('es-save',window.saveEditorSettings); bindClick('ps-cancel',()=>document.getElementById('preview-settings-modal').style.display='none'); bindClick('ps-save',window.savePreviewSettings); bindClick('replace-cancel-btn',()=>document.getElementById('replace-modal').style.display='none'); bindClick('replace-execute-btn',window.executeReplace); bindClick('ruby-cancel-btn',()=>document.getElementById('ruby-modal').style.display='none'); bindClick('ruby-execute-btn',window.executeRuby); bindClick('add-new-memo-btn',()=>window.openMemoEditor(null,'memo')); bindClick('ws-add-new-memo-btn',()=>window.openMemoEditor(null,'workspace')); bindClick('memo-editor-save',window.saveMemo); bindClick('memo-editor-back-left',()=>window.switchView(window.previousView||'top')); bindClick('memo-editor-delete-right',()=>window.deleteMemo(window.editingMemoId,window.previousView)); bindClick('plot-add-new-btn',()=>window.openPlotEditor(null)); bindClick('char-add-new-btn',()=>window.openCharEditor(null)); bindClick('char-edit-back',()=>document.getElementById('char-edit-view').style.display='none'); bindClick('char-edit-save',window.saveCharItem); bindClick('char-delete-btn', window.deleteCharItem); bindClick('memo-editor-export-txt', ()=>window.exportSingleItem('memo', window.editingMemoId, 'txt')); bindClick('char-view-txt-btn', ()=>window.exportSingleItem('char', window.editingCharId, 'txt')); bindClick('plot-txt-btn', ()=>window.exportSingleItem('plot', window.editingPlotId, 'txt')); bindClick('plot-edit-back', ()=>document.getElementById('plot-edit-view').style.display='none'); bindClick('plot-edit-save', window.savePlotItem); bindClick('plot-delete-btn', window.deletePlotItem);
-    document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>window.activateTab(btn.getAttribute('data-tab')))); const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',window.renderWorkList); const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',window.renderWorkList); const edEl=document.getElementById('main-editor');if(edEl)edEl.addEventListener('input',()=>{window.updateCharCount();window.trackDailyProgress();}); const cEl=document.getElementById('input-catch');if(cEl)cEl.addEventListener('input',function(){window.updateCatchCounter(this);}); const rangeEl=document.getElementById('stat-range'); if(rangeEl)rangeEl.addEventListener('change',window.loadDailyLog);
+    document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>window.activateTab(btn.getAttribute('data-tab')))); const sEl=document.getElementById('sort-order');if(sEl)sEl.addEventListener('change',window.renderWorkList); const fEl=document.getElementById('filter-status');if(fEl)fEl.addEventListener('change',window.renderWorkList); const cEl=document.getElementById('input-catch');if(cEl)cEl.addEventListener('input',function(){window.updateCatchCounter(this);}); const rangeEl=document.getElementById('stat-range'); if(rangeEl)rangeEl.addEventListener('change',window.loadDailyLog);
     const iconInput=document.getElementById('char-icon-input'); if(iconInput)iconInput.addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');const x=c.getContext('2d');const M=150;let w=i.width,h=i.height;if(w>h){if(w>M){h*=M/w;w=M;}}else{if(h>M){w*=M/h;h=M;}}c.width=w;c.height=h;x.drawImage(i,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);const p=document.getElementById('char-icon-preview');p.innerHTML=`<img src="${d}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;p.setAttribute('data-base64',d);};i.src=ev.target.result;};r.readAsDataURL(f);});
     window.initEditorToolbar();
+    // ★[修正] Delegation: 画面全体のどこで入力があっても、IDがmain-editorなら検知する
+    document.body.addEventListener('input', (e) => {
+        if(e.target && e.target.id === 'main-editor') {
+            window.updateCharCount();
+            window.trackDailyProgress(e.target.value);
+        }
+    });
     auth.onAuthStateChanged(async user => {
         if (user) {
             window.currentUser = user; if(loginScreen) loginScreen.style.display='none'; if(mainApp) mainApp.style.display='block'; window.initWorkListener(); await window.loadDailyLog(); window.loadLocalSettings();
