@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- [Section 2] Auth & View Helpers ---
     const views = { top: document.getElementById('top-view'), workspace: document.getElementById('workspace-view'), stats: document.getElementById('stats-view'), memo: document.getElementById('memo-view'), memoEditor: document.getElementById('memo-editor-view') };
     window.escapeHtml = (s) => { if(!s) return ""; return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','-':'&#039;','"':'&quot;'}[m])); };
-    // [FIX] Catchphrase logic: Gold for normal, Red for 0 or less
     window.updateCatchCounter = (el) => { const r = 35 - el.value.length; const c = document.getElementById('c-count'); if(c){ c.textContent = `（残${r}）`; c.style.color = r <= 0 ? '#ff5252' : '#fdd835'; } };
     window.updateCharCount = () => { const e = document.getElementById('main-editor'); const c = document.getElementById('editor-char-counter'); if(!c) return; if(window.charCountMode === 'total'){ c.textContent = `総: ${e.value.length}`; c.style.color = '#fff'; } else { c.textContent = `全: ${e.value.replace(/\s/g,'').length}`; c.style.color = ''; } };
     const loginScreen = document.getElementById('login-screen'); const mainApp = document.getElementById('main-app'); const loginBtn = document.getElementById('google-login-btn');
@@ -57,8 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.saveAppState('workspace'); const backBtn = document.getElementById('back-to-top'); if(backBtn) backBtn.textContent = "TOPへ戻る"; 
         const workDoc = await db.collection('works').doc(id).get(); if(!workDoc.exists) return; const data=workDoc.data(); 
         window.currentWorkLength = data.lengthType || 'long'; window.fillWorkInfo(data); 
-        // [FIX] Disable length selection for existing works
-        document.getElementsByName('novel-length').forEach(e => e.disabled = true);
+        // [FIX] Hide length option group for existing work
+        const lg = document.getElementById('fg-novel-length'); if(lg) lg.style.display='none';
         const infoBtns = document.getElementById('info-export-btns'); if(infoBtns) infoBtns.style.display = 'flex'; 
         const chSnap = await db.collection('works').doc(id).collection('chapters').get(); 
         if(chSnap.empty && data.content) { await db.collection('works').doc(id).collection('chapters').add({title:"第1話",content:data.content,order:1,updatedAt:new Date()}); await db.collection('works').doc(id).update({content:""}); } 
@@ -71,8 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.createNewWork = function() { 
         if (!window.currentUser) return; window.currentWorkId = null; window.currentChapterId = null; window.currentWorkLength='long'; window.fillWorkInfo({}); 
-        // [FIX] Enable length selection for new works
-        document.getElementsByName('novel-length').forEach(e => { e.disabled = false; e.checked = (e.value === 'long'); });
+        // [FIX] Show length option group for new work
+        const lg = document.getElementById('fg-novel-length'); if(lg) lg.style.display='block';
         const infoBtns = document.getElementById('info-export-btns'); if(infoBtns) infoBtns.style.display = 'none'; 
         const backBtn = document.getElementById('back-to-top'); if(backBtn) backBtn.textContent = "TOPへ戻る"; 
         window.switchView('workspace'); window.activateTab('tab-info'); window.toggleTabVisibility(false); window.initEditorToolbar(); 
@@ -87,17 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const docRef = await db.collection('works').add(data); window.currentWorkId = docRef.id; window.currentWorkLength = lengthType; 
             await db.collection('works').doc(docRef.id).collection('chapters').add({title: "第1話", content: "", order: 1, updatedAt: new Date()}); 
             const infoBtns = document.getElementById('info-export-btns'); if(infoBtns) infoBtns.style.display = 'flex'; 
-            // [FIX] Stay on Info tab even after creating new work, but enable tabs
             window.toggleTabVisibility(true); 
             window.initEditorToolbar(); 
             await window.loadChapters();
-            alert("保存しました");
         } else { 
             await db.collection('works').doc(window.currentWorkId).update(data); 
             window.currentWorkLength = lengthType; 
-            alert("保存しました");
         } 
-        // [FIX] Do NOT jump to editor tab. Just update visibility.
         window.toggleTabVisibility(true); 
         const backBtn = document.getElementById('back-to-top'); if(backBtn) backBtn.textContent = "TOPへ戻る"; 
     };
@@ -136,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.setChapterMode=(m)=>{window.chapterListMode=m;window.loadChapters();}; window.toggleSidebar=()=>{const s=document.getElementById('chapter-sidebar');const b=document.getElementById('sidebar-toggle-open');if(s){s.classList.toggle('collapsed');if(b)b.style.display=s.classList.contains('collapsed')?'block':'none';}}; window.showMobileEditor=()=>{if(window.innerWidth<=600)document.getElementById('tab-editor')?.classList.add('mobile-editor-active');}; window.showMobileChapterList=()=>{document.getElementById('tab-editor')?.classList.remove('mobile-editor-active');};
     window.loadChapters = function() { if(!window.currentWorkId) return Promise.resolve(); const list=document.getElementById('chapter-list'); if(!list) return Promise.resolve(); list.innerHTML='Loading...'; return db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order','asc').get().then(snap=>{ list.innerHTML=''; let total=0; if(snap.empty){list.innerHTML='<div style="padding:10px;color:#aaa;">章なし</div>';return;} snap.forEach(doc=>{ const d=doc.data(); const div=document.createElement('div'); div.className='chapter-item'; div.setAttribute('data-id',doc.id); if(window.currentChapterId===doc.id)div.classList.add('active'); total+=(d.content||"").replace(/\s/g,'').length; if(window.chapterListMode==='reorder'){ div.setAttribute('draggable','true'); div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="drag-handle">||</span>`; const h=div.querySelector('.drag-handle'); h.addEventListener('touchstart',handleTouchStart,{passive:false}); h.addEventListener('touchmove',handleTouchMove,{passive:false}); h.addEventListener('touchend',handleTouchEnd); addDragEvents(div); } else if(window.chapterListMode==='delete'){ div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-delete-icon" onclick="deleteTargetChapter('${doc.id}')">🗑️</span>`; } else { div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-list-count">(${d.content?.length||0}字)</span>`; div.onclick=()=>selectChapter(doc.id,d); } list.appendChild(div); }); const totalEl = document.getElementById('total-work-chars'); if(totalEl) totalEl.textContent=`合計: ${total}文字`; }); };
     window.selectChapter=(id,d)=>{ window.currentChapterId=id; window.saveAppState('workspace'); document.getElementById('main-editor').value=d.content||""; window.lastContentLength=(d.content||"").length; if(document.getElementById('chapter-title-input'))document.getElementById('chapter-title-input').value=d.title||""; window.updateCharCount(); document.querySelectorAll('.chapter-item').forEach(e=>e.classList.remove('active')); document.querySelector(`.chapter-item[data-id="${id}"]`)?.classList.add('active'); window.showMobileEditor(); };
-    window.saveCurrentChapter=async(nv,alert)=>{ if(!window.currentWorkId||!window.currentChapterId){if(nv)window.switchView(nv);return;} const c=document.getElementById('main-editor').value; const t=document.getElementById('chapter-title-input').value||"無題"; if(c.length>20000) return; const ref=db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId); await ref.collection('history').add({content:c,savedAt:firebase.firestore.FieldValue.serverTimestamp()}); await ref.update({title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}); const count = c.replace(/\s/g,'').length; if(window.currentWorkLength==='short'){ await db.collection('works').doc(window.currentWorkId).update({totalChars: count}); } else { /* Update Total Logic */ const all = await db.collection('works').doc(window.currentWorkId).collection('chapters').get(); let total=0; all.forEach(d=>total+=(d.data().content||"").replace(/\s/g,'').length); await db.collection('works').doc(window.currentWorkId).update({totalChars: total}); } window.saveDailyLogToFirestore(); window.loadChapters(); if(nv)window.switchView(nv); };
+    window.saveCurrentChapter=async(nv,alert)=>{ if(!window.currentWorkId||!window.currentChapterId){if(nv)window.switchView(nv);return;} const c=document.getElementById('main-editor').value; const t=document.getElementById('chapter-title-input').value||"無題"; if(c.length>20000) return; const ref=db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId); await ref.collection('history').add({content:c,savedAt:firebase.firestore.FieldValue.serverTimestamp()}); await ref.update({title:t,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}); const count = c.replace(/\s/g,'').length; if(window.currentWorkLength==='short'){ await db.collection('works').doc(window.currentWorkId).update({totalChars: count, updatedAt: firebase.firestore.FieldValue.serverTimestamp()}); } else { /* Update Total Logic */ const all = await db.collection('works').doc(window.currentWorkId).collection('chapters').get(); let total=0; all.forEach(d=>total+=(d.data().content||"").replace(/\s/g,'').length); await db.collection('works').doc(window.currentWorkId).update({totalChars: total, updatedAt: firebase.firestore.FieldValue.serverTimestamp()}); } window.saveDailyLogToFirestore(); window.loadChapters(); if(nv)window.switchView(nv); };
     window.addNewChapter=async()=>{ if(!window.currentWorkId)return; const s=await db.collection('works').doc(window.currentWorkId).collection('chapters').get(); if(s.size>=1000) return; const t = `第${s.size+1}話`; await db.collection('works').doc(window.currentWorkId).collection('chapters').add({title:t,content:"",order:s.size+1,updatedAt:new Date()});window.loadChapters(); };
     window.deleteCurrentChapter=async()=>{if(window.currentChapterId&&confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('chapters').doc(window.currentChapterId).delete();window.currentChapterId=null;document.getElementById('main-editor').value="";window.showMobileChapterList();window.loadChapters();}}; window.deleteTargetChapter=async(id)=>{if(confirm("削除しますか？")){await db.collection('works').doc(window.currentWorkId).collection('chapters').doc(id).delete();window.loadChapters();}};
     function addDragEvents(i){i.addEventListener('dragstart',function(e){window.dragSrcEl=this;e.dataTransfer.effectAllowed='move';this.classList.add('dragging');});i.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';return false;});i.addEventListener('drop',function(e){e.stopPropagation();if(window.dragSrcEl!==this){swapNodes(window.dragSrcEl,this);updateOrderInDB();}return false;});i.addEventListener('dragend',function(){this.classList.remove('dragging');});} function swapNodes(n1,n2){const p=n1.parentNode;if(p!==n2.parentNode)return;const t=document.createElement("div");p.insertBefore(t,n1);p.insertBefore(n1,n2);p.insertBefore(n2,t);p.removeChild(t);} function handleTouchStart(e){window.touchSrcEl=e.target.closest('.chapter-item');if(window.touchSrcEl){window.touchSrcEl.classList.add('dragging');e.preventDefault();}} function handleTouchMove(e){if(!window.touchSrcEl)return;e.preventDefault();const t=e.touches[0];const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.chapter-item');if(el&&el!==window.touchSrcEl&&el.parentNode===window.touchSrcEl.parentNode)swapNodes(window.touchSrcEl,el);} function handleTouchEnd(e){if(window.touchSrcEl){window.touchSrcEl.classList.remove('dragging');updateOrderInDB();window.touchSrcEl=null;}} async function updateOrderInDB(){const b=db.batch();document.querySelectorAll('.chapter-item').forEach((e,i)=>{b.update(db.collection('works').doc(window.currentWorkId).collection('chapters').doc(e.getAttribute('data-id')),{order:i+1});});await b.commit();}
@@ -157,14 +152,17 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadPlots=()=>{if(!window.currentWorkId)return;const c=document.getElementById('plot-items-container');c.innerHTML='';db.collection('works').doc(window.currentWorkId).collection('plots').orderBy('updatedAt','desc').get().then(s=>{s.forEach(d=>c.appendChild(createPlotCard(d.id,d.data())));});};
     function createPlotCard(id,d){const el=document.createElement('div');el.className='plot-card';el.innerHTML=`<div class="plot-card-header"><span class="plot-card-title">${window.escapeHtml(d.title)}</span><span class="plot-card-type">${d.type==='timeline'?'TL':'メモ'}</span></div><div class="plot-card-preview">${window.escapeHtml(d.content)}</div>`;el.onclick=()=>window.openPlotEditor(id);return el;}
     window.openPlotEditor=(id)=>{window.editingPlotId=id;const v=document.getElementById('plot-edit-view');v.style.display='flex';document.getElementById('plot-view-mode').style.display='none';document.getElementById('plot-edit-mode').style.display='block';const del=document.getElementById('plot-delete-btn');const tit=document.getElementById('plot-edit-title');const typ=document.getElementById('plot-edit-type');const con=document.getElementById('plot-edit-content');if(id){del.style.display='block';db.collection('works').doc(window.currentWorkId).collection('plots').doc(id).get().then(s=>{const d=s.data();tit.value=d.title;typ.value=d.type;con.value=d.content;});}else{del.style.display='none';tit.value='';typ.value='memo';con.value='';}};
-    window.savePlotItem=()=>{if(!window.currentWorkId)return;const t=document.getElementById('plot-edit-title').value||"無題";const tp=document.getElementById('plot-edit-type').value;const c=document.getElementById('plot-edit-content').value;const d={title:t,type:tp,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingPlotId)db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(d);else{d.createdAt=firebase.firestore.FieldValue.serverTimestamp();db.collection('works').doc(window.currentWorkId).collection('plots').add(d);}document.getElementById('plot-edit-view').style.display='none';window.loadPlots();};
+    window.savePlotItem=()=>{if(!window.currentWorkId)return;const t=document.getElementById('plot-edit-title').value||"無題";const tp=document.getElementById('plot-edit-type').value;const c=document.getElementById('plot-edit-content').value;const d={title:t,type:tp,content:c,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(window.editingPlotId)db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).update(d);else{d.createdAt=firebase.firestore.FieldValue.serverTimestamp();db.collection('works').doc(window.currentWorkId).collection('plots').add(d);}
+        db.collection('works').doc(window.currentWorkId).update({updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
+        document.getElementById('plot-edit-view').style.display='none';window.loadPlots();
+    };
     window.deletePlotItem=()=>{if(window.editingPlotId&&confirm("削除しますか？")){db.collection('works').doc(window.currentWorkId).collection('plots').doc(window.editingPlotId).delete().then(()=>{document.getElementById('plot-edit-view').style.display='none';window.loadPlots();});}};
     
-    // --- [Section 7] Characters (FIXED LOGIC) ---
+    // --- [Section 7] Characters ---
     window.loadCharacters=()=>{if(!window.currentWorkId)return;const c=document.getElementById('char-items-container');c.innerHTML='';db.collection('works').doc(window.currentWorkId).collection('characters').orderBy('updatedAt','desc').get().then(s=>{s.forEach(d=>c.appendChild(createCharCard(d.id,d.data())));});};
     function createCharCard(id,d){const el=document.createElement('div');el.className='char-card';el.innerHTML=`${d.icon?`<img src="${d.icon}" class="char-icon">`:`<div class="char-icon">👤</div>`}<span class="char-name">${window.escapeHtml(d.name)}</span>`;el.onclick=()=>window.openCharDetail(id);return el;}
     
-    // [FIX] Open View Mode first
+    // [FIX] New Char Detail View
     window.openCharDetail=async(id)=>{
         window.editingCharId=id;
         const v=document.getElementById('char-edit-view');
@@ -172,27 +170,25 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('char-view-mode').style.display='block';
         document.getElementById('char-edit-mode').style.display='none';
         
-        // Header Controls for View Mode
-        document.getElementById('char-header-title').textContent = '閲覧';
-        document.getElementById('char-mode-edit-btn').style.display='inline-block'; // Show "Edit" button
-        document.getElementById('char-mode-edit-btn').onclick = ()=>window.openCharEditor(id); // Link to edit
-        document.getElementById('char-delete-btn').style.display='none'; // Hide delete in view mode
+        document.getElementById('char-header-title').textContent = 'キャラ情報';
+        document.getElementById('char-mode-edit-btn').style.display='inline-block'; 
+        document.getElementById('char-mode-edit-btn').onclick = ()=>window.openCharEditor(id);
+        document.getElementById('char-delete-btn').style.display='none'; 
         
         const doc = await db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get();
         const d = doc.data();
         
-        // Build View HTML
         const html = `
             <div class="char-view-header">
                 ${d.icon?`<img src="${d.icon}" class="cv-h-icon">`:`<div class="cv-h-icon" style="display:flex;align-items:center;justify-content:center;font-size:40px;">👤</div>`}
                 <div class="cv-h-info">
-                    <div class="cv-h-ruby">${window.escapeHtml((d.rubylast||"") + " " + (d.rubyfirst||""))}</div>
-                    <div class="cv-h-name">${window.escapeHtml(d.name)}</div>
-                    <div style="font-size:14px;color:#aaa;">${window.escapeHtml(d.alias ? "("+d.alias+")" : "")}</div>
+                    <div class="cv-h-ruby">${window.escapeHtml((d.rubylast||"") + "　" + (d.rubyfirst||""))}</div>
+                    <div class="cv-h-name">${window.escapeHtml((d.namelast||"") + "　" + (d.namefirst||""))}</div>
+                    <div style="font-size:14px;color:#fff;font-weight:bold;">${window.escapeHtml(d.alias||"")}</div>
                 </div>
             </div>
-            <div class="cv-row"><div class="cv-label">年齢</div><div class="cv-val">${d.age||"-"}歳</div><div class="cv-label">誕生日</div><div class="cv-val">${d.birthm||"-"}月${d.birthd||"-"}日</div><div class="cv-label">身長</div><div class="cv-val">${d.height||"-"}cm</div></div>
-            <div class="cv-row"><div class="cv-label">役職</div><div class="cv-val">${window.escapeHtml(d.role||"-")}</div></div>
+            <div class="cv-row"><div class="cv-label">年齢</div><div class="cv-val">${d.age||"-"}歳</div><div class="cv-label">誕生日</div><div class="cv-val">${d.birthm||"-"}月${d.birthd||"-"}日</div></div>
+            <div class="cv-row"><div class="cv-label">身長</div><div class="cv-val">${d.height||"-"}cm</div><div class="cv-label">役職</div><div class="cv-val">${window.escapeHtml(d.role||"-")}</div></div>
             <div class="cv-section"><div class="cv-section-title">見た目・性格</div><div class="cv-section-body">${window.escapeHtml(d.appearance||"")}</div></div>
             <div class="cv-section"><div class="cv-section-title">特技・能力</div><div class="cv-section-body">${window.escapeHtml(d.ability||"")}</div></div>
             <div class="cv-section"><div class="cv-section-title">生い立ち・背景</div><div class="cv-section-body">${window.escapeHtml(d.background||"")}</div></div>
@@ -208,15 +204,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('char-view-mode').style.display='none';
         document.getElementById('char-edit-mode').style.display='block';
         
-        // Header Controls for Edit Mode
         document.getElementById('char-header-title').textContent = id ? '編集' : '新規作成';
-        document.getElementById('char-mode-edit-btn').style.display='none'; // Hide edit button (already editing)
+        document.getElementById('char-mode-edit-btn').style.display='none'; 
         document.getElementById('char-delete-btn').style.display = id ? 'inline-block' : 'none';
         
         const els=['name-last','name-first','ruby-last','ruby-first','alias','age','birth-m','birth-d','height','role','appearance','ability','background','memo'];
-        
         if(id){
-            // EDIT: Load data
             db.collection('works').doc(window.currentWorkId).collection('characters').doc(id).get().then(s=>{
                 const d=s.data();
                 els.forEach(k=>document.getElementById(`char-${k}`).value=d[k.replace('-','')]||"");
@@ -224,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('char-icon-preview').setAttribute('data-base64',d.icon||"");
             });
         }else{
-            // NEW: Clear inputs [FIX]
             els.forEach(k=>document.getElementById(`char-${k}`).value="");
             document.getElementById('char-icon-preview').innerHTML="👤";
             document.getElementById('char-icon-preview').setAttribute('data-base64',"");
@@ -232,21 +224,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.saveCharItem=()=>{if(!window.currentWorkId)return;const d={updatedAt:firebase.firestore.FieldValue.serverTimestamp()};const els=['name-last','name-first','ruby-last','ruby-first','alias','age','birth-m','birth-d','height','role','appearance','ability','background','memo'];els.forEach(k=>{const v=document.getElementById(`char-${k}`).value;d[k.replace('-','')]=v;});d.name=(d.namelast||"")+(d.namefirst||"");if(!d.name)d.name="名無し";d.icon=document.getElementById('char-icon-preview').getAttribute('data-base64');if(window.editingCharId)db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).update(d);else{d.createdAt=firebase.firestore.FieldValue.serverTimestamp();db.collection('works').doc(window.currentWorkId).collection('characters').add(d);}
+        db.collection('works').doc(window.currentWorkId).update({updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
         document.getElementById('char-edit-view').style.display='none';
-        window.loadCharacters(); // Reload list to reflect changes
+        window.loadCharacters(); 
     };
     
     window.deleteCharItem=()=>{if(window.editingCharId&&confirm("削除しますか？")){db.collection('works').doc(window.currentWorkId).collection('characters').doc(window.editingCharId).delete().then(()=>{document.getElementById('char-edit-view').style.display='none';window.loadCharacters();});}};
     
-    // [FIX] Back button logic: Handle returning from View vs Edit
     window.closeCharOverlay=()=>{
         const editMode = document.getElementById('char-edit-mode').style.display !== 'none';
-        // If in edit mode and editing existing char, go back to view mode. Otherwise (view mode or new char), close overlay.
         if (editMode && window.editingCharId) {
             window.openCharDetail(window.editingCharId);
         } else {
             document.getElementById('char-edit-view').style.display='none';
-            // Ensure list is visible (it should be, but just in case)
             document.getElementById('char-list-view').style.display='flex';
         }
     };
@@ -291,9 +281,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.saveDailyLogToFirestore = function() { if(!window.currentUser) return; const key = new Date().toISOString().slice(0,10); db.collection('users').doc(window.currentUser.uid).collection('stats').doc(key).set({count: window.todayAddedCount, date: key}, {merge:true}); };
     window.trackDailyProgress=function(targetVal){const e=document.getElementById('main-editor');const val = targetVal || (e ? e.value : "");const diff=val.length-window.lastContentLength;if(diff>0){if(window.dailyHistory.length===0) window.dailyHistory.push(0); window.todayAddedCount+=diff;window.dailyHistory[window.dailyHistory.length-1]=window.todayAddedCount;document.getElementById('widget-today-count').innerHTML=`${window.todayAddedCount}<span class="unit">字</span>`;if(window.writingChart){window.writingChart.data.datasets[0].data=window.dailyHistory;window.writingChart.update();}if(window.pendingLogSave)clearTimeout(window.pendingLogSave);window.pendingLogSave=setTimeout(saveDailyLogToFirestore,3000);}window.lastContentLength=val.length;};
     
-    // [FIX] Preview: Reset to horizontal (remove vertical-mode class) on show
     window.showPreview=function(){const e=document.getElementById('main-editor');const c=document.getElementById('preview-content');document.getElementById('preview-modal').style.display='flex';
-        c.classList.remove('vertical-mode'); // Reset to horizontal
+        c.classList.remove('vertical-mode'); 
         document.getElementById('preview-mode-btn').textContent='縦読み';
         c.innerHTML=window.escapeHtml(e.value).replace(/\n/g,'<br>').replace(/[\|｜]([^《]+?)《(.+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');applyPreviewLayout();
     }; 
