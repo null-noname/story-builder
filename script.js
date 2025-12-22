@@ -99,6 +99,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
             });
         }
+        // ★【修正】エディタを作成したタイミングで、必ず入力監視イベントを再登録する
+        const mainEd = document.getElementById('main-editor');
+        if(mainEd) {
+            mainEd.addEventListener('input', () => {
+                window.updateCharCount();
+                if(window.trackDailyProgress) window.trackDailyProgress();
+            });
+        }
     };
     window.setChapterMode=(m)=>{window.chapterListMode=m;window.loadChapters();}; window.toggleSidebar=()=>{const s=document.getElementById('chapter-sidebar');const b=document.getElementById('sidebar-toggle-open');if(s){s.classList.toggle('collapsed');if(b)b.style.display=s.classList.contains('collapsed')?'block':'none';}}; window.showMobileEditor=()=>{if(window.innerWidth<=600)document.getElementById('tab-editor')?.classList.add('mobile-editor-active');}; window.showMobileChapterList=()=>{document.getElementById('tab-editor')?.classList.remove('mobile-editor-active');};
     window.loadChapters = function() { if(!window.currentWorkId) return Promise.resolve(); const list=document.getElementById('chapter-list'); if(!list) return Promise.resolve(); list.innerHTML='Loading...'; return db.collection('works').doc(window.currentWorkId).collection('chapters').orderBy('order','asc').get().then(snap=>{ list.innerHTML=''; let total=0; if(snap.empty){list.innerHTML='<div style="padding:10px;color:#aaa;">章なし</div>';return;} snap.forEach(doc=>{ const d=doc.data(); const div=document.createElement('div'); div.className='chapter-item'; div.setAttribute('data-id',doc.id); if(window.currentChapterId===doc.id)div.classList.add('active'); total+=(d.content||"").replace(/\s/g,'').length; if(window.chapterListMode==='reorder'){ div.setAttribute('draggable','true'); div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="drag-handle">||</span>`; const h=div.querySelector('.drag-handle'); h.addEventListener('touchstart',handleTouchStart,{passive:false}); h.addEventListener('touchmove',handleTouchMove,{passive:false}); h.addEventListener('touchend',handleTouchEnd); addDragEvents(div); } else if(window.chapterListMode==='delete'){ div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-delete-icon" onclick="deleteTargetChapter('${doc.id}')">🗑️</span>`; } else { div.innerHTML=`<span class="chapter-list-title">${window.escapeHtml(d.title)}</span><span class="chapter-list-count">(${d.content?.length||0}字)</span>`; div.onclick=()=>selectChapter(doc.id,d); } list.appendChild(div); }); const totalEl = document.getElementById('total-work-chars'); if(totalEl) totalEl.textContent=`合計: ${total}文字`; }); };
@@ -144,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- [Stats & Initialization] ---
     window.loadStats=function(){db.collection('works').where('uid','==',window.currentUser.uid).get().then(s=>document.getElementById('stat-works').innerHTML=`${s.size}<span class="unit">作品</span>`);window.loadDailyLog();};
     
-    // [FIX] loadDailyLog: 加算ロジック修正（ロード中の操作分を保持）
+    // [Updated] Graph color changed to deep green (#33691e)
     window.loadDailyLog = async function() { 
         if(!window.currentUser) return; 
         const range = parseInt(document.getElementById('stat-range').value || "7"); 
@@ -162,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const snaps = await Promise.all(reads); 
         snaps.forEach(s => window.dailyHistory.push(s.exists ? s.data().count : 0)); 
         
-        // ★修正：ロード完了時に、もし既に加算されていたらサーバー値に上乗せする
+        // ★ロード完了時に、もし既に加算されていたらサーバー値に上乗せする
         const loadedToday = window.dailyHistory[range-1] || 0;
         if (window.todayAddedCount > 0) {
             window.todayAddedCount += loadedToday;
