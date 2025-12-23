@@ -1,9 +1,8 @@
 /**
- * 執筆エディター - Standalone Writing Tool
- * Modular Logic in a Single File for file:// compatibility
+ * エディター - Standalone Writing Tool
+ * Logic for Work Info Setup, Sorting, Filtering, and Retro UI
  */
 
-// --- 1. CONFIGURATION & GLOBALS ---
 const CONFIG = {
     firebase: {
         apiKey: "AIzaSyDc5HZ1PVW7H8-Pe8PBoY_bwCMm0jd5_PU",
@@ -20,7 +19,6 @@ let currentUser = null;
 let currentWorkId = null;
 let currentChapterId = null;
 let allWorksCache = [];
-let chartInstance = null;
 let autoSaveTimer = null;
 
 // Initialize Firebase
@@ -28,33 +26,29 @@ if (!firebase.apps.length) firebase.initializeApp(CONFIG.firebase);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// --- 2. AUTHENTICATION ---
+// --- 1. AUTH & INIT ---
 function initAuth() {
     const loginBtn = document.getElementById('google-login-btn');
-    if (loginBtn) {
-        loginBtn.onclick = () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch(e => console.error(e));
-        };
-    }
+    loginBtn.onclick = () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider).catch(e => console.error(e));
+    };
 
     auth.onAuthStateChanged(user => {
-        const loginScreen = document.getElementById('login-screen');
-        const mainApp = document.getElementById('main-app');
         if (user) {
             currentUser = user;
-            loginScreen.style.display = 'none';
-            mainApp.style.display = 'flex';
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
             switchView('top-view');
         } else {
             currentUser = null;
-            loginScreen.style.display = 'flex';
-            mainApp.style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('main-app').style.display = 'none';
         }
     });
 }
 
-// --- 3. VIEW MANAGEMENT ---
+// --- 2. VIEW MANAGEMENT ---
 window.switchView = function (viewId) {
     document.querySelectorAll('.view-content').forEach(v => {
         v.classList.remove('active');
@@ -63,60 +57,105 @@ window.switchView = function (viewId) {
     const target = document.getElementById(viewId);
     if (target) {
         target.classList.add('active');
-        target.style.display = viewId === 'workspace-view' ? 'flex' : 'block';
-        if (target.style.display === 'block') target.style.display = ''; // fallback to default
+        // Custom display handling
+        if (viewId === 'workspace-view') target.style.display = 'flex';
+        else if (viewId === 'top-view' || viewId === 'setup-view') target.style.display = 'flex'; // flex for centering
+        else target.style.display = 'block';
     }
-
-    // Header Updates
-    const hT = document.getElementById('header-title-text');
-    const bL = document.getElementById('nav-btn-left');
-    const bR = document.getElementById('nav-btn-right');
 
     if (viewId === 'top-view') {
-        hT.textContent = "執筆エディター";
-        bL.textContent = "ログアウト";
-        bR.textContent = "執筆日記";
         loadWorks();
         loadDailyStats();
-    } else if (viewId === 'workspace-view') {
-        hT.textContent = "執筆中";
-        bL.textContent = "◀ TOP";
-        bR.textContent = "プレビュー";
-    } else if (viewId === 'stats-view') {
-        hT.textContent = "執筆日記";
-        bL.textContent = "◀ 戻る";
-        bR.textContent = "";
-        renderStatsChart();
-    } else if (viewId === 'info-view') {
-        hT.textContent = "作品設定";
-        bL.textContent = "◀ 戻る";
-        bR.textContent = "保存";
     }
 };
 
-window.handleHeaderLeft = function () {
-    const cur = document.querySelector('.view-content.active').id;
-    if (cur === 'top-view') auth.signOut();
-    else if (cur === 'workspace-view') switchView('top-view');
-    else if (cur === 'stats-view') switchView('top-view');
-    else if (cur === 'info-view') switchView('workspace-view');
+// --- 3. WORK MANAGEMENT (SETUP & INFO) ---
+window.showWorkSetup = function () {
+    currentWorkId = null; // New work mode
+    clearForm();
+    switchView('setup-view');
 };
 
-window.handleHeaderRight = function () {
-    const cur = document.querySelector('.view-content.active').id;
-    if (cur === 'top-view') switchView('stats-view');
-    else if (cur === 'workspace-view') openPreview();
-    else if (cur === 'info-view') saveWorkInfo();
+window.openInfoEditor = function () {
+    // Edit existing work info
+    const work = allWorksCache.find(w => w.id === currentWorkId);
+    if (work) {
+        fillForm(work);
+        switchView('setup-view');
+    }
 };
 
-window.toggleSidebar = function () {
-    document.getElementById('sidebar').classList.toggle('open');
+function clearForm() {
+    document.getElementById('work-f-title').value = "";
+    document.getElementById('work-f-catchphrase').value = "";
+    document.getElementById('work-f-summary').value = "";
+    document.getElementById('work-f-genre-m').value = "";
+    document.getElementById('work-f-genre-s').value = "";
+    document.getElementById('work-f-length').value = "long";
+    document.getElementById('work-f-status').value = "in-progress";
+    document.getElementById('work-f-type').value = "original";
+    document.getElementById('work-f-ai').value = "none";
+    document.querySelectorAll('input[name="rating"]').forEach(c => c.checked = false);
+}
+
+function fillForm(w) {
+    document.getElementById('work-f-title').value = w.title || "";
+    document.getElementById('work-f-catchphrase').value = w.catchphrase || "";
+    document.getElementById('work-f-summary').value = w.description || "";
+    document.getElementById('work-f-genre-m').value = w.mainGenre || "";
+    document.getElementById('work-f-genre-s').value = w.subGenre || "";
+    document.getElementById('work-f-length').value = w.novelLength || "long";
+    document.getElementById('work-f-status').value = w.status || "in-progress";
+    document.getElementById('work-f-type').value = w.type || "original";
+    document.getElementById('work-f-ai').value = w.aiUsage || "none";
+    const ratings = w.ratings || [];
+    document.querySelectorAll('input[name="rating"]').forEach(c => {
+        c.checked = ratings.includes(c.value);
+    });
+}
+
+window.handleWorkInfoSubmit = async function () {
+    const title = document.getElementById('work-f-title').value.trim();
+    if (!title) { alert("タイトルを入力してください"); return; }
+
+    const ratings = [];
+    document.querySelectorAll('input[name="rating"]:checked').forEach(c => ratings.push(c.value));
+
+    const data = {
+        uid: currentUser.uid,
+        title: title,
+        catchphrase: document.getElementById('work-f-catchphrase').value,
+        description: document.getElementById('work-f-summary').value,
+        mainGenre: document.getElementById('work-f-genre-m').value,
+        subGenre: document.getElementById('work-f-genre-s').value,
+        novelLength: document.getElementById('work-f-length').value,
+        status: document.getElementById('work-f-status').value,
+        type: document.getElementById('work-f-type').value,
+        aiUsage: document.getElementById('work-f-ai').value,
+        ratings: ratings,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (currentWorkId) {
+        // Update
+        await db.collection("works").doc(currentWorkId).update(data);
+        switchView('workspace-view');
+    } else {
+        // Create
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        data.totalChars = 0;
+        data.isPinned = false;
+        const doc = await db.collection("works").add(data);
+        currentWorkId = doc.id;
+        switchView('workspace-view');
+        loadChapters();
+    }
 };
 
-// --- 4. WORK MANAGEMENT ---
+// --- 4. WORK LIST (SORT & FILTER) ---
 function loadWorks() {
     if (!currentUser) return;
-    db.collection("works").where("uid", "==", currentUser.uid).orderBy("updatedAt", "desc")
+    db.collection("works").where("uid", "==", currentUser.uid)
         .onSnapshot(snap => {
             allWorksCache = [];
             snap.forEach(doc => allWorksCache.push({ id: doc.id, ...doc.data() }));
@@ -124,97 +163,71 @@ function loadWorks() {
         });
 }
 
-function renderWorkList() {
+window.renderWorkList = function () {
     const container = document.getElementById('work-list');
+    const filter = document.getElementById('filter-status').value;
+    const sort = document.getElementById('sort-order').value;
+
+    let filtered = allWorksCache;
+    if (filter !== 'all') {
+        filtered = filtered.filter(w => w.status === filter);
+    }
+
+    // Sort: Pinned first, then User choice
+    filtered.sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+
+        const valA = a[sort]?.seconds || 0;
+        const valB = b[sort]?.seconds || 0;
+        return valB - valA;
+    });
+
     container.innerHTML = '';
-    if (allWorksCache.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">作品がありません</div>';
+    if (filtered.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:60px;color:#666;">作品がありません</div>';
         return;
     }
 
-    // Sort: Pinned first, then updatedAt
-    const sorted = [...allWorksCache].sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        return (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0);
-    });
-
-    sorted.forEach(work => {
+    filtered.forEach(work => {
         const item = document.createElement('div');
-        item.className = 'work-item';
-        item.onclick = () => openWork(work.id);
+        item.className = 'work-item-card';
         item.innerHTML = `
-            <div class="work-info">
-                <div class="work-title">
-                    ${work.isPinned ? '<span style="color:var(--accent-blue);margin-right:8px;">📌</span>' : ''}
-                    ${escapeHtml(work.title)} 
-                    ${work.isFinished ? '<span class="work-badge" style="color:#aaa;border-color:#aaa;">完結</span>' : '<span class="work-badge" style="color:var(--accent-green);border-color:var(--accent-green);">執筆中</span>'}
+            <div class="work-header">
+                <div class="work-title-link" onclick="openWork('${work.id}')">${escapeHtml(work.title)}</div>
+                <div class="work-actions-inline">
+                    <button class="btn-icon" onclick="openWork('${work.id}')">編集</button>
+                    <button class="btn-icon red" onclick="deleteWork('${work.id}')">削除</button>
+                    <button class="btn-icon star ${work.isPinned ? 'active' : ''}" onclick="togglePin(event, '${work.id}', ${work.isPinned})">★</button>
                 </div>
-                <div class="work-meta">${work.totalChars || 0} 文字 | 更新: ${work.updatedAt ? formatTime(work.updatedAt.toDate()) : '-'}</div>
             </div>
-            <button class="btn-custom btn-small" onclick="togglePinWork(event, '${work.id}', ${work.isPinned || false})">${work.isPinned ? '外す' : '固定'}</button>
+            <div class="work-footer-meta">
+                作成日 : ${work.createdAt ? formatDate(work.createdAt.toDate()) : '-'} &nbsp; 
+                更新日 : ${work.updatedAt ? formatDate(work.updatedAt.toDate(), true) : '-'}
+            </div>
         `;
         container.appendChild(item);
     });
-}
-
-window.createNewWork = function () {
-    const data = {
-        uid: currentUser.uid,
-        title: "無題の物語",
-        description: "",
-        totalChars: 0,
-        isFinished: false,
-        isPinned: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    db.collection("works").add(data).then(doc => openWork(doc.id));
 };
 
-window.togglePinWork = function (e, id, currentStatus) {
-    if (e) e.stopPropagation();
-    db.collection("works").doc(id).update({ isPinned: !currentStatus });
-};
-
-function openWork(id) {
+window.openWork = function (id) {
     currentWorkId = id;
-    const work = allWorksCache.find(w => w.id === id);
-    if (!work) return;
-
-    document.getElementById('info-title').value = work.title || "";
-    document.getElementById('info-summary').value = work.description || "";
-    const radios = document.getElementsByName('novel-status');
-    radios.forEach(r => { if (r.value === (work.isFinished ? 'completed' : 'in-progress')) r.checked = true; });
-
     switchView('workspace-view');
     loadChapters();
-}
-
-window.saveWorkInfo = function () {
-    if (!currentWorkId) return;
-    const isFinished = document.querySelector('input[name="novel-status"]:checked').value === 'completed';
-    const data = {
-        title: document.getElementById('info-title').value,
-        description: document.getElementById('info-summary').value,
-        isFinished: isFinished,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    db.collection("works").doc(currentWorkId).update(data).then(() => {
-        alert("設定を保存しました");
-        switchView('workspace-view');
-    });
 };
 
-window.deleteWork = function () {
-    if (!currentWorkId) return;
-    if (!confirm("本当にこの作品を削除しますか？\n（この操作は取り消せません）")) return;
-    db.collection("works").doc(currentWorkId).delete().then(() => {
-        switchView('top-view');
-    });
+window.togglePin = function (e, id, cur) {
+    if (e) e.stopPropagation();
+    db.collection("works").doc(id).update({ isPinned: !cur });
 };
 
-// --- 5. EDITOR & CHAPTERS ---
+window.deleteWork = function (id) {
+    if (confirm("本当にこの作品を削除しますか？")) {
+        db.collection("works").doc(id).delete();
+    }
+};
+
+// --- 5. EDITOR ---
 function loadChapters() {
     if (!currentWorkId) return;
     db.collection("works").doc(currentWorkId).collection("chapters").orderBy("order", "asc")
@@ -222,34 +235,36 @@ function loadChapters() {
             const list = document.getElementById('chapter-list');
             list.innerHTML = '';
             if (snap.empty) {
-                addNewChapter(); // create first chapter if none
+                addNewChapter();
                 return;
             }
             snap.forEach(doc => {
                 const d = doc.data();
-                const item = document.createElement('div');
-                item.className = 'chapter-item' + (currentChapterId === doc.id ? ' active' : '');
-                item.innerHTML = `<span>${escapeHtml(d.title || "無題の話")}</span><span class="count">${(d.content || "").length}</span>`;
-                item.onclick = () => selectChapter(doc.id, d.content);
-                list.appendChild(item);
+                const div = document.createElement('div');
+                div.style.padding = "12px 16px";
+                div.style.borderBottom = "1px solid #000";
+                div.style.cursor = "pointer";
+                if (currentChapterId === doc.id) div.style.background = "#2b4034";
+                div.innerHTML = `${escapeHtml(d.title)} <span style="float:right; color:#666; font-size:0.8rem;">${(d.content || "").length}</span>`;
+                div.onclick = () => selectChapter(doc.id, d.content);
+                list.appendChild(div);
             });
-            // If no chapter selected, select the first one
-            if (!currentChapterId && !snap.empty) {
-                const first = snap.docs[0];
-                selectChapter(first.id, first.data().content);
+            if (!currentChapterId) {
+                const f = snap.docs[0];
+                selectChapter(f.id, f.data().content);
             }
         });
 }
 
 window.addNewChapter = function () {
-    const order = document.querySelectorAll('.chapter-item').length + 1;
-    const data = {
+    const order = document.querySelectorAll('#chapter-list div').length + 1;
+    db.collection("works").doc(currentWorkId).collection("chapters").add({
         title: `第${order}話`,
         content: "",
         order: order,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    db.collection("works").doc(currentWorkId).collection("chapters").add(data).then(doc => {
+    }).then(doc => {
+        currentChapterId = doc.id;
         selectChapter(doc.id, "");
     });
 };
@@ -257,21 +272,23 @@ window.addNewChapter = function () {
 function selectChapter(id, content) {
     currentChapterId = id;
     document.getElementById('main-editor').value = content || "";
-    updateLocalCharCount();
-    // Highlight active in list
-    document.querySelectorAll('.chapter-item').forEach(el => el.classList.remove('active'));
-    // (Snapshot will re-render soon if we change state globally, but manual UI feedback is faster)
+    updateCharCount();
+    // Highlight UI
+    document.querySelectorAll('#chapter-list div').forEach(el => {
+        el.style.background = "transparent";
+    });
+    // The snapshot will handle the background color in the next render cycle, 
+    // but we can manually force it for better UX if needed.
 }
 
 window.onEditorInput = function () {
-    updateLocalCharCount();
+    updateCharCount();
     clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(saveCurrentChapter, 2000); // Auto-save after 2s of silence
+    autoSaveTimer = setTimeout(saveCurrentChapter, 2000);
 };
 
-function updateLocalCharCount() {
-    const val = document.getElementById('main-editor').value;
-    document.getElementById('editor-char-count').textContent = `${val.length}字`;
+function updateCharCount() {
+    document.getElementById('editor-char-count').textContent = `${document.getElementById('main-editor').value.length} 字`;
 }
 
 window.saveCurrentChapter = function () {
@@ -281,7 +298,7 @@ window.saveCurrentChapter = function () {
         content: content,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(() => {
-        trackWritingProgress(content.length);
+        updateDailyProgress(content.length);
     });
 };
 
@@ -289,121 +306,43 @@ window.toggleVerticalMode = function () {
     document.getElementById('main-editor').classList.toggle('vertical');
 };
 
-// --- 6. STATS & CHART ---
+// --- 6. STATS & PREVIEW ---
 async function loadDailyStats() {
     if (!currentUser) return;
     const today = new Date().toISOString().split('T')[0];
     const doc = await db.collection("users").doc(currentUser.uid).collection("dailyProgress").doc(today).get();
-    if (doc.exists) {
-        document.getElementById('stat-today-chars').textContent = `${doc.data().count || 0}字`;
-    }
+    if (doc.exists) document.getElementById('stat-today-chars').textContent = `${doc.data().count || 0} 字`;
 }
 
-async function trackWritingProgress(currentLength) {
-    // This logic is a simplified word count tracker
-    // Real implementation would compare with previous save state
-    // For now, we update the daily log with current session total
+async function updateDailyProgress(count) {
     const today = new Date().toISOString().split('T')[0];
     db.collection("users").doc(currentUser.uid).collection("dailyProgress").doc(today).set({
-        count: currentLength,
+        count: count,
         date: today
     }, { merge: true });
 }
 
-async function renderStatsChart() {
-    const ctx = document.getElementById('statsChart');
-    if (!ctx) return;
-    if (chartInstance) chartInstance.destroy();
-
-    // Fetch last 7 days from Firestore...
-    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const data = [1200, 1900, 3000, 500, 2000, 3500, 2400]; // Mock data
-
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: '執筆文字数',
-                data: data,
-                backgroundColor: '#3d5afe',
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, grid: { color: '#333' } },
-                x: { grid: { display: false } }
-            },
-            plugins: { legend: { display: false } }
-        }
-    });
-}
-
-// --- 7. PREVIEW ---
 window.openPreview = function () {
     const content = document.getElementById('main-editor').value;
     const modal = document.getElementById('preview-modal');
     const area = document.getElementById('preview-content');
-
-    // Convert newlines to breaks or handle spacing
-    area.innerHTML = content.split('\n').map(line => line.trim() === '' ? '<br>' : `<div>${escapeHtml(line)}</div>`).join('');
+    area.innerHTML = content.split('\n').map(l => l.trim() === "" ? "<br>" : `<div>${escapeHtml(l)}</div>`).join('');
     modal.style.display = 'flex';
 };
 
-window.closePreview = function () {
-    document.getElementById('preview-modal').style.display = 'none';
-};
-
-window.togglePreviewWritingMode = function () {
-    document.getElementById('preview-content').classList.toggle('vertical-mode'); // need to add CSS for this
-};
-
-// --- HELPER FUNCTIONS ---
-function escapeHtml(str) {
-    if (!str) return "";
-    return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#039;' }[m]));
+// --- HELPERS ---
+function escapeHtml(s) {
+    if (!s) return "";
+    return s.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#039;' }[m]));
+}
+function formatDate(d, time = false) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    if (!time) return `${y}/${m}/${day}`;
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}/${m}/${day} ${h}:${min}`;
 }
 
-// --- 8. EXPORT ---
-window.exportAsTxt = async function () {
-    if (!currentWorkId) return;
-    const work = allWorksCache.find(w => w.id === currentWorkId);
-    const snap = await db.collection("works").doc(currentWorkId).collection("chapters").orderBy("order", "asc").get();
-    let text = `${work.title}\n\n`;
-    snap.forEach(doc => {
-        const d = doc.data();
-        text += `■ ${d.title}\n\n${d.content}\n\n`;
-    });
-
-    const blob = new Blob([text], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${work.title}.txt`;
-    a.click();
-};
-
-window.exportAsPdf = async function () {
-    if (!currentWorkId) return;
-    const area = document.getElementById('preview-content');
-    window.openPreview(); // Ensure content is loaded
-    const opt = {
-        margin: 10,
-        filename: `${document.getElementById('info-title').value || 'work'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    html2pdf().set(opt).from(area).save().then(() => {
-        closePreview();
-    });
-};
-
-function formatTime(date) {
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-// Start
 initAuth();
