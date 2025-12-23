@@ -1,1 +1,163 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"><title>ストーリービルダー</title><link rel="stylesheet" href="style.css?v=1.95"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script><script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script></head><body><div id="login-screen" class="screen" style="justify-content:center;align-items:center;"><h1 class="app-title">ストーリービルダー</h1><button id="google-login-btn" class="btn-custom" style="padding:15px 30px;font-size:1.2em;">Googleアカウントで開始</button></div><div id="main-app" class="screen" style="display:none;"><div class="container"><div id="top-view" style="display:block;height:100%;display:flex;flex-direction:column;"><h1 class="app-title">ストーリービルダー</h1><hr><div class="dashboard-area"><div id="diary-widget" class="diary-widget"><div class="diary-title">執筆日記</div><div class="diary-content"><div class="diary-row"><span class="diary-label">今日</span><span class="diary-val" id="widget-today-count">0<span class="unit">字</span></span></div><div class="diary-row"><span class="diary-label">7日間</span><span class="diary-val" id="widget-weekly-count">0<span class="unit">字</span></span></div></div></div><div class="top-buttons"><button id="create-new-work-btn" class="btn-custom btn-full btn-brown">＋作品作成</button><button id="btn-common-memo" class="btn-custom btn-full">共通メモ</button></div></div><div class="list-header"><div class="list-title">作品リスト</div><div class="filter-group"><select id="sort-order" class="filter-select"><option value="updated">更新順</option><option value="created">作成順</option></select><select id="filter-status" class="filter-select"><option value="all">すべて</option><option value="in-progress">制作中</option><option value="completed">完了</option><option value="suspended">中断</option></select></div></div><div id="work-list" class="work-list-container"></div></div><div id="workspace-view" style="display:none;height:100%;flex-direction:column;"><button id="back-to-top" class="btn-custom btn-d-gray" style="align-self:flex-start;margin-bottom:15px;">TOPへ戻る</button><div class="tab-bar"><button class="btn-custom tab-btn active" data-tab="tab-info">作品情報</button><button class="btn-custom tab-btn" data-tab="tab-editor">執筆</button><button class="btn-custom tab-btn" data-tab="tab-plot">プロット</button><button class="btn-custom tab-btn" data-tab="tab-char">登場人物</button><button class="btn-custom tab-btn" data-tab="tab-common-memo">共通メモ</button></div><div id="tab-info" class="tab-content active" style="overflow-y:auto;padding-right:5px;"><div id="info-export-btns" style="display:flex;justify-content:flex-end;margin-bottom:10px;"><button onclick="exportData('info','txt')" class="btn-custom btn-small" style="margin-right:5px;">TXT保存</button></div><div class="form-group"><label>タイトル</label><input type="text" id="input-title" class="form-control" autocomplete="off"></div><div class="form-group"><label>あらすじ</label><textarea id="input-summary" rows="4" class="form-control" autocomplete="off"></textarea></div><div class="form-group"><label style="display:flex;justify-content:flex-start;gap:15px;align-items:baseline;">キャッチコピー <span id="c-count" style="font-weight:bold;color:#fdd835;font-size:0.9em;">（残35）</span></label><input type="text" id="input-catch" class="form-control" maxlength="35" autocomplete="off"></div><div style="display:flex;gap:10px;margin-bottom:20px;"><div style="flex:1;"><label>メインジャンル</label><input type="text" id="input-genre-main" class="form-control" autocomplete="off"></div><div style="flex:1;"><label>サブジャンル</label><input type="text" id="input-genre-sub" class="form-control" autocomplete="off"></div></div><div class="form-group"><label>制作ステータス</label><div class="compact-row"><label><input type="radio" name="novel-status" value="in-progress" checked><span>制作中</span></label><label><input type="radio" name="novel-status" value="completed"><span>完了</span></label><label><input type="radio" name="novel-status" value="suspended"><span>中断</span></label></div></div><div class="form-group"><label>作品種別</label><div class="compact-row"><label><input type="radio" name="novel-type" value="original" checked><span>オリジナル</span></label><label><input type="radio" name="novel-type" value="derivative"><span>二次創作</span></label></div></div><div class="form-group"><label>レーティング</label><div class="compact-row"><label><input type="checkbox" name="rating" value="none"><span>なし</span></label><label><input type="checkbox" name="rating" value="sexual"><span>性描写</span></label><label><input type="checkbox" name="rating" value="violence"><span>暴力</span></label><label><input type="checkbox" name="rating" value="cruel"><span>残酷</span></label></div></div><div class="form-group"><label>AI利用について</label><div class="compact-row"><label><input type="radio" name="ai-usage" value="none" checked><span>なし</span></label><label><input type="radio" name="ai-usage" value="support"><span>補助利用</span></label><label><input type="radio" name="ai-usage" value="partial"><span>一部本文</span></label><label><input type="radio" name="ai-usage" value="full"><span>本文利用</span></label></div></div><button id="save-work-info-btn" class="btn-custom btn-full btn-d-green" style="padding:15px;margin-top:20px;font-size:16px;">作品情報を保存</button></div><div id="tab-editor" class="tab-content" style="display:none;flex:1;flex-direction:column;overflow:hidden;"></div><div id="tab-plot" class="tab-content" style="display:none;flex:1;flex-direction:column;position:relative;"><div id="plot-list-view" style="display:flex;flex-direction:column;height:100%;"><div style="display:flex;justify-content:space-between;margin-bottom:10px;"><button id="plot-add-new-btn" class="memo-add-btn btn-brown" style="width:auto;flex:1;margin-bottom:0;">＋ プロット追加</button></div><div id="plot-items-container" class="scrollable" style="flex:1;padding-bottom:20px;"></div></div><div id="plot-edit-view" class="edit-overlay" style="display:none;"><div class="edit-overlay-header"><button id="plot-edit-back" class="btn-custom btn-small btn-d-gray">戻る</button><span id="plot-header-title" style="font-weight:bold;">プロット編集</span><div id="plot-header-right" style="display:flex;gap:5px;"><button id="plot-mode-edit-btn" class="btn-custom btn-small btn-d-blue" style="display:none;">編集</button></div></div><div id="plot-view-mode" class="edit-overlay-body scrollable"></div><div id="plot-edit-mode" class="edit-overlay-body scrollable"><input type="text" id="plot-edit-title" class="form-control" placeholder="タイトル" style="margin-bottom:10px;font-weight:bold;" autocomplete="off"><div style="margin-bottom:10px;"><select id="plot-edit-type" class="filter-select" style="width:100%;"><option value="memo">メモ</option><option value="timeline">タイムライン</option></select></div><textarea id="plot-edit-content" class="main-textarea" style="flex:1;min-height:300px;" placeholder="プロット内容を入力..." autocomplete="off"></textarea><div style="margin-top:20px;display:flex;gap:10px;"><button id="plot-delete-btn" class="btn-custom btn-d-red" style="flex:1;">削除</button><button id="plot-edit-save" class="btn-green btn-d-green" style="flex:1;">保存</button></div></div></div></div><div id="tab-char" class="tab-content" style="display:none;flex:1;flex-direction:column;position:relative;"><div id="char-list-view" style="display:flex;flex-direction:column;height:100%;"><div style="display:flex;justify-content:space-between;margin-bottom:10px;"><button id="char-add-new-btn" class="memo-add-btn btn-brown" style="width:auto;flex:1;margin-bottom:0;">＋ キャラ追加</button></div><div id="char-items-container" class="scrollable" style="flex:1;padding-bottom:20px;"></div></div><div id="char-edit-view" class="edit-overlay" style="display:none;"><div class="edit-overlay-header"><button id="char-edit-back" class="btn-custom btn-small btn-d-gray">戻る</button><span id="char-header-title" style="font-weight:bold;">キャラ情報</span><div id="char-header-right-btns" style="display:flex;gap:5px;"><button id="char-mode-edit-btn" class="btn-custom btn-small btn-d-
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>執筆エディター</title>
+
+    <!-- External Libraries (CDN) -->
+    <!-- Firebase Compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- jsdiff -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="login-screen" class="view-container">
+        <div class="login-box">
+            <h1>執筆エディター</h1>
+            <p>スマホとPCで同期できる執筆専用ツール</p>
+            <button id="google-login-btn" class="btn-custom btn-large btn-d-green">Googleでログイン</button>
+        </div>
+    </div>
+
+    <div id="main-app" style="display: none;">
+        <!-- Common Header -->
+        <header class="main-header">
+            <button id="nav-btn-left" class="btn-header" onclick="handleHeaderLeft()">TOP</button>
+            <div class="header-title" id="header-title-text">執筆エディター</div>
+            <button id="nav-btn-right" class="btn-header" onclick="handleHeaderRight()">執筆日記</button>
+        </header>
+
+        <!-- View: TOP (Dashboard) -->
+        <div id="top-view" class="view-content active">
+            <div class="dashboard-container">
+                <div class="stats-summary">
+                    <div class="card stat-item">
+                        <span class="label">今日書いた文字数</span>
+                        <span id="stat-today-chars" class="value">0<span
+                                style="font-size:1rem;margin-left:4px;">字</span></span>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="btn-custom btn-full btn-d-blue" onclick="createNewWork()">作品を新しく作る</button>
+                </div>
+
+                <div class="section-title">
+                    <h2>作品リスト</h2>
+                </div>
+                <div id="work-list" class="list-container">
+                    <!-- Loaded via script.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Workspace (Writing) -->
+        <div id="workspace-view" class="view-content">
+            <div class="workspace-layout">
+                <!-- Sidebar: Chapter List (Mobile Drawer) -->
+                <div id="sidebar" class="sidebar">
+                    <div class="sidebar-header">
+                        <span>話一覧</span>
+                        <button class="btn-custom btn-small" onclick="addNewChapter()">＋</button>
+                    </div>
+                    <div id="chapter-list" class="chapter-list scrollable"></div>
+                    <div class="sidebar-footer">
+                        <button class="btn-custom btn-full btn-gray" onclick="switchView('info-view')">作品設定</button>
+                    </div>
+                </div>
+
+                <!-- Main Editor Area -->
+                <div class="editor-area">
+                    <div class="editor-toolbar">
+                        <button id="sidebar-toggle" class="toolbar-btn mobile-only"
+                            onclick="toggleSidebar()">話一覧</button>
+                        <button class="toolbar-btn" onclick="toggleVerticalMode()">縦/横</button>
+                        <button class="toolbar-btn" onclick="openPreview()">プレビュー</button>
+                        <button class="toolbar-btn" onclick="saveCurrentChapter()">保存</button>
+                        <div id="editor-char-count" class="char-counter">0字</div>
+                    </div>
+                    <div class="editor-container">
+                        <textarea id="main-editor" placeholder="ここに物語を書きましょう..." oninput="onEditorInput()"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Work Info -->
+        <div id="info-view" class="view-content">
+            <div class="dashboard-container">
+                <div class="card">
+                    <h3 style="margin-bottom:16px;">作品設定</h3>
+                    <div class="form-group">
+                        <label>タイトル</label>
+                        <input type="text" id="info-title">
+                    </div>
+                    <div class="form-group">
+                        <label>あらすじ</label>
+                        <textarea id="info-summary" rows="6"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>執筆ステータス</label>
+                        <div style="display:flex; gap:16px;">
+                            <label><input type="radio" name="novel-status" value="in-progress" checked> 執筆中</label>
+                            <label><input type="radio" name="novel-status" value="completed"> 完結</label>
+                        </div>
+                    </div>
+                    <button class="btn-custom btn-full btn-d-green" onclick="saveWorkInfo()">設定を保存する</button>
+
+                    <h3 style="margin-top:24px;margin-bottom:16px;">書き出し</h3>
+                    <div style="display:flex; gap:12px;">
+                        <button class="btn-custom btn-full btn-gray" onclick="exportAsTxt()">TXT保存</button>
+                        <button class="btn-custom btn-full btn-gray" onclick="exportAsPdf()">PDF保存</button>
+                    </div>
+
+                    <div style="margin-top:40px; border-top:1px solid #333; padding-top:20px;">
+                        <button class="btn-custom btn-full btn-d-red" onclick="deleteWork()">この作品を削除する</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Stats (Chart) -->
+        <div id="stats-view" class="view-content">
+            <div class="dashboard-container">
+                <div class="section-title">
+                    <h2>執筆統計 (一週間)</h2>
+                </div>
+                <div class="card" style="height: 400px; position: relative;">
+                    <canvas id="statsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Preview -->
+    <div id="preview-modal" class="modal-overlay">
+        <div class="modal-container">
+            <header class="modal-header">
+                <button class="btn-header" onclick="closePreview()">閉じる</button>
+                <div class="header-title">プレビュー</div>
+                <button class="btn-header" onclick="togglePreviewMode()">縦/横切替</button>
+            </header>
+            <div id="preview-content" class="scroll-area"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
