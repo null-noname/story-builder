@@ -59,8 +59,8 @@ export function renderWorkInfo(work) {
     const rating = document.getElementById('info-rating');
 
     const statusLabels = { 'in-progress': '制作中', 'completed': '完了', 'suspended': '中断' };
-    const typeLabels = { 'original': '創作', 'derivative': '二次' };
-    const aiLabels = { 'none': 'なし', 'partial': '一部', 'main': '本文' };
+    const typeLabels = { 'original': 'オリジナル', 'derivative': '二次創作' };
+    const aiLabels = { 'none': 'なし', 'assist': '補助利用', 'partial': '一部利用（50％以下）', 'main': '本文利用（50％以上）' };
     const ratingLabels = { 'sexual': '性描写', 'violent': '暴力', 'cruel': '残酷' };
 
     if (catchphrase) catchphrase.textContent = work.catchphrase || '（未設定）';

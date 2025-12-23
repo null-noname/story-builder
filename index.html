@@ -79,14 +79,18 @@
         <!-- View: Work Setup (Information Form) -->
         <div id="setup-view" class="view-content view-container">
             <div class="form-panel">
-                <h2 id="setup-title" class="retro-subtitle" style="margin-bottom:20px;">作品情報の入力</h2>
+                <div id="setup-view-header" style="position:relative; margin-bottom:20px;">
+                    <button id="work-f-back" class="btn-retro small back" style="position:absolute; left:0; top:0;"
+                        onclick="switchView('top-view')">戻る</button>
+                    <h2 id="setup-title" class="retro-subtitle" style="text-align:center; margin:0;">作品情報の入力</h2>
+                </div>
 
                 <div class="form-group full" style="margin-bottom:16px;">
                     <label>タイトル</label>
                     <input type="text" id="work-f-title" placeholder="作品のタイトルを入力">
                 </div>
                 <div class="form-group full" style="margin-bottom:16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                    <div style="display:flex; align-items:baseline; gap:10px;">
                         <label>キャッチコピー</label>
                         <span id="catchphrase-count" style="font-size:0.8rem; color:#888;">残35字</span>
                     </div>
@@ -98,13 +102,6 @@
                 </div>
 
                 <div class="form-row-multi">
-                    <div id="group-f-length" class="form-group">
-                        <label>長編/短編</label>
-                        <div class="choice-group">
-                            <label><input type="radio" name="work-length" value="long" checked> 長編</label>
-                            <label><input type="radio" name="work-length" value="short"> 短編</label>
-                        </div>
-                    </div>
                     <div class="form-group">
                         <label>制作ステータス</label>
                         <div class="choice-group">
@@ -113,40 +110,46 @@
                             <label><input type="radio" name="work-status" value="suspended"> 中断</label>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>作品種別</label>
+                        <div class="choice-group">
+                            <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
+                            <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="group-f-length" class="form-group full" style="margin-bottom:16px;">
+                    <label>長編／短編</label>
+                    <div class="choice-group">
+                        <label><input type="radio" name="work-length" value="long" checked> 長編</label>
+                        <label><input type="radio" name="work-length" value="short"> 短編</label>
+                    </div>
                 </div>
 
                 <div class="form-row-multi">
                     <div class="form-group">
-                        <label>作品種別</label>
-                        <div class="choice-group">
-                            <label><input type="radio" name="work-type" value="original" checked> 創作</label>
-                            <label><input type="radio" name="work-type" value="derivative"> 二次</label>
+                        <label>レーティング</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
+                            <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
+                            <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>AI使用</label>
-                        <div class="choice-group">
+                        <label>AI利用</label>
+                        <div class="choice-group ai-choice-group">
                             <label><input type="radio" name="work-ai" value="none" checked> なし</label>
-                            <label><input type="radio" name="work-ai" value="partial"> 一部</label>
-                            <label><input type="radio" name="work-ai" value="main"> 本文</label>
+                            <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
+                            <label><input type="radio" name="work-ai" value="partial"> 一部利用（50％以下）</label>
+                            <label><input type="radio" name="work-ai" value="main"> 本文利用（50％以上）</label>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-group full" style="margin-bottom:24px;">
-                    <label>レーティング</label>
-                    <div class="checkbox-group">
-                        <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
-                        <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
-                        <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
-                    </div>
-                </div>
-
-                <div id="setup-actions" style="display:flex; gap:16px;">
+                <div id="setup-actions" style="display:flex; gap:16px; margin-top:24px;">
                     <button id="work-f-delete" class="btn-retro delete" style="display:none;">削除</button>
-                    <button id="work-f-cancel" class="btn-retro back" style="flex:1;"
-                        onclick="switchView('top-view')">戻る</button>
-                    <button id="work-f-submit" class="btn-retro save" style="flex:2;"
+                    <button id="work-f-submit" class="btn-retro save" style="flex:1;"
                         onclick="handleWorkInfoSubmit()">保存して開始</button>
                 </div>
             </div>
@@ -179,7 +182,7 @@
                             <p id="info-type" class="info-val"></p>
                         </div>
                         <div class="info-item">
-                            <label>AI使用</label>
+                            <label>AI利用</label>
                             <p id="info-ai" class="info-val"></p>
                         </div>
                     </div>

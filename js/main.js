@@ -180,7 +180,7 @@ function setupDashBoard() {
         allWorksCache = works;
         renderWorkList(
             works,
-            window.showWorkInfo, // Change to Show Info instead of Open direct
+            window.showWorkInfo,
             deleteWork,
             toggleWorkPin,
             document.getElementById('filter-status').value,

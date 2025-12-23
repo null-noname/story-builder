@@ -285,7 +285,28 @@ body {
     color: var(--gold);
     margin-bottom: 6px;
     font-weight: bold;
-    /* Label is bold */
+}
+
+.form-row-multi {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-row-multi .form-group {
+    flex: 1;
+}
+
+@media (max-width: 600px) {
+    .form-row-multi {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
+.btn-retro.small {
+    padding: 6px 12px;
+    font-size: 0.8rem;
 }
 
 .form-group input,
@@ -316,6 +337,18 @@ body {
     background: var(--bg-input);
     padding: 8px;
     border: 1px solid #444;
+}
+
+.ai-choice-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+@media (max-width: 480px) {
+    .ai-choice-group {
+        grid-template-columns: 1fr;
+    }
 }
 
 .choice-group label {
