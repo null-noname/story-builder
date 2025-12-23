@@ -78,6 +78,14 @@ function init() {
         }
     };
 
+    window.addNewChapter = async () => {
+        if (currentWorkId) {
+            const nextOrder = document.querySelectorAll('.chapter-item').length + 1;
+            const newId = await createChapter(currentWorkId, nextOrder);
+            currentChapterId = newId;
+        }
+    };
+
     window.toggleVerticalMode = toggleVerticalMode;
     window.insertRuby = insertRuby;
     window.insertDash = insertDash;
@@ -89,6 +97,19 @@ function init() {
             await saveHistoryBackup(currentWorkId, currentChapterId, content);
         }
     };
+
+    // Listen for filter/sort changes
+    document.getElementById('filter-status').onchange = () => {
+        renderWorkList(
+            allWorksCache,
+            window.openWork,
+            deleteWork,
+            toggleWorkPin,
+            document.getElementById('filter-status').value,
+            document.getElementById('sort-order').value
+        );
+    };
+    document.getElementById('sort-order').onchange = document.getElementById('filter-status').onchange;
 
     // Initialize Chart
     initStatsChart();
