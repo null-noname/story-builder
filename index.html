@@ -37,12 +37,13 @@
                     <div class="stats-card click-card" onclick="switchView('stats-view')">
                         <h3>執筆日記</h3>
                         <div class="stats-row">
-                            <span class="bright-green-bold"><span id="stat-weekly-chars">0</span> <span
+                            <span>今日の文字数</span>
+                            <span class="bright-green-bold"><span id="stat-today-chars">0</span> <span
                                     class="stats-unit">字</span></span>
                         </div>
                         <div class="stats-row" style="margin-top:10px;">
-                            <span>今日の文字数</span>
-                            <span class="bright-green-bold"><span id="stat-today-chars">0</span> <span
+                            <span>7日間の文字数</span>
+                            <span class="bright-green-bold"><span id="stat-weekly-chars">0</span> <span
                                     class="stats-unit">字</span></span>
                         </div>
                     </div>
@@ -252,7 +253,7 @@
             <div class="container-narrow">
                 <div class="stats-full-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h2 class="retro-subtitle">執筆統計</h2>
+                        <h2 class="retro-subtitle">執筆文字数の推移</h2>
                         <div class="stats-tabs">
                             <button class="tab-btn active" onclick="updateFullStats('1W')">1週</button>
                             <button class="tab-btn" onclick="updateFullStats('1M')">1月</button>
@@ -289,7 +290,7 @@
                 </div>
 
                 <div style="margin-top:30px; text-align:center;">
-                    <button class="btn-retro back" onclick="switchView('top-view')">◀ TOPに戻る</button>
+                    <button class="btn-retro back" onclick="switchView('top-view')">TOPに戻る</button>
                 </div>
             </div>
         </div>
