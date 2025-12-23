@@ -284,6 +284,8 @@ body {
     font-size: 0.85rem;
     color: var(--gold);
     margin-bottom: 6px;
+    font-weight: bold;
+    /* Label is bold */
 }
 
 .form-group input,
@@ -304,6 +306,65 @@ body {
     /* 左右の余白を削ってスリムに */
     /* ソート：太字にしない */
     font-weight: normal !important;
+}
+
+/* --- Choice Group (Radio buttons as blocks) --- */
+.choice-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--bg-input);
+    padding: 8px;
+    border: 1px solid #444;
+}
+
+.choice-group label {
+    font-size: 0.9rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    margin-bottom: 0;
+    font-weight: normal;
+    /* Labels inside group are normal */
+}
+
+/* --- Info View (閲覧モード) --- */
+.info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: flex;
+    gap: 16px;
+}
+
+.info-item {
+    flex: 1;
+}
+
+.info-item.full {
+    width: 100%;
+}
+
+.info-item label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--gold);
+    margin-bottom: 4px;
+}
+
+.info-val {
+    background: var(--bg-input);
+    border: 1px solid #333;
+    padding: 10px;
+    color: var(--text-main);
+    font-size: 1rem;
+    min-height: 1.4rem;
 }
 
 /* Mobile Adjustments */

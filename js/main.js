@@ -13,7 +13,7 @@ import {
 } from "./db.js";
 import { setupEditor, setEditorContent, getEditorContent, toggleVerticalMode, insertRuby, insertDash } from "./editor.js";
 import { initStatsChart, updateStatsChart, updateFullStatsPeriod, aggregateStats, getTabLabel } from "./stats.js";
-import { switchView, views, renderWorkList, renderChapterList, renderStatsDashboard, renderStatsFull, updateActiveTab } from "./ui.js";
+import { switchView, views, renderWorkList, renderChapterList, renderStatsDashboard, renderStatsFull, updateActiveTab, renderWorkInfo, getWorkFormData } from "./ui.js";
 
 // App State
 let currentWorkId = null;
@@ -45,13 +45,45 @@ function init() {
 
     window.showWorkSetup = (id = null) => {
         currentWorkId = id;
+        const groupLength = document.getElementById('group-f-length');
+        const setupTitle = document.getElementById('setup-title');
+        const submitBtn = document.getElementById('work-f-submit');
+        const deleteBtn = document.getElementById('work-f-delete');
+
         if (id) {
             const work = allWorksCache.find(w => w.id === id);
             if (work) populateForm(work);
+            if (groupLength) groupLength.style.display = 'none';
+            if (setupTitle) setupTitle.textContent = '作品情報の編集';
+            if (submitBtn) submitBtn.textContent = '保存';
+            if (deleteBtn) {
+                deleteBtn.style.display = 'block';
+                deleteBtn.onclick = async () => {
+                    if (confirm("本当にこの作品を削除しますか？")) {
+                        await deleteWork(id);
+                        switchView(views.top);
+                    }
+                };
+            }
         } else {
             clearForm();
+            if (groupLength) groupLength.style.display = 'block';
+            if (setupTitle) setupTitle.textContent = '作品情報の入力';
+            if (submitBtn) submitBtn.textContent = '保存して開始';
+            if (deleteBtn) deleteBtn.style.display = 'none';
         }
         switchView(views.setup);
+    };
+
+    window.showWorkInfo = (id) => {
+        currentWorkId = id;
+        const work = allWorksCache.find(w => w.id === id);
+        if (work) {
+            renderWorkInfo(work);
+            const openBtn = document.getElementById('info-open-work');
+            if (openBtn) openBtn.onclick = () => window.openWork(id);
+            switchView(views.info);
+        }
     };
 
     window.openWork = (id) => {
@@ -72,24 +104,17 @@ function init() {
     };
 
     window.handleWorkInfoSubmit = async () => {
-        const title = document.getElementById('work-f-title').value.trim();
-        if (!title) { alert("タイトルを入力してください"); return; }
+        const formData = getWorkFormData();
+        if (!formData.title) { alert("タイトルを入力してください"); return; }
 
         const data = {
-            title: title,
-            catchphrase: document.getElementById('work-f-catchphrase').value,
-            description: document.getElementById('work-f-summary').value,
-            status: document.getElementById('work-f-status').value,
-            length: document.getElementById('work-f-length').value,
-            type: document.getElementById('work-f-type').value,
-            ai: document.getElementById('work-f-ai').value,
-            rating: Array.from(document.querySelectorAll('input[name="rating"]:checked')).map(cb => cb.value),
+            ...formData,
             uid: getCurrentUser().uid
         };
 
         if (currentWorkId) {
             await updateWork(currentWorkId, data);
-            window.openWork(currentWorkId);
+            window.showWorkInfo(currentWorkId);
         } else {
             const id = await createWork(data);
             window.openWork(id);
@@ -129,6 +154,16 @@ function init() {
     };
     document.getElementById('sort-order').onchange = document.getElementById('filter-status').onchange;
 
+    // Catchphrase Counter
+    const cpInput = document.getElementById('work-f-catchphrase');
+    if (cpInput) {
+        cpInput.addEventListener('input', () => {
+            const count = cpInput.value.length;
+            const countDisp = document.getElementById('catchphrase-count');
+            if (countDisp) countDisp.textContent = `残${35 - count}字`;
+        });
+    }
+
     // Initialize Chart
     initStatsChart();
 }
@@ -145,7 +180,7 @@ function setupDashBoard() {
         allWorksCache = works;
         renderWorkList(
             works,
-            window.openWork,
+            window.showWorkInfo, // Change to Show Info instead of Open direct
             deleteWork,
             toggleWorkPin,
             document.getElementById('filter-status').value,
@@ -202,25 +237,43 @@ function clearForm() {
     document.getElementById('work-f-title').value = "";
     document.getElementById('work-f-catchphrase').value = "";
     document.getElementById('work-f-summary').value = "";
-    document.getElementById('work-f-status').value = "in-progress";
-    document.getElementById('work-f-length').value = "long";
-    document.getElementById('work-f-type').value = "original";
-    document.getElementById('work-f-ai').value = "none";
+
+    // Reset radios
+    document.querySelector('input[name="work-status"][value="in-progress"]').checked = true;
+    document.querySelector('input[name="work-length"][value="long"]').checked = true;
+    document.querySelector('input[name="work-type"][value="original"]').checked = true;
+    document.querySelector('input[name="work-ai"][value="none"]').checked = true;
+
     document.querySelectorAll('input[name="rating"]').forEach(cb => cb.checked = false);
+
+    const countDisp = document.getElementById('catchphrase-count');
+    if (countDisp) countDisp.textContent = "残35字";
 }
 
 function populateForm(work) {
     document.getElementById('work-f-title').value = work.title || "";
     document.getElementById('work-f-catchphrase').value = work.catchphrase || "";
     document.getElementById('work-f-summary').value = work.description || "";
-    document.getElementById('work-f-status').value = work.status || "in-progress";
-    document.getElementById('work-f-length').value = work.length || "long";
-    document.getElementById('work-f-type').value = work.type || "original";
-    document.getElementById('work-f-ai').value = work.ai || "none";
+
+    // Set radios
+    const statusRadio = document.querySelector(`input[name="work-status"][value="${work.status || 'in-progress'}"]`);
+    if (statusRadio) statusRadio.checked = true;
+
+    const lengthRadio = document.querySelector(`input[name="work-length"][value="${work.length || 'long'}"]`);
+    if (lengthRadio) lengthRadio.checked = true;
+
+    const typeRadio = document.querySelector(`input[name="work-type"][value="${work.type || 'original'}"]`);
+    if (typeRadio) typeRadio.checked = true;
+
+    const aiRadio = document.querySelector(`input[name="work-ai"][value="${work.ai || 'none'}"]`);
+    if (aiRadio) aiRadio.checked = true;
 
     document.querySelectorAll('input[name="rating"]').forEach(cb => {
         cb.checked = (work.rating || []).includes(cb.value);
     });
+
+    const countDisp = document.getElementById('catchphrase-count');
+    if (countDisp) countDisp.textContent = `残${35 - (work.catchphrase || "").length}字`;
 }
 
 // Start App

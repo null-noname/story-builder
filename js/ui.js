@@ -8,7 +8,8 @@ export const views = {
     setup: 'setup-view',
     workspace: 'workspace-view',
     memo: 'memo-view',
-    stats: 'stats-view'
+    stats: 'stats-view',
+    info: 'info-view'
 };
 
 /**
@@ -45,6 +46,50 @@ export function updateActiveTab(label) {
         btn.classList.toggle('active', btn.textContent.trim() === label);
     });
 }
+
+/**
+ * Render Work Details for View Mode
+ */
+export function renderWorkInfo(work) {
+    const catchphrase = document.getElementById('info-catchphrase');
+    const summary = document.getElementById('info-summary');
+    const status = document.getElementById('info-status');
+    const type = document.getElementById('info-type');
+    const ai = document.getElementById('info-ai');
+    const rating = document.getElementById('info-rating');
+
+    const statusLabels = { 'in-progress': '制作中', 'completed': '完了', 'suspended': '中断' };
+    const typeLabels = { 'original': '創作', 'derivative': '二次' };
+    const aiLabels = { 'none': 'なし', 'partial': '一部', 'main': '本文' };
+    const ratingLabels = { 'sexual': '性描写', 'violent': '暴力', 'cruel': '残酷' };
+
+    if (catchphrase) catchphrase.textContent = work.catchphrase || '（未設定）';
+    if (summary) summary.textContent = work.description || '（未設定）';
+    if (status) status.textContent = statusLabels[work.status] || work.status;
+    if (type) type.textContent = typeLabels[work.type] || work.type;
+    if (ai) ai.textContent = aiLabels[work.ai] || work.ai;
+    if (rating) {
+        const ratings = (work.rating || []).map(r => ratingLabels[r] || r);
+        rating.textContent = ratings.length > 0 ? ratings.join(' / ') : 'なし';
+    }
+}
+
+/**
+ * Get Data from Work Setup Form
+ */
+export function getWorkFormData() {
+    return {
+        title: document.getElementById('work-f-title').value.trim(),
+        catchphrase: document.getElementById('work-f-catchphrase').value.trim(),
+        description: document.getElementById('work-f-summary').value.trim(),
+        status: document.querySelector('input[name="work-status"]:checked')?.value || 'in-progress',
+        length: document.querySelector('input[name="work-length"]:checked')?.value || 'long',
+        type: document.querySelector('input[name="work-type"]:checked')?.value || 'original',
+        ai: document.querySelector('input[name="work-ai"]:checked')?.value || 'none',
+        rating: Array.from(document.querySelectorAll('input[name="rating"]:checked')).map(cb => cb.value)
+    };
+}
+
 /**
  * Switch between different views
  */
