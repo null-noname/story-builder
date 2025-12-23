@@ -90,13 +90,19 @@ body {
 /* --- Dashboard --- */
 .dashboard-top {
     display: flex;
+    flex-direction: column;
+    /* Stack sections for centering */
     gap: 20px;
     margin-bottom: 30px;
+    align-items: center;
+    /* Center sections */
 }
 
 /* --- Action Buttons --- */
 .action-stack {
-    width: 200px;
+    width: 100%;
+    max-width: 400px;
+    /* Center with max-width */
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -176,12 +182,16 @@ body {
 /* --- Work List --- */
 .work-item-card {
     background: var(--bg-card);
-    border: 2px solid #444;
-    padding: 12px 20px;
-    /* パディングを減らしてスリムに */
-    margin-bottom: 10px;
-    /* 間隔も少し詰める */
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    /* Thinner border for compact feel */
+    padding: 12px 18px;
+    /* Compacted padding */
+    margin-bottom: 12px;
+    /* Uniform margin */
+    border-radius: 15px;
+    /* Rounded corners */
+    transition: transform 0.2s;
+    cursor: pointer;
     font-weight: bold;
 }
 
@@ -189,8 +199,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* Center vertically */
     margin-bottom: 6px;
-    /* 隙間を詰める */
+    /* Compacted */
 }
 
 .work-title-link {

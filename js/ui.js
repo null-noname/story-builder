@@ -19,8 +19,8 @@ export function renderStatsDashboard(data) {
     const todayChars = document.getElementById('stat-today-chars');
     const weeklyChars = document.getElementById('stat-weekly-chars');
 
-    if (todayChars) todayChars.textContent = data.todayCount;
-    if (weeklyChars) weeklyChars.textContent = data.weeklySum;
+    if (todayChars) todayChars.textContent = '　　' + data.todayCount;
+    if (weeklyChars) weeklyChars.textContent = '　　' + data.weeklySum;
 }
 
 /**
