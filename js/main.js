@@ -45,15 +45,37 @@ function init() {
 
     window.showWorkSetup = (id = null) => {
         currentWorkId = id;
-        const groupLength = document.getElementById('group-f-length');
         const setupTitle = document.getElementById('setup-title');
         const submitBtn = document.getElementById('work-f-submit');
         const deleteBtn = document.getElementById('work-f-delete');
 
+        const row1 = document.getElementById('setup-row-1');
+        const row2 = document.getElementById('setup-row-2');
+
+        const elLength = document.getElementById('el-f-length');
+        const elStatus = document.getElementById('el-f-status');
+        const elType = document.getElementById('el-f-type');
+        const elRating = document.getElementById('el-f-rating');
+
         if (id) {
+            // Edit Mode
             const work = allWorksCache.find(w => w.id === id);
             if (work) populateForm(work);
-            if (groupLength) groupLength.style.display = 'none';
+
+            // Layout for Edit: [Type + Status], [Rating]
+            if (row1 && elType && elStatus) {
+                row1.innerHTML = '';
+                row1.appendChild(elType);
+                row1.appendChild(elStatus);
+            }
+
+            if (row2 && elRating) {
+                row2.innerHTML = '';
+                row2.appendChild(elRating);
+            }
+
+            if (elLength) elLength.style.display = 'none';
+
             if (setupTitle) setupTitle.textContent = '作品情報の編集';
             if (submitBtn) submitBtn.textContent = '保存';
             if (deleteBtn) {
@@ -66,8 +88,24 @@ function init() {
                 };
             }
         } else {
+            // New Mode
             clearForm();
-            if (groupLength) groupLength.style.display = 'block';
+
+            // Layout for New: [Length + Type], [Status + Rating]
+            if (row1 && elLength && elType) {
+                row1.innerHTML = '';
+                row1.appendChild(elLength);
+                row1.appendChild(elType);
+            }
+
+            if (row2 && elStatus && elRating) {
+                row2.innerHTML = '';
+                row2.appendChild(elStatus);
+                row2.appendChild(elRating);
+            }
+
+            if (elLength) elLength.style.display = 'block';
+
             if (setupTitle) setupTitle.textContent = '作品情報の入力';
             if (submitBtn) submitBtn.textContent = '保存して開始';
             if (deleteBtn) deleteBtn.style.display = 'none';

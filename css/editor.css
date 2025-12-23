@@ -7,9 +7,9 @@
 }
 
 .editor-sidebar {
-    width: 260px;
-    background: #1a1a1a;
-    border-right: 1px solid #333;
+    width: 250px;
+    background: #282828;
+    border-right: 1px solid #444;
     display: flex;
     flex-direction: column;
 }
@@ -55,15 +55,15 @@
 
 #main-editor {
     flex: 1;
-    background: transparent;
+    background: #2c2c2c;
     color: var(--text-main);
-    padding: 40px;
-    font-family: var(--font-editor);
-    font-size: 1.1rem;
-    line-height: 1.8;
     border: none;
-    outline: none;
+    padding: 40px;
+    font-size: 1.15rem;
+    line-height: 1.8;
+    font-family: var(--font-editor);
     resize: none;
+    outline: none;
 }
 
 #main-editor.vertical {

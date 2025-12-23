@@ -1,28 +1,28 @@
 :root {
-    --bg-dark: #202020;
-    --bg-card: #282828;
-    /* #3d3d3dより少し濃いグレー */
-    --bg-input: #1a1a1a;
-    --text-main: #f5f5f5;
-    --text-sub: #aaaaaa;
-    --gold: #d4af37;
-    --bright-green: #00ff7f;
+    --bg-dark: #2c2c2c;
+    /* Softer dark gray */
+    --bg-card: #363636;
+    --bg-input: #1e1e1e;
+    --text-main: #e0e0e0;
+    --text-sub: #b0b0b0;
+    --gold: #c5a059;
+    /* Muted gold */
+    --accent-green: #5da06e;
+    /* Muted green */
 
-    /* Specific Button Colors */
-    --btn-save: #9acd32;
-    --btn-edit: #4169e1;
-    /* マイルドな紺色 (RoyalBlue) */
-    --btn-delete: #b22222;
-    /* 鮮やかなワイン色 (FireBrick) */
-    --btn-back: #d3d3d3;
-    --btn-active: #2b4034;
-    --text-stats: #c0c0c0;
-    /* #c0c0c0 */
-    --val-green: #3CB371;
-    /* #3CB371 */
+    /* Buttons - Classic Palette */
+    --btn-save: #6a8d46;
+    --btn-edit: #4a6fa5;
+    --btn-delete: #a65252;
+    --btn-back: #888888;
+    --btn-active: #3c4d3e;
 
-    --font-ui: sans-serif;
-    --font-editor: "MS Gothic", "MS UI Gothic", monospace;
+    --text-stats: #a0a0a0;
+    --val-green: #5da06e;
+
+    --font-ui: "Inter", "Segoe UI", sans-serif;
+    --font-editor: "S源ノ明朝", "Sawarabi Mincho", serif;
+    /* Classic Serif */
 }
 
 * {
@@ -40,20 +40,22 @@ body {
 }
 
 /* --- Retro Typography --- */
+/* --- Classic Typography --- */
 .retro-title {
-    font-size: 2.5rem;
-    font-weight: 900;
-    color: #ffffff;
-    /* タイトルは白 */
-    text-shadow: 2px 2px 0px #000;
-    letter-spacing: 2px;
-    margin-bottom: 20px;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    text-shadow: none;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
     text-align: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 15px;
 }
 
 .retro-subtitle {
-    font-size: 1.4rem;
-    font-weight: bold;
+    font-size: 1.2rem;
+    font-weight: 600;
     color: var(--gold);
 }
 

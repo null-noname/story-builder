@@ -101,8 +101,36 @@
                     <textarea id="work-f-summary" rows="4"></textarea>
                 </div>
 
-                <div class="form-row-multi">
-                    <div class="form-group">
+                <!-- Dynamic Rows (Reordered by JS) -->
+                <div id="setup-row-1" class="form-row-multi">
+                    <!-- Placeholder for Length/Type or Type/Status -->
+                </div>
+
+                <div id="setup-row-2" class="form-row-multi">
+                    <!-- Placeholder for Status/Rating or Rating -->
+                </div>
+
+                <!-- AI - Always Full Width -->
+                <div class="form-group full" style="margin-top:8px;">
+                    <label>AI利用</label>
+                    <div class="choice-group ai-choice-group">
+                        <label><input type="radio" name="work-ai" value="none" checked> なし</label>
+                        <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
+                        <label><input type="radio" name="work-ai" value="partial"> 一部利用（50％以下）</label>
+                        <label><input type="radio" name="work-ai" value="main"> 本文利用（50％以上）</label>
+                    </div>
+                </div>
+
+                <!-- Hidden source elements for JS to move them -->
+                <div id="form-elements-source" style="display:none;">
+                    <div id="el-f-length" class="form-group">
+                        <label>作品の長さ</label>
+                        <div class="choice-group">
+                            <label><input type="radio" name="work-length" value="long" checked> 長編</label>
+                            <label><input type="radio" name="work-length" value="short"> 短編</label>
+                        </div>
+                    </div>
+                    <div id="el-f-status" class="form-group">
                         <label>制作ステータス</label>
                         <div class="choice-group">
                             <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
@@ -110,39 +138,19 @@
                             <label><input type="radio" name="work-status" value="suspended"> 中断</label>
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div id="el-f-type" class="form-group">
                         <label>作品種別</label>
                         <div class="choice-group">
                             <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
                             <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
                         </div>
                     </div>
-                </div>
-
-                <div id="group-f-length" class="form-group full" style="margin-bottom:16px;">
-                    <label>長編／短編</label>
-                    <div class="choice-group">
-                        <label><input type="radio" name="work-length" value="long" checked> 長編</label>
-                        <label><input type="radio" name="work-length" value="short"> 短編</label>
-                    </div>
-                </div>
-
-                <div class="form-row-multi">
-                    <div class="form-group">
+                    <div id="el-f-rating" class="form-group">
                         <label>レーティング</label>
                         <div class="checkbox-group">
                             <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
                             <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
                             <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>AI利用</label>
-                        <div class="choice-group ai-choice-group">
-                            <label><input type="radio" name="work-ai" value="none" checked> なし</label>
-                            <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
-                            <label><input type="radio" name="work-ai" value="partial"> 一部利用（50％以下）</label>
-                            <label><input type="radio" name="work-ai" value="main"> 本文利用（50％以上）</label>
                         </div>
                     </div>
                 </div>
