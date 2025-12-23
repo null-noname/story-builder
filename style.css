@@ -1,28 +1,24 @@
 :root {
-    --bg-dark: #2c2c2c;
-    /* Softer dark gray */
-    --bg-card: #363636;
-    --bg-input: #1e1e1e;
-    --text-main: #e0e0e0;
-    --text-sub: #b0b0b0;
-    --gold: #c5a059;
-    /* Muted gold */
-    --accent-green: #5da06e;
-    /* Muted green */
+    --bg-dark: #202020;
+    --bg-card: #282828;
+    --bg-input: #1a1a1a;
+    --text-main: #f5f5f5;
+    --text-sub: #aaaaaa;
+    --gold: #d4af37;
+    --bright-green: #00ff7f;
 
-    /* Buttons - Classic Palette */
+    /* Buttons */
     --btn-save: #6a8d46;
-    --btn-edit: #4a6fa5;
-    --btn-delete: #a65252;
-    --btn-back: #888888;
-    --btn-active: #3c4d3e;
+    --btn-edit: #4169e1;
+    --btn-delete: #b22222;
+    --btn-back: #d3d3d3;
+    --btn-active: #2b4034;
 
-    --text-stats: #a0a0a0;
-    --val-green: #5da06e;
+    --text-stats: #c0c0c0;
+    --val-green: #3CB371;
 
     --font-ui: "Inter", "Segoe UI", sans-serif;
     --font-editor: "S源ノ明朝", "Sawarabi Mincho", serif;
-    /* Classic Serif */
 }
 
 * {
@@ -108,14 +104,15 @@ body {
 
 /* --- Buttons --- */
 .btn-retro {
-    border: 2px solid #000;
+    font-family: var(--font-ui);
+    padding: 10px 20px;
+    border: none;
     color: #fff;
-    padding: 12px 20px;
-    font-size: 1.1rem;
-    font-weight: bold;
     cursor: pointer;
-    box-shadow: 3px 3px 0px #000;
-    transition: 0.1s;
+    font-weight: bold;
+    border-radius: 15px;
+    /* Added rounded corners */
+    transition: all 0.2s;
     text-align: center;
 }
 
@@ -246,7 +243,11 @@ body {
     padding: 30px;
     width: 100%;
     max-width: 600px;
-    border: 2px solid #444;
+    border-radius: 15px;
+    /* Added rounded corners */
+    border: 1px solid #444;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    /* Soft shadow */
 }
 
 .form-group {
@@ -317,18 +318,19 @@ body {
     background: var(--bg-input);
     border: 1px solid #444;
     color: #fff;
-    padding: 10px;
+    padding: 10px 15px;
     font-family: var(--font-ui);
+    border-radius: 12px;
+    /* Added rounded corners */
 }
 
 .select-retro {
     background: var(--bg-input);
     border: 1px solid #444;
     color: #fff;
-    padding: 8px 4px;
-    /* 左右の余白を削ってスリムに */
-    /* ソート：太字にしない */
+    padding: 8px 12px;
     font-weight: normal !important;
+    border-radius: 12px;
 }
 
 /* --- Choice Group (Radio buttons as blocks) --- */
@@ -339,6 +341,7 @@ body {
     background: var(--bg-input);
     padding: 8px;
     border: 1px solid #444;
+    border-radius: 12px;
 }
 
 .ai-choice-group {

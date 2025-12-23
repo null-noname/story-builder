@@ -122,7 +122,7 @@ export function switchView(viewId) {
 /**
  * Render the work list
  */
-export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', sort = 'updatedAt') {
+export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', sort = 'updatedAt', onEdit = null) {
     const container = document.getElementById('work-list');
     if (!container) return;
 
@@ -177,7 +177,8 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
         // Direct binding for events
         item.querySelector('.work-title-link').onclick = () => onOpen(work.id);
         item.querySelector('[data-action="edit"]').onclick = () => {
-            if (window.showWorkSetup) window.showWorkSetup(work.id);
+            if (onEdit) onEdit(work.id);
+            else if (window.showWorkSetup) window.showWorkSetup(work.id);
         };
         item.querySelector('[data-action="delete"]').onclick = () => {
             if (confirm("本当に削除しますか？")) onDelete(work.id);

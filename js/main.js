@@ -43,39 +43,54 @@ function init() {
     window.switchView = switchView;
     window.views = views;
 
-    window.showWorkSetup = (id = null) => {
-        currentWorkId = id;
-        const setupTitle = document.getElementById('setup-title');
-        const submitBtn = document.getElementById('work-f-submit');
-        const deleteBtn = document.getElementById('work-f-delete');
-
+    window.adjustFormLayout = (id = null) => {
         const row1 = document.getElementById('setup-row-1');
         const row2 = document.getElementById('setup-row-2');
-
         const elLength = document.getElementById('el-f-length');
         const elStatus = document.getElementById('el-f-status');
         const elType = document.getElementById('el-f-type');
         const elRating = document.getElementById('el-f-rating');
 
         if (id) {
-            // Edit Mode
-            const work = allWorksCache.find(w => w.id === id);
-            if (work) populateForm(work);
-
-            // Layout for Edit: [Type + Status], [Rating]
+            // Edit Layout: [Type + Status], [Rating]
             if (row1 && elType && elStatus) {
                 row1.innerHTML = '';
                 row1.appendChild(elType);
                 row1.appendChild(elStatus);
             }
-
             if (row2 && elRating) {
                 row2.innerHTML = '';
                 row2.appendChild(elRating);
             }
-
             if (elLength) elLength.style.display = 'none';
+        } else {
+            // New Layout: [Length + Type], [Status + Rating]
+            if (row1 && elLength && elType) {
+                row1.innerHTML = '';
+                row1.appendChild(elLength);
+                row1.appendChild(elType);
+            }
+            if (row2 && elStatus && elRating) {
+                row2.innerHTML = '';
+                row2.appendChild(elStatus);
+                row2.appendChild(elRating);
+            }
+            if (elLength) elLength.style.display = 'block';
+        }
+    };
 
+    window.showWorkSetup = (id = null) => {
+        currentWorkId = id;
+        const setupTitle = document.getElementById('setup-title');
+        const submitBtn = document.getElementById('work-f-submit');
+        const deleteBtn = document.getElementById('work-f-delete');
+
+        // Use refactored layout logic
+        window.adjustFormLayout(id);
+
+        if (id) {
+            const work = allWorksCache.find(w => w.id === id);
+            if (work) populateForm(work);
             if (setupTitle) setupTitle.textContent = '作品情報の編集';
             if (submitBtn) submitBtn.textContent = '保存';
             if (deleteBtn) {
@@ -88,24 +103,7 @@ function init() {
                 };
             }
         } else {
-            // New Mode
             clearForm();
-
-            // Layout for New: [Length + Type], [Status + Rating]
-            if (row1 && elLength && elType) {
-                row1.innerHTML = '';
-                row1.appendChild(elLength);
-                row1.appendChild(elType);
-            }
-
-            if (row2 && elStatus && elRating) {
-                row2.innerHTML = '';
-                row2.appendChild(elStatus);
-                row2.appendChild(elRating);
-            }
-
-            if (elLength) elLength.style.display = 'block';
-
             if (setupTitle) setupTitle.textContent = '作品情報の入力';
             if (submitBtn) submitBtn.textContent = '保存して開始';
             if (deleteBtn) deleteBtn.style.display = 'none';
@@ -113,25 +111,64 @@ function init() {
         switchView(views.setup);
     };
 
-    window.showWorkInfo = (id) => {
-        currentWorkId = id;
-        const work = allWorksCache.find(w => w.id === id);
-        if (work) {
-            renderWorkInfo(work);
-            const openBtn = document.getElementById('info-open-work');
-            if (openBtn) openBtn.onclick = () => window.openWork(id);
-            switchView(views.info);
+    window.switchWorkspaceTab = (tab) => {
+        const tabEditor = document.getElementById('tab-editor');
+        const tabInfo = document.getElementById('tab-info');
+        const contentEditor = document.getElementById('ws-content-editor');
+        const contentInfo = document.getElementById('ws-content-info');
+        const setupForm = document.querySelector('#setup-view .form-panel');
+
+        if (tab === 'editor') {
+            tabEditor.classList.add('active');
+            tabInfo.classList.remove('active');
+            contentEditor.classList.add('active');
+            contentInfo.classList.remove('active');
+            // Move form back to its original view if needed (though it stays in DOM)
+        } else {
+            tabEditor.classList.remove('active');
+            tabInfo.classList.add('active');
+            contentEditor.classList.remove('active');
+            contentInfo.classList.add('active');
+
+            // Move setup form into the workspace tab if it's not there
+            if (setupForm && contentInfo) {
+                // Ensure form reflects current work
+                if (currentWorkId) {
+                    const work = allWorksCache.find(w => w.id === currentWorkId);
+                    if (work) populateForm(work);
+
+                    window.adjustFormLayout(currentWorkId);
+
+                    const sTitle = document.getElementById('setup-title');
+                    if (sTitle) sTitle.textContent = '作品設定';
+                    const sHeader = document.getElementById('setup-view-header');
+                    if (sHeader) sHeader.style.display = 'none';
+                    const sSubmit = document.getElementById('work-f-submit');
+                    if (sSubmit) sSubmit.textContent = '変更を保存';
+                }
+                contentInfo.appendChild(setupForm);
+            }
         }
     };
 
     window.openWork = (id) => {
         currentWorkId = id;
         switchView(views.workspace);
+        window.switchWorkspaceTab('editor'); // Default to editor tab
         setupWorkspace(id);
     };
 
     window.closeWorkspace = () => {
         if (chaptersUnsubscribe) chaptersUnsubscribe();
+
+        // Move setup form back to its original view container
+        const setupForm = document.querySelector('.workspace-tab-content .form-panel');
+        const originalSetupContainer = document.querySelector('#setup-view');
+        if (setupForm && originalSetupContainer) {
+            originalSetupContainer.appendChild(setupForm);
+            document.getElementById('setup-view-header').style.display = 'block';
+        }
+
         currentWorkId = null;
         setupDashBoard();
     };
@@ -222,7 +259,8 @@ function setupDashBoard() {
             deleteWork,
             toggleWorkPin,
             document.getElementById('filter-status').value,
-            document.getElementById('sort-order').value
+            document.getElementById('sort-order').value,
+            window.openWork // Direct to Editor
         );
     });
 

@@ -224,14 +224,26 @@
 
                 <!-- Right Pane: Editor -->
                 <div class="editor-main">
-                    <div class="editor-toolbar">
-                        <button class="btn-icon back" onclick="toggleVerticalMode()">縦/横</button>
-                        <button class="btn-icon back" onclick="insertRuby()">ルビ(R)</button>
-                        <button class="btn-icon back" onclick="insertDash()">ダッシュ(D)</button>
-                        <button class="btn-icon save" onclick="saveCurrentChapter()">保存</button>
-                        <span id="editor-char-count">0 字</span>
+                    <div class="workspace-tabs-container">
+                        <button id="tab-editor" class="ws-tab active"
+                            onclick="switchWorkspaceTab('editor')">エディター</button>
+                        <button id="tab-info" class="ws-tab" onclick="switchWorkspaceTab('info')">作品情報</button>
                     </div>
-                    <textarea id="main-editor" placeholder="物語を始めましょう..."></textarea>
+
+                    <div id="ws-content-editor" class="workspace-tab-content active">
+                        <div class="editor-toolbar">
+                            <button class="btn-icon back" onclick="toggleVerticalMode()">縦/横</button>
+                            <button class="btn-icon back" onclick="insertRuby()">ルビ(R)</button>
+                            <button class="btn-icon back" onclick="insertDash()">ダッシュ(D)</button>
+                            <button class="btn-icon save" onclick="saveCurrentChapter()">保存</button>
+                            <span id="editor-char-count">0 字</span>
+                        </div>
+                        <textarea id="main-editor" placeholder="物語を始めましょう..."></textarea>
+                    </div>
+
+                    <div id="ws-content-info" class="workspace-tab-content">
+                        <!-- Setup Form will be moved here by JS when tab is active -->
+                    </div>
                 </div>
             </div>
         </div>
