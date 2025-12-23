@@ -32,14 +32,14 @@
 
                 <div class="dashboard-top">
                     <!-- Stats Section (Writing Diary) -->
-                    <div class="stats-card">
+                    <div class="stats-card click-card" onclick="switchView('stats-view')">
                         <h3>執筆日記</h3>
                         <div class="stats-row">
                             <span>今日の文字数</span>
-                            <span id="stat-today-chars" class="stats-val">0 字</span>
+                            <span id="stat-today-chars" class="stats-val gold-bold">0 字</span>
                         </div>
                         <div class="stats-chart-container">
-                            <canvas id="stats-chart"></canvas>
+                            <canvas id="stats-chart-mini"></canvas>
                         </div>
                     </div>
 
@@ -89,7 +89,14 @@
                     <textarea id="work-f-summary" rows="4"></textarea>
                 </div>
 
-                <div class="form-row">
+                <div class="form-row-multi">
+                    <div class="form-group">
+                        <label>長編/短編</label>
+                        <select id="work-f-length">
+                            <option value="long">長編</option>
+                            <option value="short">短編</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label>制作ステータス</label>
                         <select id="work-f-status">
@@ -98,6 +105,35 @@
                             <option value="suspended">制作中止</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>作品種別</label>
+                        <select id="work-f-type">
+                            <option value="original">オリジナル</option>
+                            <option value="derivative">二次創作</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row-multi">
+                    <div class="form-group">
+                        <label>レーティング (複数選択可)</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="rating" value="none"> なし</label>
+                            <label><input type="checkbox" name="rating" value="sexual"> 性描写あり</label>
+                            <label><input type="checkbox" name="rating" value="violent"> 暴力表現あり</label>
+                            <label><input type="checkbox" name="rating" value="cruel"> 残酷描写あり</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group full" style="margin-bottom:16px;">
+                    <label>AI使用について</label>
+                    <select id="work-f-ai">
+                        <option value="none">なし</option>
+                        <option value="main">本文利用（50%以上）</option>
+                        <option value="partial">一部利用（50%以下）</option>
+                        <option value="assist">補助利用</option>
+                    </select>
                 </div>
 
                 <div style="display:flex; gap:16px;">

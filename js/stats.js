@@ -3,20 +3,30 @@
  * Chart.js Integration
  */
 
-let chartInstance = null;
+let miniChart = null;
+let fullChart = null;
 
 export function initStatsChart() {
-    const ctx = document.getElementById('stats-chart');
-    if (!ctx) return;
+    const miniCtx = document.getElementById('stats-chart-mini');
+    if (miniCtx) {
+        miniChart = createChart(miniCtx, 7); // Show last 7 days on mini
+    }
 
-    chartInstance = new Chart(ctx, {
+    const fullCtx = document.getElementById('stats-chart-full');
+    if (fullCtx) {
+        fullChart = createChart(fullCtx, 30); // Default 30 days
+    }
+}
+
+function createChart(ctx, count) {
+    return new Chart(ctx, {
         type: 'bar',
         data: {
             labels: [],
             datasets: [{
                 label: '執筆文字数',
                 data: [],
-                backgroundColor: '#00ff7f', // 明るい縁
+                backgroundColor: '#00ff7f', // 明るい緑
                 borderColor: '#00ff7f',
                 borderWidth: 1
             }]
@@ -28,7 +38,7 @@ export function initStatsChart() {
                 y: {
                     beginAtZero: true,
                     grid: { color: '#333' },
-                    ticks: { color: '#aaa' }
+                    ticks: { color: '#aaa', font: { weight: 'bold' } }
                 },
                 x: {
                     grid: { display: false },
@@ -43,12 +53,27 @@ export function initStatsChart() {
 }
 
 export function updateStatsChart(stats) {
-    if (!chartInstance) return;
+    if (miniChart) {
+        const miniStats = stats.slice(-7);
+        updateChartData(miniChart, miniStats);
+    }
+    if (fullChart) {
+        updateChartData(fullChart, stats);
+    }
+}
 
-    const labels = stats.map(s => s.date.split('-').slice(1).join('/')); // MM/DD
-    const data = stats.map(s => s.count);
+function updateChartData(chart, data) {
+    chart.data.labels = data.map(s => s.date.split('-').slice(1).join('/'));
+    chart.data.datasets[0].data = data.map(s => s.count);
+    chart.update();
+}
 
-    chartInstance.data.labels = labels;
-    chartInstance.data.datasets[0].data = data;
-    chartInstance.update();
+export function updateFullStatsPeriod(stats, period) {
+    if (!fullChart) return;
+    let filtered = stats;
+    if (period === '1W') filtered = stats.slice(-7);
+    else if (period === '1M') filtered = stats.slice(-30);
+    else if (period === '1Y') filtered = stats.slice(-365);
+
+    updateChartData(fullChart, filtered);
 }

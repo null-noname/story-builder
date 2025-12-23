@@ -46,19 +46,18 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
     const container = document.getElementById('work-list');
     if (!container) return;
 
-    let filtered = works;
+    let filtered = [...works];
     if (filter !== 'all') {
-        filtered = works.filter(w => w.status === filter);
+        filtered = filtered.filter(w => w.status === filter);
     }
 
     // Sort: Pinned first, then User choice
     filtered.sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
 
-        const valA = a[sort]?.seconds || 0;
-        const valB = b[sort]?.seconds || 0;
-        return valB - valA;
+        if (sort === 'updatedAt') return b.updatedAt - a.updatedAt;
+        return b.createdAt - a.createdAt;
     });
 
     container.innerHTML = '';
@@ -70,29 +69,42 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
     filtered.forEach(work => {
         const item = document.createElement('div');
         item.className = 'work-item-card';
-        // HTML structure updated for new design rules
+
+        const tagsHtml = `
+            ${work.length === 'short' ? '<span class="work-tag">短編</span>' : '<span class="work-tag">長編</span>'}
+            ${work.type === 'derivative' ? '<span class="work-tag">二次創作</span>' : '<span class="work-tag">オリジナル</span>'}
+        `;
+
         item.innerHTML = `
             <div class="work-header">
-                <div class="work-title-link" data-id="${work.id}">${escapeHtml(work.title)}</div>
+                <div style="flex:1;">
+                  <span class="work-title-link">${escapeHtml(work.title)}</span>
+                  <div style="margin-top:8px;">${tagsHtml}</div>
+                </div>
                 <div class="work-actions-inline">
-                    <button class="btn-icon edit" data-id="${work.id}">編集</button>
-                    <button class="btn-icon red delete" data-id="${work.id}">削除</button>
-                    <button class="btn-icon star ${work.isPinned ? 'active' : ''}" data-id="${work.id}" data-pinned="${work.isPinned}">★</button>
+                    <button class="btn-icon star ${work.pinned ? 'active' : ''}" data-action="pin">★</button>
+                    <button class="btn-retro edit" data-action="edit" style="padding:4px 10px; font-size:0.9rem;">編集</button>
+                    <button class="btn-retro delete" data-action="delete" style="padding:4px 10px; font-size:0.9rem;">削除</button>
                 </div>
             </div>
+            <p style="margin:10px 0; font-size:0.9rem; color:#ccc; font-weight:normal;">${escapeHtml(work.catchphrase || '')}</p>
             <div class="work-footer-meta">
-                作成日 : ${work.createdAt ? formatDate(work.createdAt.toDate()) : '-'} &nbsp; 
-                更新日 : ${work.updatedAt ? formatDate(work.updatedAt.toDate(), true) : '-'}
+                <span>作成日 : ${formatDate(new Date(work.createdAt))}</span>
+                <span>更新日 : ${formatDate(new Date(work.updatedAt), true)}</span>
             </div>
         `;
 
-        // Event delegation or direct binding
+        // Direct binding for events
         item.querySelector('.work-title-link').onclick = () => onOpen(work.id);
-        item.querySelector('.btn-icon.edit').onclick = () => onOpen(work.id);
-        item.querySelector('.btn-icon.delete').onclick = () => onDelete(work.id);
-        item.querySelector('.btn-icon.star').onclick = (e) => {
+        item.querySelector('[data-action="edit"]').onclick = () => {
+            if (window.showWorkSetup) window.showWorkSetup(work.id);
+        };
+        item.querySelector('[data-action="delete"]').onclick = () => {
+            if (confirm("本当に削除しますか？")) onDelete(work.id);
+        };
+        item.querySelector('[data-action="pin"]').onclick = (e) => {
             e.stopPropagation();
-            onPin(work.id, work.isPinned);
+            onPin(work.id, work.pinned);
         };
 
         container.appendChild(item);

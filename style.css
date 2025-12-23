@@ -1,19 +1,29 @@
 :root {
     --bg-dark: #202020;
-    --bg-card: #2a2a2a;
-    --bg-input: #151515;
+    --bg-card: #282828;
+    /* #3d3d3dより少し濃いグレー */
+    --bg-input: #1a1a1a;
     --text-main: #f5f5f5;
     --text-sub: #aaaaaa;
     --gold: #d4af37;
+    --bright-green: #00ff7f;
 
     /* Specific Button Colors */
     --btn-save: #9acd32;
+    /* 黄緑 */
     --btn-edit: #000080;
+    /* 紺色 */
     --btn-delete: #722f37;
-    --btn-back: #a9a9a9;
+    /* ワイン色 */
+    --btn-back: #d3d3d3;
+    /* 明るいグレー */
+    --btn-active: #2b4034;
+    /* ボタン選択中 */
 
-    --font-ui: "Hiragino Kaku Gothic ProN", "Meiryo", "sans-serif";
-    --font-editor: "MS Gothic", "MS UI Gothic", "monospace";
+    --font-ui: sans-serif;
+    /* ゴシック体 */
+    --font-editor: "MS Gothic", "MS UI Gothic", monospace;
+    /* MSゴシック (等幅) */
 }
 
 * {
@@ -47,7 +57,20 @@ body {
     color: var(--gold);
 }
 
-.gold { color: var(--gold); }
+.gold {
+    color: var(--gold);
+}
+
+.gold-bold {
+    color: var(--gold);
+    font-weight: bold;
+}
+
+.bright-green-bold {
+    color: var(--bright-green);
+    font-weight: bold;
+    font-size: 1.5rem;
+}
 
 /* --- Layout --- */
 .view-container {
@@ -72,28 +95,34 @@ body {
 }
 
 .stats-card {
-    background: #151515;
+    background: #1a1a1a;
     border: 2px solid #444;
     padding: 16px;
     flex: 1;
     min-width: 0;
+    cursor: pointer;
 }
 
 .stats-card h3 {
     margin-bottom: 12px;
     font-size: 0.9rem;
-    color: var(--gold);
+    color: var(--bright-green);
+    /* 明るい縁 */
+    font-weight: bold;
 }
 
 .stats-row {
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
-    font-weight: bold;
+}
+
+.stats-val {
+    font-size: 1.2rem;
 }
 
 .stats-chart-container {
-    height: 150px;
+    height: 120px;
     width: 100%;
 }
 
@@ -120,28 +149,45 @@ body {
 .btn-retro:active {
     transform: translate(2px, 2px);
     box-shadow: 1px 1px 0px #000;
+    background-color: var(--btn-active) !important;
 }
 
-.btn-retro.large { width: 100%; font-size: 1.3rem; }
-.btn-retro.save { background: var(--btn-save); color: #000; }
-.btn-retro.edit { background: var(--btn-edit); }
-.btn-retro.delete { background: var(--btn-delete); }
-.btn-retro.back { background: var(--btn-back); color: #000; }
-.btn-retro.blue { background: #3d5afe; }
+.btn-retro.large {
+    width: 100%;
+    font-size: 1.3rem;
+}
 
-.btn-icon {
-    border: 1px solid #000;
-    color: #fff;
-    padding: 4px 10px;
+.btn-retro.save {
+    background: var(--btn-save);
+    color: #222;
+}
+
+.btn-retro.edit {
+    background: var(--btn-edit);
+}
+
+.btn-retro.delete {
+    background: var(--btn-delete);
+}
+
+.btn-retro.back {
+    background: var(--btn-back);
+    color: #222;
+}
+
+.btn-retro.blue {
+    background: #3d5afe;
+}
+
+/* Custom ▼▲ Buttons */
+.btn-arrow {
+    background: #d3d3d3;
+    color: #000;
+    border: 1px solid #444;
+    padding: 2px 8px;
+    font-size: 0.8rem;
     cursor: pointer;
-    font-weight: bold;
-    font-size: 0.85rem;
 }
-.btn-icon.save { background: var(--btn-save); color: #000; }
-.btn-icon.red { background: var(--btn-delete); }
-.btn-icon.back { background: var(--btn-back); color: #000; }
-.btn-icon.star { background: transparent; border: none; font-size: 1.5rem; color: #555; }
-.btn-icon.star.active { color: var(--gold); }
 
 /* --- Work List --- */
 .work-item-card {
@@ -149,7 +195,9 @@ body {
     border: 2px solid #444;
     padding: 20px;
     margin-bottom: 16px;
-    box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
+    box-shadow: 5px 5px 0px rgba(0, 0, 0, 0.5);
+    font-weight: bold;
+    /* カードは太字 */
 }
 
 .work-header {
@@ -161,13 +209,18 @@ body {
 
 .work-title-link {
     font-size: 1.5rem;
-    font-weight: bold;
+    color: var(--gold);
     cursor: pointer;
 }
 
-.work-actions-inline {
-    display: flex;
-    gap: 8px;
+.work-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-size: 0.75rem;
+    margin-right: 5px;
+    border-radius: 4px;
 }
 
 .work-footer-meta {
@@ -175,6 +228,8 @@ body {
     color: var(--text-sub);
     border-top: 1px solid #444;
     padding-top: 8px;
+    display: flex;
+    justify-content: space-between;
 }
 
 /* --- Form --- */
@@ -192,14 +247,41 @@ body {
     flex-direction: column;
 }
 
+.form-row-multi {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-row-multi .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: var(--bg-input);
+    padding: 10px;
+}
+
+.checkbox-group label {
+    font-size: 0.9rem;
+    color: var(--text-main) !important;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .form-group label {
     font-size: 0.85rem;
     color: var(--gold);
     margin-bottom: 6px;
 }
 
-.form-group input, 
-.form-group textarea, 
+.form-group input,
+.form-group textarea,
 .form-group select {
     background: var(--bg-input);
     border: 1px solid #444;
@@ -208,7 +290,16 @@ body {
     font-family: var(--font-ui);
 }
 
-/* --- Workspace (2-Pane) --- */
+.select-retro {
+    background: var(--bg-input);
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 12px;
+    /* ソート：太字にしない */
+    font-weight: normal !important;
+}
+
+/* --- Workspace --- */
 .workspace-container {
     display: flex;
     height: 100vh;
@@ -217,17 +308,21 @@ body {
 
 .editor-sidebar {
     width: 260px;
-    background: #181818;
-    border-right: 2px solid #111;
+    background: #1a1a1a;
+    border-right: 1px solid #333;
     display: flex;
     flex-direction: column;
 }
 
-.sidebar-header, .sidebar-footer {
+.sidebar-header {
+    background: #2a6a2a;
+    /* カラムの色：緑 */
+    color: #fff;
     padding: 15px;
-    border-bottom: 1px solid #333;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
 }
-.sidebar-footer { border-top: 1px solid #333; border-bottom: none; }
 
 #chapter-list {
     flex: 1;
@@ -235,38 +330,34 @@ body {
 }
 
 .chapter-item {
-    padding: 12px 15px;
-    border-bottom: 1px solid #222;
+    padding: 15px;
+    border-bottom: 1px solid #333;
     cursor: pointer;
-    display: flex;
-    justify-content: space-between;
 }
-.chapter-item.active { background: #3d3d3d; font-weight: bold; border-left: 4px solid var(--gold); }
-.chapter-count { color: var(--text-sub); font-size: 0.8rem; }
+
+.chapter-item.active {
+    background: var(--btn-active);
+}
 
 .editor-main {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: #111;
+    background: var(--bg-dark);
 }
 
 .editor-toolbar {
-    height: 48px;
-    background: #1a1a1a;
+    padding: 10px 20px;
+    background: #151515;
     display: flex;
     align-items: center;
-    padding: 0 15px;
     gap: 10px;
-    border-bottom: 1px solid #000;
 }
-
-#editor-char-count { margin-left: auto; color: var(--text-sub); font-size: 0.9rem; }
 
 #main-editor {
     flex: 1;
     background: transparent;
-    color: #f5f5f5;
+    color: var(--text-main);
     padding: 40px;
     font-family: var(--font-editor);
     font-size: 1.1rem;
@@ -278,20 +369,86 @@ body {
 
 #main-editor.vertical {
     writing-mode: vertical-rl;
-    padding: 60px;
 }
 
-/* Login */
-.login-box {
+/* --- Stats Full View --- */
+.stats-full-card {
     background: var(--bg-card);
-    padding: 50px;
-    text-align: center;
-    border: 3px solid #000;
-    box-shadow: 10px 10px 0px rgba(0,0,0,0.5);
+    border: 2px solid #444;
+    padding: 20px;
+    margin-bottom: 20px;
 }
 
+.stats-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    background: #444;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.tab-btn.active {
+    background: var(--bright-green);
+    color: #000;
+    font-weight: bold;
+}
+
+.stats-chart-main-container {
+    height: 300px;
+}
+
+.stats-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.summary-item {
+    background: var(--bg-card);
+    padding: 20px;
+    text-align: center;
+    border: 2px solid #444;
+}
+
+.summary-item label {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+
+/* Mobile Adjustments */
 @media (max-width: 768px) {
-    .dashboard-top { flex-direction: column; }
-    .action-stack { width: 100%; }
-    .editor-sidebar { width: 150px; }
+    .dashboard-top {
+        flex-direction: column;
+    }
+
+    .action-stack {
+        width: 100%;
+        order: -1;
+    }
+
+    .workspace-container {
+        flex-direction: column;
+    }
+
+    .editor-sidebar {
+        width: 100%;
+        height: 200px;
+    }
+
+    .form-row-multi {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .form-row-multi .form-group {
+        margin-bottom: 16px;
+    }
 }

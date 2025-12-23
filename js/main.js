@@ -13,7 +13,7 @@ import {
     getRecentDailyProgress
 } from "./db.js";
 import { setupEditor, setEditorContent, getEditorContent, toggleVerticalMode, insertRuby, insertDash } from "./editor.js";
-import { initStatsChart, updateStatsChart } from "./stats.js";
+import { initStatsChart, updateStatsChart, updateFullStatsPeriod } from "./stats.js";
 
 // App State
 let currentWorkId = null;
@@ -21,6 +21,7 @@ let currentChapterId = null;
 let allWorksCache = [];
 let worksUnsubscribe = null;
 let chaptersUnsubscribe = null;
+let allStatsCache = [];
 
 /**
  * Initialize Application
@@ -35,14 +36,21 @@ function init() {
         }
     });
 
-    // Login Button
     const loginBtn = document.getElementById('google-login-btn');
     if (loginBtn) loginBtn.onclick = login;
 
     // Global UI Actions
-    window.showWorkSetup = () => {
-        currentWorkId = null;
-        clearForm();
+    window.switchView = switchView;
+    window.views = views;
+
+    window.showWorkSetup = (id = null) => {
+        currentWorkId = id;
+        if (id) {
+            const work = allWorksCache.find(w => w.id === id);
+            if (work) populateForm(work);
+        } else {
+            clearForm();
+        }
         switchView(views.setup);
     };
 
@@ -54,7 +62,15 @@ function init() {
 
     window.closeWorkspace = () => {
         if (chaptersUnsubscribe) chaptersUnsubscribe();
-        switchView(views.top);
+        currentWorkId = null;
+        setupDashBoard();
+    };
+
+    window.updateFullStats = (period) => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        const activeTab = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.textContent.includes(period === '1W' ? '1週間' : period === '1M' ? '1ヶ月' : '1年'));
+        if (activeTab) activeTab.classList.add('active');
+        updateFullStatsPeriod(allStatsCache, period);
     };
 
     window.handleWorkInfoSubmit = async () => {
@@ -66,12 +82,16 @@ function init() {
             catchphrase: document.getElementById('work-f-catchphrase').value,
             description: document.getElementById('work-f-summary').value,
             status: document.getElementById('work-f-status').value,
+            length: document.getElementById('work-f-length').value,
+            type: document.getElementById('work-f-type').value,
+            ai: document.getElementById('work-f-ai').value,
+            rating: Array.from(document.querySelectorAll('input[name="rating"]:checked')).map(cb => cb.value),
             uid: getCurrentUser().uid
         };
 
         if (currentWorkId) {
             await updateWork(currentWorkId, data);
-            switchView(views.workspace);
+            window.openWork(currentWorkId);
         } else {
             const id = await createWork(data);
             window.openWork(id);
@@ -142,12 +162,22 @@ function setupDashBoard() {
 async function updateStats() {
     const user = getCurrentUser();
     const stats = await getRecentDailyProgress(user.uid);
+    allStatsCache = stats;
     updateStatsChart(stats);
 
     // Update simple stat display
     const todayStr = new Date().toISOString().split('T')[0];
     const todayStat = stats.find(s => s.date === todayStr);
-    document.getElementById('stat-today-chars').textContent = `${todayStat ? todayStat.count : 0} 字`;
+    const todayCount = todayStat ? todayStat.count : 0;
+
+    document.getElementById('stat-today-chars').textContent = `${todayCount} 字`;
+
+    // Summary screen
+    if (document.getElementById('summary-today')) {
+        document.getElementById('summary-today').textContent = todayCount;
+        const weeklySum = stats.slice(-7).reduce((acc, s) => acc + s.count, 0);
+        document.getElementById('summary-weekly').textContent = weeklySum;
+    }
 }
 
 /**
@@ -185,6 +215,24 @@ function clearForm() {
     document.getElementById('work-f-catchphrase').value = "";
     document.getElementById('work-f-summary').value = "";
     document.getElementById('work-f-status').value = "in-progress";
+    document.getElementById('work-f-length').value = "long";
+    document.getElementById('work-f-type').value = "original";
+    document.getElementById('work-f-ai').value = "none";
+    document.querySelectorAll('input[name="rating"]').forEach(cb => cb.checked = false);
+}
+
+function populateForm(work) {
+    document.getElementById('work-f-title').value = work.title || "";
+    document.getElementById('work-f-catchphrase').value = work.catchphrase || "";
+    document.getElementById('work-f-summary').value = work.description || "";
+    document.getElementById('work-f-status').value = work.status || "in-progress";
+    document.getElementById('work-f-length').value = work.length || "long";
+    document.getElementById('work-f-type').value = work.type || "original";
+    document.getElementById('work-f-ai').value = work.ai || "none";
+
+    document.querySelectorAll('input[name="rating"]').forEach(cb => {
+        cb.checked = (work.rating || []).includes(cb.value);
+    });
 }
 
 // Start App
