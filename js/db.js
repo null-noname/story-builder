@@ -35,7 +35,7 @@ export async function createWork(data) {
         ...data,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        isPinned: false,
+        pinned: false,
         totalChars: 0
     });
     return docRef.id;
@@ -55,7 +55,7 @@ export async function deleteWork(workId) {
 
 export async function toggleWorkPin(workId, currentPinStatus) {
     const docRef = doc(db, "works", workId);
-    await updateDoc(docRef, { isPinned: !currentPinStatus });
+    await updateDoc(docRef, { pinned: !currentPinStatus });
 }
 
 /**
