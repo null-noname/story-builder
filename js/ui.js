@@ -7,9 +7,44 @@ export const views = {
     top: 'top-view',
     setup: 'setup-view',
     workspace: 'workspace-view',
-    memo: 'memo-view'
+    memo: 'memo-view',
+    stats: 'stats-view'
 };
 
+/**
+ * Update Statistics on Dashboard (TOP)
+ */
+export function renderStatsDashboard(data) {
+    const todayChars = document.getElementById('stat-today-chars');
+    const weeklyChars = document.getElementById('stat-weekly-chars');
+
+    if (todayChars) todayChars.textContent = data.todayCount;
+    if (weeklyChars) weeklyChars.textContent = data.weeklySum;
+}
+
+/**
+ * Update Statistics Summary Grid (Stats View)
+ */
+export function renderStatsFull(data, totalWorks) {
+    const today = document.getElementById('summary-today');
+    const weekly = document.getElementById('summary-weekly');
+    const monthly = document.getElementById('summary-monthly');
+    const total = document.getElementById('summary-total-works');
+
+    if (today) today.textContent = data.todayCount;
+    if (weekly) weekly.textContent = data.weeklySum;
+    if (monthly) monthly.textContent = data.monthlySum;
+    if (total) total.textContent = totalWorks;
+}
+
+/**
+ * Update Active Tab in Stats View
+ */
+export function updateActiveTab(label) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim() === label);
+    });
+}
 /**
  * Switch between different views
  */

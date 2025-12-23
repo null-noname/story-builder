@@ -10,6 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/stats.css">
+    <link rel="stylesheet" href="css/editor.css">
 </head>
 
 <body>
@@ -173,6 +175,53 @@
                         <span id="editor-char-count">0 字</span>
                     </div>
                     <textarea id="main-editor" placeholder="物語を始めましょう..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Statistics (Full) -->
+        <div id="stats-view" class="view-content view-container">
+            <div class="container-narrow">
+                <div class="stats-full-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2 class="retro-subtitle">執筆統計</h2>
+                        <div class="stats-tabs">
+                            <button class="tab-btn active" onclick="updateFullStats('1W')">1週</button>
+                            <button class="tab-btn" onclick="updateFullStats('1M')">1月</button>
+                            <button class="tab-btn" onclick="updateFullStats('1Y')">1年</button>
+                        </div>
+                    </div>
+
+                    <div class="stats-chart-main-container">
+                        <canvas id="stats-chart-full"></canvas>
+                    </div>
+                </div>
+
+                <div class="stats-summary-grid">
+                    <div class="summary-item">
+                        <label>今日の文字数</label>
+                        <span class="bright-green-bold"><span id="summary-today">0</span> <span
+                                class="stats-unit">字</span></span>
+                    </div>
+                    <div class="summary-item">
+                        <label>過去7日間の合計</label>
+                        <span class="bright-green-bold"><span id="summary-weekly">0</span> <span
+                                class="stats-unit">字</span></span>
+                    </div>
+                    <div class="summary-item">
+                        <label>直近30日間の合計</label>
+                        <span class="bright-green-bold"><span id="summary-monthly">0</span> <span
+                                class="stats-unit">字</span></span>
+                    </div>
+                    <div class="summary-item">
+                        <label>総制作作品数</label>
+                        <span class="bright-green-bold"><span id="summary-total-works">0</span> <span
+                                class="stats-unit">作品</span></span>
+                    </div>
+                </div>
+
+                <div style="margin-top:30px; text-align:center;">
+                    <button class="btn-retro back" onclick="switchView('top-view')">◀ TOPに戻る</button>
                 </div>
             </div>
         </div>

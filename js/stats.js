@@ -3,18 +3,12 @@
  * Chart.js Integration
  */
 
-let miniChart = null;
 let fullChart = null;
 
 export function initStatsChart() {
-    const miniCtx = document.getElementById('stats-chart-mini');
-    if (miniCtx) {
-        miniChart = createChart(miniCtx, 7); // Show last 7 days on mini
-    }
-
     const fullCtx = document.getElementById('stats-chart-full');
     if (fullCtx) {
-        fullChart = createChart(fullCtx, 30); // Default 30 days
+        fullChart = createChart(fullCtx, 7); // Default 7 days
     }
 }
 
@@ -26,8 +20,8 @@ function createChart(ctx, count) {
             datasets: [{
                 label: '執筆文字数',
                 data: [],
-                backgroundColor: '#00ff7f', // 明るい緑
-                borderColor: '#00ff7f',
+                backgroundColor: '#3CB371', // 指定色
+                borderColor: '#3CB371',
                 borderWidth: 1
             }]
         },
@@ -53,12 +47,9 @@ function createChart(ctx, count) {
 }
 
 export function updateStatsChart(stats) {
-    if (miniChart) {
-        const miniStats = stats.slice(-7);
-        updateChartData(miniChart, miniStats);
-    }
     if (fullChart) {
-        updateChartData(fullChart, stats);
+        const initialStats = stats.slice(-7);
+        updateChartData(fullChart, initialStats);
     }
 }
 
@@ -66,6 +57,16 @@ function updateChartData(chart, data) {
     chart.data.labels = data.map(s => s.date.split('-').slice(1).join('/'));
     chart.data.datasets[0].data = data.map(s => s.count);
     chart.update();
+}
+
+export function aggregateStats(stats) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStat = stats.find(s => s.date === todayStr);
+    const todayCount = todayStat ? todayStat.count : 0;
+    const weeklySum = stats.slice(-7).reduce((acc, s) => acc + s.count, 0);
+    const monthlySum = stats.slice(-30).reduce((acc, s) => acc + s.count, 0);
+
+    return { todayCount, weeklySum, monthlySum };
 }
 
 export function updateFullStatsPeriod(stats, period) {
@@ -76,4 +77,9 @@ export function updateFullStatsPeriod(stats, period) {
     else if (period === '1Y') filtered = stats.slice(-365);
 
     updateChartData(fullChart, filtered);
+}
+
+export function getTabLabel(period) {
+    const labels = { '1W': '1週', '1M': '1月', '1Y': '1年' };
+    return labels[period];
 }

@@ -1,5 +1,4 @@
 import { observeAuth, getCurrentUser, login } from "./auth.js";
-import { switchView, views, renderWorkList, renderChapterList } from "./ui.js";
 import {
     subscribeWorks,
     createWork,
@@ -13,7 +12,8 @@ import {
     getRecentDailyProgress
 } from "./db.js";
 import { setupEditor, setEditorContent, getEditorContent, toggleVerticalMode, insertRuby, insertDash } from "./editor.js";
-import { initStatsChart, updateStatsChart, updateFullStatsPeriod } from "./stats.js";
+import { initStatsChart, updateStatsChart, updateFullStatsPeriod, aggregateStats, getTabLabel } from "./stats.js";
+import { switchView, views, renderWorkList, renderChapterList, renderStatsDashboard, renderStatsFull, updateActiveTab } from "./ui.js";
 
 // App State
 let currentWorkId = null;
@@ -67,9 +67,7 @@ function init() {
     };
 
     window.updateFullStats = (period) => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        const activeTab = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.textContent.includes(period === '1W' ? '1週間' : period === '1M' ? '1ヶ月' : '1年'));
-        if (activeTab) activeTab.classList.add('active');
+        updateActiveTab(getTabLabel(period));
         updateFullStatsPeriod(allStatsCache, period);
     };
 
@@ -161,29 +159,13 @@ function setupDashBoard() {
 
 async function updateStats() {
     const user = getCurrentUser();
-    const stats = await getRecentDailyProgress(user.uid);
+    const stats = await getRecentDailyProgress(user.uid, 365); // Fetch up to 1 year
     allStatsCache = stats;
     updateStatsChart(stats);
 
-    // Update simple stat display
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayStat = stats.find(s => s.date === todayStr);
-    const todayCount = todayStat ? todayStat.count : 0;
-
-    const weeklySum = stats.slice(-7).reduce((acc, s) => acc + s.count, 0);
-
-    if (document.getElementById('stat-today-chars')) {
-        document.getElementById('stat-today-chars').textContent = todayCount;
-    }
-    if (document.getElementById('stat-weekly-chars')) {
-        document.getElementById('stat-weekly-chars').textContent = weeklySum;
-    }
-
-    // Summary screen
-    if (document.getElementById('summary-today')) {
-        document.getElementById('summary-today').textContent = todayCount;
-        document.getElementById('summary-weekly').textContent = weeklySum;
-    }
+    const aggregated = aggregateStats(stats);
+    renderStatsDashboard(aggregated);
+    renderStatsFull(aggregated, allWorksCache.length);
 }
 
 /**
