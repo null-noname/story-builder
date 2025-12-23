@@ -4,14 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>エディター</title>
+    <title>エディター - Story Builder</title>
 
     <!-- External Libraries (CDN) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -30,42 +26,39 @@
     <div id="main-app" style="display: none;">
 
         <!-- View: Dashboard (TOP) -->
-        <div id="top-view" class="view-content active view-container">
+        <div id="top-view" class="view-content view-container">
             <div class="container-narrow">
                 <h1 class="retro-title">エディター</h1>
 
                 <div class="dashboard-top">
-                    <!-- Stats Section (Left in Image) -->
+                    <!-- Stats Section (Writing Diary) -->
                     <div class="stats-card">
                         <h3>執筆日記</h3>
                         <div class="stats-row">
                             <span>今日の文字数</span>
                             <span id="stat-today-chars" class="stats-val">0 字</span>
                         </div>
-                        <div class="stats-row" style="color:#888; font-size:0.85rem;">
-                            <span>過去7日間の文字数</span>
-                            <span id="stat-week-chars" class="stats-val">0 字</span>
+                        <div class="stats-chart-container">
+                            <canvas id="stats-chart"></canvas>
                         </div>
                     </div>
 
-                    <!-- Action Buttons (Right in Image) -->
+                    <!-- Action Buttons -->
                     <div class="action-stack">
-                        <button class="btn-retro large" onclick="showWorkSetup()">＋作品作成</button>
-                        <button class="btn-retro large" onclick="switchView('memo-view')">共通メモ</button>
+                        <button class="btn-retro large save" onclick="showWorkSetup()">＋作品作成</button>
+                        <button class="btn-retro large back" onclick="switchView('memo-view')">共通メモ</button>
                     </div>
                 </div>
 
-                <hr style="border:none; border-top:2px solid #000; margin-bottom:20px;">
-
                 <!-- Sort & Filter Bar -->
                 <div class="filter-bar">
-                    <select id="filter-status" class="select-retro" onchange="renderWorkList()">
+                    <select id="filter-status" class="select-retro">
                         <option value="all">すべて▼</option>
                         <option value="in-progress">制作中▼</option>
                         <option value="completed">制作完了▼</option>
                         <option value="suspended">制作中断▼</option>
                     </select>
-                    <select id="sort-order" class="select-retro" onchange="renderWorkList()">
+                    <select id="sort-order" class="select-retro">
                         <option value="updatedAt">更新順▼</option>
                         <option value="createdAt">作成日▼</option>
                     </select>
@@ -73,7 +66,7 @@
 
                 <!-- Work List -->
                 <div id="work-list" class="list-container">
-                    <!-- Loaded via script.js -->
+                    <!-- Loaded via js modules -->
                 </div>
             </div>
         </div>
@@ -83,7 +76,6 @@
             <div class="form-panel">
                 <h2 class="retro-subtitle" style="margin-bottom:20px;">作品情報の入力</h2>
 
-                <!-- Section 1: Basic -->
                 <div class="form-group full" style="margin-bottom:16px;">
                     <label>タイトル</label>
                     <input type="text" id="work-f-title" placeholder="作品のタイトルを入力">
@@ -97,25 +89,6 @@
                     <textarea id="work-f-summary" rows="4"></textarea>
                 </div>
 
-                <!-- Section 2: Genres & Length (1 line groups) -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>ジャンル (メイン/サブ)</label>
-                        <div style="display:flex; gap:8px;">
-                            <input type="text" id="work-f-genre-m" placeholder="メイン">
-                            <input type="text" id="work-f-genre-s" placeholder="サブ">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>作品の長さ</label>
-                        <select id="work-f-length">
-                            <option value="long">長編</option>
-                            <option value="short">短編</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Section 3: Status & Type -->
                 <div class="form-row">
                     <div class="form-group">
                         <label>制作ステータス</label>
@@ -125,91 +98,50 @@
                             <option value="suspended">制作中止</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>作品種別</label>
-                        <select id="work-f-type">
-                            <option value="original">オリジナル</option>
-                            <option value="derivative">二次創作</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Section 4: Rating Multi-select -->
-                <div class="form-group full" style="margin-bottom:16px;">
-                    <label>レイティング (複数選択可)</label>
-                    <div class="checkbox-group">
-                        <label><input type="checkbox" name="rating" value="sexual"> 性描写あり</label>
-                        <label><input type="checkbox" name="rating" value="violence"> 暴力表現あり</label>
-                        <label><input type="checkbox" name="rating" value="cruel"> 残酷描写あり</label>
-                    </div>
-                </div>
-
-                <!-- Section 5: AI Usage -->
-                <div class="form-group full" style="margin-bottom:24px;">
-                    <label>AI使用について</label>
-                    <select id="work-f-ai">
-                        <option value="none">なし</option>
-                        <option value="body">本文利用 (50%以上)</option>
-                        <option value="partial">一部利用 (50%以下)</option>
-                        <option value="support">補助利用</option>
-                    </select>
                 </div>
 
                 <div style="display:flex; gap:16px;">
-                    <button id="work-f-cancel" class="btn-retro" style="flex:1;"
+                    <button id="work-f-cancel" class="btn-retro back" style="flex:1;"
                         onclick="switchView('top-view')">キャンセル</button>
-                    <button id="work-f-submit" class="btn-retro blue" style="flex:2;"
+                    <button id="work-f-submit" class="btn-retro save" style="flex:2;"
                         onclick="handleWorkInfoSubmit()">内容を保存して開始</button>
                 </div>
             </div>
         </div>
 
-        <!-- View: Workspace (Editor) -->
-        <div id="workspace-view" class="view-content" style="display:none;">
+        <!-- View: Workspace (Editor) - 2-Pane Layout -->
+        <div id="workspace-view" class="view-content">
             <div class="workspace-container">
+                <!-- Left Pane: Chapter List & Navigation -->
                 <div class="editor-sidebar">
-                    <div
-                        style="padding:16px; border-bottom:1px solid #000; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:bold; color:var(--gold);">話一覧</span>
-                        <button class="btn-icon" onclick="addNewChapter()">＋追加</button>
+                    <div class="sidebar-header">
+                        <span class="gold">話一覧</span>
+                        <button class="btn-icon save" onclick="addNewChapter()">＋追加</button>
                     </div>
-                    <div id="chapter-list" style="flex:1; overflow-y:auto;"></div>
-                    <div style="padding:16px; border-top:1px solid #000;">
-                        <button class="btn-retro large" style="font-size:1rem; width:100%;"
-                            onclick="switchView('top-view')">◀ TOPに戻る</button>
-                        <button class="btn-retro large" style="font-size:1rem; width:100%; margin-top:8px;"
-                            onclick="openInfoEditor()">作品情報の修正</button>
+                    <div id="chapter-list"></div>
+                    <div class="sidebar-footer">
+                        <button class="btn-retro large back" onclick="closeWorkspace()">◀ TOPに戻る</button>
                     </div>
                 </div>
+
+                <!-- Right Pane: Editor -->
                 <div class="editor-main">
-                    <div
-                        style="height:48px; background:#1a1a1a; display:flex; align-items:center; padding:0 16px; border-bottom:1px solid #000; gap:12px;">
-                        <button class="btn-icon" onclick="toggleVerticalMode()">縦/横</button>
-                        <button class="btn-icon" onclick="openPreview()">プレビュー</button>
-                        <button class="btn-icon" onclick="saveCurrentChapter()">保存</button>
-                        <span id="editor-char-count" style="margin-left:auto; color:#888; font-size:0.9rem;">0 字</span>
+                    <div class="editor-toolbar">
+                        <button class="btn-icon back" onclick="toggleVerticalMode()">縦/横</button>
+                        <button class="btn-icon back" onclick="insertRuby()">ルビ(R)</button>
+                        <button class="btn-icon back" onclick="insertDash()">ダッシュ(D)</button>
+                        <button class="btn-icon save" onclick="saveCurrentChapter()">保存</button>
+                        <span id="editor-char-count">0 字</span>
                     </div>
-                    <textarea id="main-editor" placeholder="物語を始めましょう..." oninput="onEditorInput()"></textarea>
+                    <textarea id="main-editor" placeholder="物語を始めましょう..."></textarea>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Modal: Preview -->
-    <div id="preview-modal"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:1000; flex-direction:column;">
-        <div style="height:56px; border-bottom:1px solid #333; display:flex; align-items:center; padding:0 20px;">
-            <button class="btn-icon"
-                onclick="document.getElementById('preview-modal').style.display='none'">閉じる</button>
-            <div style="flex:1; text-align:center; font-weight:bold; color:var(--gold);">プレビュー</div>
-        </div>
-        <div id="preview-content"
-            style="flex:1; overflow-y:auto; padding:60px; max-width:800px; margin:0 auto; font-size:1.3rem; line-height:2.2; color:#eee;">
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+    <!-- Scripts -->
+    <script type="module" src="js/main.js"></script>
 </body>
 
 </html>
