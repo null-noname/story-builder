@@ -170,12 +170,18 @@ async function updateStats() {
     const todayStat = stats.find(s => s.date === todayStr);
     const todayCount = todayStat ? todayStat.count : 0;
 
-    document.getElementById('stat-today-chars').textContent = `${todayCount} 字`;
+    const weeklySum = stats.slice(-7).reduce((acc, s) => acc + s.count, 0);
+
+    if (document.getElementById('stat-today-chars')) {
+        document.getElementById('stat-today-chars').textContent = todayCount;
+    }
+    if (document.getElementById('stat-weekly-chars')) {
+        document.getElementById('stat-weekly-chars').textContent = weeklySum;
+    }
 
     // Summary screen
     if (document.getElementById('summary-today')) {
         document.getElementById('summary-today').textContent = todayCount;
-        const weeklySum = stats.slice(-7).reduce((acc, s) => acc + s.count, 0);
         document.getElementById('summary-weekly').textContent = weeklySum;
     }
 }

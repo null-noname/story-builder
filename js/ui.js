@@ -71,8 +71,8 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
         item.className = 'work-item-card';
 
         const tagsHtml = `
-            ${work.length === 'short' ? '<span class="work-tag">短編</span>' : '<span class="work-tag">長編</span>'}
-            ${work.type === 'derivative' ? '<span class="work-tag">二次創作</span>' : '<span class="work-tag">オリジナル</span>'}
+            <span class="work-tag ${work.length === 'short' ? 'tag-short' : 'tag-long'}">${work.length === 'short' ? '短編' : '長編'}</span>
+            <span class="work-tag ${work.type === 'derivative' ? 'tag-derivative' : 'tag-original'}">${work.type === 'derivative' ? '二次創作' : 'オリジナル'}</span>
         `;
 
         item.innerHTML = `
@@ -81,16 +81,16 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
                   <span class="work-title-link">${escapeHtml(work.title)}</span>
                   <div style="margin-top:8px;">${tagsHtml}</div>
                 </div>
-                <div class="work-actions-inline">
-                    <button class="btn-icon star ${work.pinned ? 'active' : ''}" data-action="pin">★</button>
-                    <button class="btn-retro edit" data-action="edit" style="padding:4px 10px; font-size:0.9rem;">編集</button>
-                    <button class="btn-retro delete" data-action="delete" style="padding:4px 10px; font-size:0.9rem;">削除</button>
+                <div class="work-actions-inline" style="display:flex; align-items:center;">
+                    <button class="btn-retro edit" data-action="edit" style="padding:4px 12px; font-size:0.9rem;">編集</button>
+                    <button class="btn-retro delete" data-action="delete" style="padding:4px 12px; font-size:0.9rem;">削除</button>
+                    <button class="btn-icon star ${work.pinned ? 'active' : ''}" data-action="pin" title="お気に入り">★</button>
                 </div>
             </div>
             <p style="margin:10px 0; font-size:0.9rem; color:#ccc; font-weight:normal;">${escapeHtml(work.catchphrase || '')}</p>
             <div class="work-footer-meta">
-                <span>作成日 : ${formatDate(new Date(work.createdAt))}</span>
-                <span>更新日 : ${formatDate(new Date(work.updatedAt), true)}</span>
+                <span>作成日 : ${formatWorkDate(work.createdAt)}</span>
+                <span>更新日 : ${formatWorkDate(work.updatedAt, true)}</span>
             </div>
         `;
 
@@ -109,6 +109,21 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
 
         container.appendChild(item);
     });
+}
+
+/**
+ * Helper to handle Firestore Timestamp vs Date
+ */
+function formatWorkDate(val, time = false) {
+    if (!val) return "-";
+    let date;
+    if (val.toDate) date = val.toDate(); // Firestore Timestamp
+    else if (val instanceof Date) date = val;
+    else if (typeof val === 'number') date = new Date(val); // Unix ms
+    else if (typeof val === 'string') date = new Date(val);
+    else return "-";
+
+    return formatDate(date, time);
 }
 
 /**

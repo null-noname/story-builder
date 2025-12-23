@@ -31,21 +31,24 @@
                 <h1 class="retro-title">エディター</h1>
 
                 <div class="dashboard-top">
-                    <!-- Stats Section (Writing Diary) -->
+                    <!-- Stats Section (Writing Diary Summary) -->
                     <div class="stats-card click-card" onclick="switchView('stats-view')">
                         <h3>執筆日記</h3>
                         <div class="stats-row">
                             <span>今日の文字数</span>
-                            <span id="stat-today-chars" class="stats-val gold-bold">0 字</span>
+                            <span class="bright-green-bold"><span id="stat-today-chars">0</span> <span
+                                    class="stats-unit">字</span></span>
                         </div>
-                        <div class="stats-chart-container">
-                            <canvas id="stats-chart-mini"></canvas>
+                        <div class="stats-row" style="margin-top:10px;">
+                            <span>過去7日間の合計</span>
+                            <span class="bright-green-bold"><span id="stat-weekly-chars">0</span> <span
+                                    class="stats-unit">字</span></span>
                         </div>
                     </div>
 
                     <!-- Action Buttons -->
                     <div class="action-stack">
-                        <button class="btn-retro large save" onclick="showWorkSetup()">＋作品作成</button>
+                        <button class="btn-retro large back" onclick="showWorkSetup()">＋作品作成</button>
                         <button class="btn-retro large back" onclick="switchView('memo-view')">共通メモ</button>
                     </div>
                 </div>

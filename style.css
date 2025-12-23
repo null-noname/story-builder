@@ -10,20 +10,15 @@
 
     /* Specific Button Colors */
     --btn-save: #9acd32;
-    /* 黄緑 */
-    --btn-edit: #000080;
-    /* 紺色 */
-    --btn-delete: #722f37;
-    /* ワイン色 */
+    --btn-edit: #4169e1;
+    /* マイルドな紺色 (RoyalBlue) */
+    --btn-delete: #b22222;
+    /* 鮮やかなワイン色 (FireBrick) */
     --btn-back: #d3d3d3;
-    /* 明るいグレー */
     --btn-active: #2b4034;
-    /* ボタン選択中 */
 
     --font-ui: sans-serif;
-    /* ゴシック体 */
     --font-editor: "MS Gothic", "MS UI Gothic", monospace;
-    /* MSゴシック (等幅) */
 }
 
 * {
@@ -44,7 +39,8 @@ body {
 .retro-title {
     font-size: 2.5rem;
     font-weight: 900;
-    color: #fff;
+    color: #ffffff;
+    /* タイトルは白 */
     text-shadow: 2px 2px 0px #000;
     letter-spacing: 2px;
     margin-bottom: 20px;
@@ -107,8 +103,14 @@ body {
     margin-bottom: 12px;
     font-size: 0.9rem;
     color: var(--bright-green);
-    /* 明るい縁 */
     font-weight: bold;
+}
+
+.stats-unit {
+    color: #ffffff;
+    /* 「字」は白 */
+    font-size: 1rem;
+    font-weight: normal;
 }
 
 .stats-row {
@@ -189,6 +191,20 @@ body {
     cursor: pointer;
 }
 
+.btn-icon.star {
+    background: transparent;
+    border: none;
+    font-size: 1.8rem;
+    /* ★を大きく */
+    color: #555;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.btn-icon.star.active {
+    color: var(--gold);
+}
+
 /* --- Work List --- */
 .work-item-card {
     background: var(--bg-card);
@@ -216,11 +232,27 @@ body {
 .work-tag {
     display: inline-block;
     padding: 2px 8px;
-    border: 1px solid var(--gold);
-    color: var(--gold);
+    border: 1px solid currentColor;
     font-size: 0.75rem;
     margin-right: 5px;
     border-radius: 4px;
+    background: transparent;
+}
+
+.tag-long {
+    color: #ff8c00;
+}
+
+.tag-short {
+    color: #87ceeb;
+}
+
+.tag-original {
+    color: #ffffff;
+}
+
+.tag-derivative {
+    color: #888888;
 }
 
 .work-footer-meta {
