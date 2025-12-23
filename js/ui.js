@@ -84,7 +84,7 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
                 <div class="work-actions-inline" style="display:flex; align-items:center;">
                     <button class="btn-retro edit" data-action="edit" style="padding:4px 12px; font-size:0.9rem;">編集</button>
                     <button class="btn-retro delete" data-action="delete" style="padding:4px 12px; font-size:0.9rem;">削除</button>
-                    <button class="btn-icon star ${work.pinned ? 'active' : ''}" data-action="pin" title="お気に入り">★</button>
+                    <button class="btn-icon star ${work.pinned ? 'active' : ''}" data-action="pin" title="お気に入り">${work.pinned ? '★' : '☆'}</button>
                 </div>
             </div>
             <p style="margin:10px 0; font-size:0.9rem; color:#ccc; font-weight:normal;">${escapeHtml(work.catchphrase || '')}</p>

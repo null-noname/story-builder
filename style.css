@@ -67,7 +67,8 @@ body {
 }
 
 .bright-green-bold {
-    color: var(--bright-green);
+    color: var(--val-green);
+    /* #3CB371 */
     font-weight: bold;
     font-size: 1.5rem;
 }
@@ -104,11 +105,10 @@ body {
 }
 
 .stats-card h3 {
-    margin-bottom: 8px;
-    /* 隙間を詰める */
+    margin-bottom: 2px;
+    /* さらに隙間を詰める */
     font-size: 0.9rem;
     color: var(--text-stats);
-    /* #c0c0c0 */
     font-weight: bold;
 }
 
@@ -122,10 +122,9 @@ body {
 .stats-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 4px;
-    /* 隙間を詰める */
+    margin-bottom: 0px;
+    /* 密着させる */
     color: var(--text-stats);
-    /* #c0c0c0 */
 }
 
 .stats-val {
@@ -263,9 +262,8 @@ body {
 
 .tag-derivative {
     color: #000000;
-    /* 文字色は黒 */
-    background: #888888;
-    /* 背景はグレー */
+    border-color: #000000;
+    background: transparent;
 }
 
 .work-footer-meta {
