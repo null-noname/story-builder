@@ -35,8 +35,11 @@ function createChart(ctx, count) {
                     ticks: { color: '#aaa', font: { weight: 'bold' } }
                 },
                 x: {
-                    grid: { display: false },
-                    ticks: { color: '#aaa' }
+                    grid: { color: '#333' },
+                    ticks: {
+                        color: '#888',
+                        display: true // Show dates
+                    }
                 }
             },
             plugins: {

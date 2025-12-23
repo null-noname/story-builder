@@ -1,4 +1,16 @@
 /* --- Statistics Styles --- */
+.stats-header-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 20px;
+    padding-top: 10px;
+}
+
+.stats-header-container .back {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
 
 .stats-card {
     background: var(--bg-card);

@@ -90,22 +90,30 @@ body {
 /* --- Dashboard --- */
 .dashboard-top {
     display: flex;
-    flex-direction: column;
-    /* Stack sections for centering */
-    gap: 20px;
+    flex-direction: row;
+    /* Horizontal layout */
+    gap: 30px;
     margin-bottom: 30px;
-    align-items: center;
-    /* Center sections */
+    align-items: stretch;
+    justify-content: center;
+}
+
+@media (max-width: 600px) {
+    .dashboard-top {
+        flex-direction: column;
+        align-items: center;
+    }
 }
 
 /* --- Action Buttons --- */
 .action-stack {
-    width: 100%;
-    max-width: 400px;
-    /* Center with max-width */
+    flex: 1;
+    /* Allow stack to grow */
+    max-width: 300px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 15px;
+    justify-content: space-between;
 }
 
 /* --- Buttons --- */
@@ -179,20 +187,28 @@ body {
     color: var(--gold);
 }
 
-/* --- Work List --- */
-.work-item-card {
+.stats-card {
+    flex: 2;
+    /* Stats card is wider */
     background: var(--bg-card);
     border: 1px solid #444;
-    /* Thinner border for compact feel */
-    padding: 12px 18px;
-    /* Compacted padding */
-    margin-bottom: 12px;
-    /* Uniform margin */
+    padding: 20px;
     border-radius: 15px;
-    /* Rounded corners */
-    transition: transform 0.2s;
     cursor: pointer;
-    font-weight: bold;
+    transition: transform 0.2s, background 0.2s;
+}
+
+border: 1px solid #444;
+/* Thinner border for compact feel */
+padding: 12px 18px;
+/* Compacted padding */
+margin-bottom: 12px;
+/* Uniform margin */
+border-radius: 15px;
+/* Rounded corners */
+transition: transform 0.2s;
+cursor: pointer;
+font-weight: bold;
 }
 
 .work-header {
