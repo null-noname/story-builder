@@ -17,9 +17,9 @@
     --btn-back: #d3d3d3;
     --btn-active: #2b4034;
     --text-stats: #c0c0c0;
-    /* 執筆日記・タイトル等の文字色 */
+    /* #c0c0c0 */
     --val-green: #3CB371;
-    /* 数値の色 */
+    /* #3CB371 */
 
     --font-ui: sans-serif;
     --font-editor: "MS Gothic", "MS UI Gothic", monospace;
@@ -68,9 +68,10 @@ body {
 
 .bright-green-bold {
     color: var(--val-green);
-    /* #3CB371 */
     font-weight: bold;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
+    /* サイズをさらに小さく */
+    line-height: 1;
 }
 
 /* --- Layout --- */
@@ -98,7 +99,8 @@ body {
 .stats-card {
     background: #1a1a1a;
     border: 2px solid #444;
-    padding: 16px;
+    padding: 10px 16px;
+    /* 上下パディングを減らす */
     flex: 1;
     min-width: 0;
     cursor: pointer;
@@ -123,8 +125,10 @@ body {
     display: flex;
     justify-content: space-between;
     margin-bottom: 0px;
-    /* 密着させる */
+    align-items: baseline;
+    /* 揃える */
     color: var(--text-stats);
+    line-height: 1.2;
 }
 
 .stats-val {
@@ -217,24 +221,26 @@ body {
 .work-item-card {
     background: var(--bg-card);
     border: 2px solid #444;
-    padding: 20px;
-    margin-bottom: 16px;
-    box-shadow: 5px 5px 0px rgba(0, 0, 0, 0.5);
+    padding: 12px 20px;
+    /* パディングを減らしてスリムに */
+    margin-bottom: 10px;
+    /* 間隔も少し詰める */
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
     font-weight: bold;
-    /* カードは太字 */
 }
 
 .work-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
+    /* 隙間を詰める */
 }
 
 .work-title-link {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
+    /* タイトルも少し小さく */
     color: var(--text-stats);
-    /* #c0c0c0 */
     cursor: pointer;
 }
 
