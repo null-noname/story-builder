@@ -9,7 +9,23 @@
 .stats-header-container .back {
     position: absolute;
     left: 0;
-    top: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+}
+
+.stats-header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.stats-header-container {
+    padding-top: 5px;
+    margin-bottom: 10px;
+    position: relative;
 }
 
 .full-stats-card {

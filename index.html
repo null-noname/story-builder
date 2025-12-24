@@ -19,13 +19,13 @@
     <div id="login-screen" class="view-container">
         <div class="login-box">
             <h1 class="retro-title">エディター</h1>
-            <p style="margin-bottom:30px; color:#aaa;">執筆に特化したストーリー構築ツール</p>
+            <p class="login-subtext">執筆に特化したストーリー構築ツール</p>
             <button id="google-login-btn" class="btn-retro large blue">Googleでログイン</button>
         </div>
     </div>
 
     <!-- Main Application Shell -->
-    <div id="main-app" style="display: none;">
+    <div id="main-app" class="hidden">
 
         <!-- View: Dashboard (TOP) -->
         <div id="top-view" class="view-content view-container">
@@ -41,7 +41,7 @@
                             <span class="bright-green-bold"><span id="stat-today-chars">0</span> <span
                                     class="stats-unit">字</span></span>
                         </div>
-                        <div class="stats-row" style="margin-top:10px;">
+                        <div class="stats-row mt-10">
                             <span>7日間の文字数</span>
                             <span class="bright-green-bold"><span id="stat-weekly-chars">0</span> <span
                                     class="stats-unit">字</span></span>
@@ -79,24 +79,24 @@
         <!-- View: Work Setup (Information Form) -->
         <div id="setup-view" class="view-content view-container">
             <div class="form-panel">
-                <div id="setup-view-header" style="position:relative; margin-bottom:20px;">
-                    <button id="work-f-back" class="btn-retro small back" style="position:absolute; left:0; top:0;"
+                <div id="setup-view-header" class="relative mb-20">
+                    <button id="work-f-back" class="btn-retro small back pos-tl"
                         onclick="switchView('top-view')">戻る</button>
-                    <h2 id="setup-title" class="retro-subtitle" style="text-align:center; margin:0;">作品情報の入力</h2>
+                    <h2 id="setup-title" class="retro-subtitle text-center no-margin">作品情報の入力</h2>
                 </div>
 
-                <div class="form-group full" style="margin-bottom:16px;">
+                <div class="form-group full mb-16">
                     <label>タイトル</label>
                     <input type="text" id="work-f-title" placeholder="作品のタイトルを入力">
                 </div>
-                <div class="form-group full" style="margin-bottom:16px;">
-                    <div style="display:flex; align-items:baseline; gap:10px;">
+                <div class="form-group full mb-16">
+                    <div class="flex-baseline-gap">
                         <label>キャッチコピー</label>
-                        <span id="catchphrase-count" style="font-size:0.8rem; color:#888;">残35字</span>
+                        <span id="catchphrase-count" class="count-disp">残35字</span>
                     </div>
                     <input type="text" id="work-f-catchphrase" maxlength="35">
                 </div>
-                <div class="form-group full" style="margin-bottom:16px;">
+                <div class="form-group full mb-16">
                     <label>あらすじ</label>
                     <textarea id="work-f-summary" rows="4"></textarea>
                 </div>
@@ -111,7 +111,7 @@
                 </div>
 
                 <!-- AI - Always Full Width -->
-                <div class="form-group full" style="margin-top:8px;">
+                <div class="form-group full mt-8">
                     <label>AI利用</label>
                     <div class="choice-group ai-choice-group">
                         <label><input type="radio" name="work-ai" value="none" checked> なし</label>
@@ -122,7 +122,7 @@
                 </div>
 
                 <!-- Hidden source elements for JS to move them -->
-                <div id="form-elements-source" style="display:none;">
+                <div id="form-elements-source" class="hidden">
                     <div id="el-f-length" class="form-group">
                         <label>作品の長さ</label>
                         <div class="choice-group">
@@ -155,9 +155,9 @@
                     </div>
                 </div>
 
-                <div id="setup-actions" style="display:flex; gap:16px; margin-top:24px;">
-                    <button id="work-f-delete" class="btn-retro delete" style="display:none;">削除</button>
-                    <button id="work-f-submit" class="btn-retro save" style="flex:1;"
+                <div id="setup-actions" class="setup-actions-container">
+                    <button id="work-f-delete" class="btn-retro delete hidden">削除</button>
+                    <button id="work-f-submit" class="btn-retro save flex-1"
                         onclick="handleWorkInfoSubmit()">保存して開始</button>
                 </div>
             </div>
@@ -166,7 +166,7 @@
         <!-- View: Work Info (View Mode) -->
         <div id="info-view" class="view-content view-container">
             <div class="form-panel">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <div class="info-view-header">
                     <h2 id="info-title" class="retro-subtitle">作品情報の閲覧</h2>
                     <button class="btn-retro edit" onclick="showWorkSetup(currentWorkId)">編集</button>
                 </div>
@@ -178,7 +178,7 @@
                     </div>
                     <div class="info-item full">
                         <label>あらすじ</label>
-                        <p id="info-summary" class="info-val" style="white-space: pre-wrap;"></p>
+                        <p id="info-summary" class="info-val pre-wrap"></p>
                     </div>
                     <div class="info-row">
                         <div class="info-item">
@@ -200,9 +200,9 @@
                     </div>
                 </div>
 
-                <div style="margin-top:30px; display:flex; gap:16px;">
-                    <button class="btn-retro back" style="flex:1;" onclick="switchView('top-view')">◀ TOP</button>
-                    <button id="info-open-work" class="btn-retro save" style="flex:2;">この作品を書く</button>
+                <div class="info-view-actions">
+                    <button class="btn-retro back flex-1" onclick="switchView('top-view')">◀ TOP</button>
+                    <button id="info-open-work" class="btn-retro save flex-2">この作品を書く</button>
                 </div>
             </div>
         </div>
@@ -251,49 +251,49 @@
         <!-- View: Statistics (Full) -->
         <div id="stats-view" class="view-content view-container">
             <div class="container-narrow">
-                <div class="stats-full-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h2 class="retro-subtitle">執筆文字数の推移</h2>
+                <div class="stats-header-container">
+                    <button class="btn-retro small back" onclick="switchView('top-view')">TOPに戻る</button>
+                    <div class="stats-header-inner">
+                        <h2 class="retro-subtitle flex-center">執筆文字数の推移</h2>
                         <div class="stats-tabs">
                             <button class="tab-btn active" onclick="updateFullStats('1W')">1週</button>
                             <button class="tab-btn" onclick="updateFullStats('1M')">1月</button>
                             <button class="tab-btn" onclick="updateFullStats('1Y')">1年</button>
                         </div>
                     </div>
-
-                    <div class="stats-chart-main-container">
-                        <canvas id="stats-chart-full"></canvas>
-                    </div>
                 </div>
 
-                <div class="stats-summary-grid">
-                    <div class="summary-item">
-                        <label>今日の文字数</label>
-                        <span class="bright-green-bold"><span id="summary-today">0</span> <span
-                                class="stats-unit">字</span></span>
-                    </div>
-                    <div class="summary-item">
-                        <label>過去7日間の合計</label>
-                        <span class="bright-green-bold"><span id="summary-weekly">0</span> <span
-                                class="stats-unit">字</span></span>
-                    </div>
-                    <div class="summary-item">
-                        <label>直近30日間の合計</label>
-                        <span class="bright-green-bold"><span id="summary-monthly">0</span> <span
-                                class="stats-unit">字</span></span>
-                    </div>
-                    <div class="summary-item">
-                        <label>総制作作品数</label>
-                        <span class="bright-green-bold"><span id="summary-total-works">0</span> <span
-                                class="stats-unit">作品</span></span>
-                    </div>
-                </div>
-
-                <div style="margin-top:30px; text-align:center;">
-                    <button class="btn-retro back" onclick="switchView('top-view')">TOPに戻る</button>
+                <div class="stats-chart-main-container">
+                    <canvas id="stats-chart-full"></canvas>
                 </div>
             </div>
+
+            <div class="stats-summary-grid">
+                <div class="summary-item">
+                    <label>今日の文字数</label>
+                    <span class="bright-green-bold"><span id="summary-today">0</span> <span
+                            class="stats-unit">字</span></span>
+                </div>
+                <div class="summary-item">
+                    <label>過去7日間の合計</label>
+                    <span class="bright-green-bold"><span id="summary-weekly">0</span> <span
+                            class="stats-unit">字</span></span>
+                </div>
+                <div class="summary-item">
+                    <label>直近30日間の合計</label>
+                    <span class="bright-green-bold"><span id="summary-monthly">0</span> <span
+                            class="stats-unit">字</span></span>
+                </div>
+                <div class="summary-item">
+                    <label>総制作作品数</label>
+                    <span class="bright-green-bold"><span id="summary-total-works">0</span> <span
+                            class="stats-unit">作品</span></span>
+                </div>
+            </div>
+
         </div>
+    </div>
+    </div>
 
     </div>
 

@@ -27,6 +27,66 @@
     padding: 0;
 }
 
+/* --- Utilities --- */
+.hidden {
+    display: none !important;
+}
+
+.relative {
+    position: relative;
+}
+
+.pos-tl {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.no-margin {
+    margin: 0;
+}
+
+.mt-8 {
+    margin-top: 8px;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-30 {
+    margin-top: 30px;
+}
+
+.mb-16 {
+    margin-bottom: 16px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.flex-2 {
+    flex: 2;
+}
+
+.flex-center {
+    flex: 1;
+    text-align: center;
+}
+
+.pre-wrap {
+    white-space: pre-wrap;
+}
+
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
@@ -47,6 +107,11 @@ body {
     text-align: center;
     border-bottom: 1px solid #444;
     padding-bottom: 15px;
+}
+
+.login-subtext {
+    margin-bottom: 30px;
+    color: #aaa;
 }
 
 .retro-subtitle {
@@ -90,18 +155,18 @@ body {
 /* --- Dashboard --- */
 .dashboard-top {
     display: flex;
-    flex-direction: row;
-    /* Always horizontal */
+    flex-direction: column;
+    /* 常に縦並び */
     gap: 20px;
     margin-bottom: 30px;
-    align-items: stretch;
-    justify-content: center;
+    align-items: center;
+    /* 中央揃え */
     width: 100%;
 }
 
 .stats-card {
-    flex: 0 0 calc(70% - 10px);
-    /* Fixed ratio: approx 70% */
+    width: 100%;
+    /* 幅を広げる */
     background: var(--bg-card);
     border: 1px solid #444;
     padding: 20px;
@@ -112,8 +177,8 @@ body {
 
 /* --- Action Buttons --- */
 .action-stack {
-    flex: 0 0 calc(30% - 10px);
-    /* Fixed ratio: approx 30% */
+    width: 100%;
+    /* 幅を広げる */
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -301,6 +366,36 @@ body {
     gap: 4px;
 }
 
+.flex-baseline-gap {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.count-disp {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.setup-actions-container {
+    display: flex;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.info-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.info-view-actions {
+    margin-top: 30px;
+    display: flex;
+    gap: 16px;
+}
+
 .form-group label {
     font-size: 0.85rem;
     color: var(--gold);
@@ -431,7 +526,6 @@ body {
 
     .action-stack {
         width: 100%;
-        order: -1;
     }
 
     .workspace-container {

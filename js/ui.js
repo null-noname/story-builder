@@ -13,6 +13,17 @@ export const views = {
 };
 
 /**
+ * Utility to show/hide elements using CSS classes (No direct style manipulation)
+ */
+export function toggleElementVisibility(elementId, isVisible) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        if (isVisible) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+    }
+}
+
+/**
  * Update Statistics on Dashboard (TOP)
  */
 export function renderStatsDashboard(data) {
@@ -96,25 +107,26 @@ export function getWorkFormData() {
 export function switchView(viewId) {
     document.querySelectorAll('.view-content').forEach(v => {
         v.classList.remove('active');
-        v.style.display = 'none';
+        v.classList.add('hidden'); // hiddenクラスを使用
     });
 
-    // Also handle login screen separately if it's not .view-content
     const loginScreen = document.getElementById(views.login);
     const mainApp = document.getElementById('main-app');
 
     if (viewId === views.login) {
-        if (loginScreen) loginScreen.style.display = 'flex';
-        if (mainApp) mainApp.style.display = 'none';
+        if (loginScreen) {
+            loginScreen.classList.remove('hidden');
+            loginScreen.style.display = 'flex'; // コンテナ自体はflexを維持
+        }
+        if (mainApp) mainApp.classList.add('hidden');
     } else {
-        if (loginScreen) loginScreen.style.display = 'none';
-        if (mainApp) mainApp.style.display = 'block';
+        if (loginScreen) loginScreen.classList.add('hidden');
+        if (mainApp) mainApp.classList.remove('hidden');
 
         const target = document.getElementById(viewId);
         if (target) {
             target.classList.add('active');
-            if (viewId === views.workspace) target.style.display = 'flex';
-            else target.style.display = 'flex'; // Mostly flex for centering
+            target.classList.remove('hidden');
         }
     }
 }
@@ -226,6 +238,68 @@ export function renderChapterList(chapters, currentChapterId, onSelect) {
         div.onclick = () => onSelect(d.id, d.content);
         list.appendChild(div);
     });
+}
+
+/**
+ * Render Selectors or Inputs for Work Info Form
+ */
+export function clearWorkForm() {
+    const fields = {
+        'work-f-title': '',
+        'work-f-catchphrase': '',
+        'work-f-summary': ''
+    };
+    Object.entries(fields).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    });
+
+    // Reset radios
+    const defaults = {
+        'work-status': 'in-progress',
+        'work-length': 'long',
+        'work-type': 'original',
+        'work-ai': 'none'
+    };
+    Object.entries(defaults).forEach(([name, val]) => {
+        const el = document.querySelector(`input[name="${name}"][value="${val}"]`);
+        if (el) el.checked = true;
+    });
+
+    document.querySelectorAll('input[name="rating"]').forEach(cb => cb.checked = false);
+
+    const countDisp = document.getElementById('catchphrase-count');
+    if (countDisp) countDisp.textContent = "残35字";
+}
+
+export function populateWorkForm(work) {
+    const fields = {
+        'work-f-title': work.title || "",
+        'work-f-catchphrase': work.catchphrase || "",
+        'work-f-summary': work.description || ""
+    };
+    Object.entries(fields).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    });
+
+    const radios = {
+        'work-status': work.status || 'in-progress',
+        'work-length': work.length || 'long',
+        'work-type': work.type || 'original',
+        'work-ai': work.ai || 'none'
+    };
+    Object.entries(radios).forEach(([name, val]) => {
+        const el = document.querySelector(`input[name="${name}"][value="${val}"]`);
+        if (el) el.checked = true;
+    });
+
+    document.querySelectorAll('input[name="rating"]').forEach(cb => {
+        cb.checked = (work.rating || []).includes(cb.value);
+    });
+
+    const countDisp = document.getElementById('catchphrase-count');
+    if (countDisp) countDisp.textContent = `残${35 - (work.catchphrase || "").length}字`;
 }
 
 /**

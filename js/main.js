@@ -13,7 +13,20 @@ import {
 } from "./db.js";
 import { setupEditor, setEditorContent, getEditorContent, toggleVerticalMode, insertRuby, insertDash } from "./editor.js";
 import { initStatsChart, updateStatsChart, updateFullStatsPeriod, aggregateStats, getTabLabel } from "./stats.js";
-import { switchView, views, renderWorkList, renderChapterList, renderStatsDashboard, renderStatsFull, updateActiveTab, renderWorkInfo, getWorkFormData } from "./ui.js";
+import {
+    switchView,
+    views,
+    renderWorkList,
+    renderChapterList,
+    renderStatsDashboard,
+    renderStatsFull,
+    updateActiveTab,
+    renderWorkInfo,
+    getWorkFormData,
+    toggleElementVisibility,
+    clearWorkForm,
+    populateWorkForm
+} from "./ui.js";
 
 // App State
 let currentWorkId = null;
@@ -44,15 +57,15 @@ function init() {
     window.views = views;
 
     window.adjustFormLayout = (id = null) => {
-        const row1 = document.getElementById('setup-row-1');
-        const row2 = document.getElementById('setup-row-2');
-        const elLength = document.getElementById('el-f-length');
-        const elStatus = document.getElementById('el-f-status');
-        const elType = document.getElementById('el-f-type');
-        const elRating = document.getElementById('el-f-rating');
-
         if (id) {
             // Edit Layout: [Type + Status], [Rating]
+            const row1 = document.getElementById('setup-row-1');
+            const row2 = document.getElementById('setup-row-2');
+            const elLength = document.getElementById('el-f-length');
+            const elStatus = document.getElementById('el-f-status');
+            const elType = document.getElementById('el-f-type');
+            const elRating = document.getElementById('el-f-rating');
+
             if (row1 && elType && elStatus) {
                 row1.innerHTML = '';
                 row1.appendChild(elType);
@@ -62,9 +75,16 @@ function init() {
                 row2.innerHTML = '';
                 row2.appendChild(elRating);
             }
-            if (elLength) elLength.style.display = 'none';
+            toggleElementVisibility('el-f-length', false);
         } else {
             // New Layout: [Length + Type], [Status + Rating]
+            const row1 = document.getElementById('setup-row-1');
+            const row2 = document.getElementById('setup-row-2');
+            const elLength = document.getElementById('el-f-length');
+            const elStatus = document.getElementById('el-f-status');
+            const elType = document.getElementById('el-f-type');
+            const elRating = document.getElementById('el-f-rating');
+
             if (row1 && elLength && elType) {
                 row1.innerHTML = '';
                 row1.appendChild(elLength);
@@ -75,7 +95,7 @@ function init() {
                 row2.appendChild(elStatus);
                 row2.appendChild(elRating);
             }
-            if (elLength) elLength.style.display = 'block';
+            toggleElementVisibility('el-f-length', true);
         }
     };
 
@@ -83,18 +103,19 @@ function init() {
         currentWorkId = id;
         const setupTitle = document.getElementById('setup-title');
         const submitBtn = document.getElementById('work-f-submit');
-        const deleteBtn = document.getElementById('work-f-delete');
 
         // Use refactored layout logic
         window.adjustFormLayout(id);
 
         if (id) {
             const work = allWorksCache.find(w => w.id === id);
-            if (work) populateForm(work);
+            if (work) populateWorkForm(work); // UIモジュールを使用
             if (setupTitle) setupTitle.textContent = '作品情報の編集';
             if (submitBtn) submitBtn.textContent = '保存';
+
+            toggleElementVisibility('work-f-delete', true);
+            const deleteBtn = document.getElementById('work-f-delete');
             if (deleteBtn) {
-                deleteBtn.style.display = 'block';
                 deleteBtn.onclick = async () => {
                     if (confirm("本当にこの作品を削除しますか？")) {
                         await deleteWork(id);
@@ -103,10 +124,10 @@ function init() {
                 };
             }
         } else {
-            clearForm();
+            clearWorkForm(); // UIモジュールを使用
             if (setupTitle) setupTitle.textContent = '作品情報の入力';
             if (submitBtn) submitBtn.textContent = '保存して開始';
-            if (deleteBtn) deleteBtn.style.display = 'none';
+            toggleElementVisibility('work-f-delete', false);
         }
         switchView(views.setup);
     };
@@ -135,14 +156,13 @@ function init() {
                 // Ensure form reflects current work
                 if (currentWorkId) {
                     const work = allWorksCache.find(w => w.id === currentWorkId);
-                    if (work) populateForm(work);
+                    if (work) populateWorkForm(work); // UIモジュールを使用
 
                     window.adjustFormLayout(currentWorkId);
 
                     const sTitle = document.getElementById('setup-title');
                     if (sTitle) sTitle.textContent = '作品設定';
-                    const sHeader = document.getElementById('setup-view-header');
-                    if (sHeader) sHeader.style.display = 'none';
+                    toggleElementVisibility('setup-view-header', false);
                     const sSubmit = document.getElementById('work-f-submit');
                     if (sSubmit) sSubmit.textContent = '変更を保存';
                 }
@@ -166,7 +186,7 @@ function init() {
         const originalSetupContainer = document.querySelector('#setup-view');
         if (setupForm && originalSetupContainer) {
             originalSetupContainer.appendChild(setupForm);
-            document.getElementById('setup-view-header').style.display = 'block';
+            toggleElementVisibility('setup-view-header', true);
         }
 
         currentWorkId = null;
@@ -309,48 +329,7 @@ function setupWorkspace(workId) {
     });
 }
 
-function clearForm() {
-    document.getElementById('work-f-title').value = "";
-    document.getElementById('work-f-catchphrase').value = "";
-    document.getElementById('work-f-summary').value = "";
-
-    // Reset radios
-    document.querySelector('input[name="work-status"][value="in-progress"]').checked = true;
-    document.querySelector('input[name="work-length"][value="long"]').checked = true;
-    document.querySelector('input[name="work-type"][value="original"]').checked = true;
-    document.querySelector('input[name="work-ai"][value="none"]').checked = true;
-
-    document.querySelectorAll('input[name="rating"]').forEach(cb => cb.checked = false);
-
-    const countDisp = document.getElementById('catchphrase-count');
-    if (countDisp) countDisp.textContent = "残35字";
-}
-
-function populateForm(work) {
-    document.getElementById('work-f-title').value = work.title || "";
-    document.getElementById('work-f-catchphrase').value = work.catchphrase || "";
-    document.getElementById('work-f-summary').value = work.description || "";
-
-    // Set radios
-    const statusRadio = document.querySelector(`input[name="work-status"][value="${work.status || 'in-progress'}"]`);
-    if (statusRadio) statusRadio.checked = true;
-
-    const lengthRadio = document.querySelector(`input[name="work-length"][value="${work.length || 'long'}"]`);
-    if (lengthRadio) lengthRadio.checked = true;
-
-    const typeRadio = document.querySelector(`input[name="work-type"][value="${work.type || 'original'}"]`);
-    if (typeRadio) typeRadio.checked = true;
-
-    const aiRadio = document.querySelector(`input[name="work-ai"][value="${work.ai || 'none'}"]`);
-    if (aiRadio) aiRadio.checked = true;
-
-    document.querySelectorAll('input[name="rating"]').forEach(cb => {
-        cb.checked = (work.rating || []).includes(cb.value);
-    });
-
-    const countDisp = document.getElementById('catchphrase-count');
-    if (countDisp) countDisp.textContent = `残${35 - (work.catchphrase || "").length}字`;
-}
+// populateForm, clearForm were moved to ui.js
 
 // Start App
 init();
