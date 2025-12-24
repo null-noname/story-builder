@@ -62,6 +62,7 @@ async function init() {
     window.closeWorkspace = closeWorkspace;
     window.switchWorkspaceTab = switchWorkspaceTab;
     window.addNewChapter = addNewChapter;
+    window.addNewMemo = addNewMemo;
     window.saveCurrentChapter = saveCurrentChapter;
     window.toggleVerticalMode = workspaceToggleVerticalMode;
     window.insertRuby = workspaceInsertRuby;

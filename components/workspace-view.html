@@ -1,10 +1,11 @@
 <div class="workspace-header">
     <div class="workspace-back-row">
-        <button class="btn-retro small back" onclick="closeWorkspace()">◀ TOPに戻る</button>
+        <button class="btn-retro small back" onclick="closeWorkspace()">TOP画面に戻る</button>
     </div>
     <div class="workspace-tabs-container">
         <button id="tab-info" class="ws-tab" onclick="switchWorkspaceTab('info')">作品情報</button>
         <button id="tab-editor" class="ws-tab active" onclick="switchWorkspaceTab('editor')">エディター</button>
+        <button id="tab-memo" class="ws-tab" onclick="switchWorkspaceTab('memo')">メモ</button>
     </div>
 </div>
 
@@ -37,9 +38,19 @@
 
     <!-- Tab: Work Information -->
     <div id="ws-content-info" class="workspace-tab-content">
-        <div class="container-narrow">
+        <div class="workspace-full-panel">
             <div id="ws-info-container">
                 <!-- Setup Form will be moved here by JS when tab is active -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Memos -->
+    <div id="ws-content-memo" class="workspace-tab-content">
+        <div class="memo-pane-container">
+            <button class="btn-memo-add" onclick="addNewMemo()">＋ 新しいメモを追加</button>
+            <div id="memo-list" class="memo-list-container">
+                <!-- Memos will be rendered here -->
             </div>
         </div>
     </div>

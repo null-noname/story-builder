@@ -118,10 +118,45 @@ export async function getRecentDailyProgress(uid, days = 7) {
 /**
  * HISTORY BACKUP (Diff)
  */
-export async function saveHistoryBackup(workId, chapterId, content) {
-    const historyRef = collection(db, "works", workId, "chapters", chapterId, "history");
-    await addDoc(historyRef, {
-        content: content,
-        timestamp: serverTimestamp()
+await addDoc(historyRef, {
+    content: content,
+    timestamp: serverTimestamp()
+});
+}
+
+/**
+ * MEMOS
+ */
+
+export function subscribeMemos(workId, callback) {
+    const q = query(collection(db, "works", workId, "memos"), orderBy("createdAt", "desc"));
+    return onSnapshot(q, (snapshot) => {
+        const memos = [];
+        snapshot.forEach((doc) => {
+            memos.push({ id: doc.id, ...doc.data() });
+        });
+        callback(memos);
     });
+}
+
+export async function createMemo(workId, title, content) {
+    const docRef = await addDoc(collection(db, "works", workId, "memos"), {
+        title: title || "新規メモ",
+        content: content || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+    });
+    return docRef.id;
+}
+
+export async function updateMemo(workId, memoId, data) {
+    const docRef = doc(db, "works", workId, "memos", memoId);
+    await updateDoc(docRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+    });
+}
+
+export async function deleteMemo(workId, memoId) {
+    await deleteDoc(doc(db, "works", workId, "memos", memoId));
 }

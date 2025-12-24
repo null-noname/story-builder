@@ -80,7 +80,8 @@
 }
 
 .ws-tab {
-    padding: 12px 25px;
+    flex: 1;
+    padding: 12px;
     background: transparent;
     border: none;
     color: #888;
@@ -89,6 +90,7 @@
     font-size: 0.95rem;
     border-bottom: 3px solid transparent;
     transition: all 0.2s;
+    text-align: center;
 }
 
 .ws-tab.active {
@@ -109,10 +111,77 @@
     display: flex;
 }
 
-#ws-content-info.active {
-    display: block;
-    padding: 40px 0;
+.workspace-full-panel {
+    width: 100%;
+    padding: 40px;
     overflow-y: auto;
+}
+
+/* --- Memo Styles --- */
+.memo-pane-container {
+    padding: 30px;
+    overflow-y: auto;
+    width: 100%;
+}
+
+.btn-memo-add {
+    width: 100%;
+    background: #2a6a2a;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 6px;
+    font-weight: bold;
+    margin-bottom: 25px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: filter 0.2s;
+}
+
+.btn-memo-add:hover {
+    filter: brightness(1.1);
+}
+
+.memo-card {
+    background: #202020;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.memo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.memo-title {
+    color: var(--val-green);
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.memo-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.memo-actions .btn-retro {
+    padding: 5px 12px;
+    font-size: 0.85rem;
+}
+
+.memo-content {
+    color: var(--text-main);
+    white-space: pre-wrap;
+    border-top: 1px dashed #444;
+    padding-top: 12px;
+    line-height: 1.6;
 }
 
 .editor-main {
@@ -150,6 +219,16 @@
 
 /* Mobile Adjustments */
 @media (max-width: 768px) {
+    .workspace-header {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .ws-tab {
+        padding: 10px 5px;
+        font-size: 0.80rem;
+    }
+
     .workspace-container {
         padding: 5px;
         height: calc(100vh - 60px);
@@ -157,7 +236,6 @@
 
     .editor-sidebar {
         display: none;
-        /* 狭い画面では一覧を非表示 */
     }
 
     .editor-main {

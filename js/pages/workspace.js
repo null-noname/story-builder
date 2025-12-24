@@ -26,6 +26,7 @@ import { adjustFormLayout } from "./setup.js";
 import { getAllWorks, setupDashBoard } from "./dashboard.js";
 
 let chaptersUnsubscribe = null;
+let memosUnsubscribe = null;
 let currentWorkId = null;
 let currentChapterId = null;
 
@@ -46,22 +47,23 @@ export function openWork(id) {
 export function switchWorkspaceTab(tab) {
     const tabEditor = document.getElementById('tab-editor');
     const tabInfo = document.getElementById('tab-info');
+    const tabMemo = document.getElementById('tab-memo');
     const contentEditor = document.getElementById('ws-content-editor');
     const contentInfo = document.getElementById('ws-content-info');
+    const contentMemo = document.getElementById('ws-content-memo');
     const infoContainer = document.getElementById('ws-info-container');
     const setupForm = document.querySelector('.form-panel');
 
+    // Reset active states
+    [tabEditor, tabInfo, tabMemo].forEach(t => t?.classList.remove('active'));
+    [contentEditor, contentInfo, contentMemo].forEach(c => c?.classList.remove('active'));
+
     if (tab === 'editor') {
         tabEditor.classList.add('active');
-        tabInfo.classList.remove('active');
         contentEditor.classList.add('active');
-        contentInfo.classList.remove('active');
-    } else {
-        tabEditor.classList.remove('active');
+    } else if (tab === 'info') {
         tabInfo.classList.add('active');
-        contentEditor.classList.remove('active');
         contentInfo.classList.add('active');
-
         if (setupForm && infoContainer) {
             if (currentWorkId) {
                 const works = getAllWorks();
@@ -74,6 +76,9 @@ export function switchWorkspaceTab(tab) {
             }
             infoContainer.appendChild(setupForm);
         }
+    } else if (tab === 'memo') {
+        tabMemo.classList.add('active');
+        contentMemo.classList.add('active');
     }
 }
 
@@ -82,6 +87,7 @@ export function switchWorkspaceTab(tab) {
  */
 export function closeWorkspace() {
     if (chaptersUnsubscribe) chaptersUnsubscribe();
+    if (memosUnsubscribe) memosUnsubscribe();
 
     const setupForm = document.querySelector('.form-panel');
     const originalSetupView = document.getElementById('setup-view');
@@ -102,12 +108,14 @@ export function closeWorkspace() {
  */
 function setupWorkspace(workId) {
     if (chaptersUnsubscribe) chaptersUnsubscribe();
+    if (memosUnsubscribe) memosUnsubscribe();
 
     setupEditor(
         () => { }, // OnInput
         saveCurrentChapter
     );
 
+    // Subscribe Chapters
     chaptersUnsubscribe = subscribeChapters(workId, (chapters) => {
         if (chapters.length === 0) {
             createChapter(workId, 1);
@@ -124,7 +132,71 @@ function setupWorkspace(workId) {
             setEditorContent(chapters[0].content);
         }
     });
+
+    // Subscribe Memos
+    memosUnsubscribe = import("../db.js").then(m => m.subscribeMemos(workId, (memos) => {
+        renderMemoList(memos);
+    }));
 }
+
+/**
+ * メモ一覧の描画
+ */
+function renderMemoList(memos) {
+    const listEl = document.getElementById('memo-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = memos.map(memo => `
+        <div class="memo-card">
+            <div class="memo-header">
+                <h4 class="memo-title">${memo.title}</h4>
+                <div class="memo-actions">
+                    <button class="btn-retro edit" onclick="editMemo('${memo.id}')">編集</button>
+                    <button class="btn-retro delete" onclick="deleteMemoConfirm('${memo.id}')">削除</button>
+                </div>
+            </div>
+            <div class="memo-content">${memo.content || ""}</div>
+        </div>
+    `).join('');
+}
+
+/**
+ * 新規メモ追加
+ */
+export async function addNewMemo() {
+    if (currentWorkId) {
+        const title = prompt("メモのタイトルを入力してください", "新規メモ");
+        if (title !== null) {
+            const { createMemo } = await import("../db.js");
+            await createMemo(currentWorkId, title, "");
+        }
+    }
+}
+
+/**
+ * メモ編集
+ */
+window.editMemo = async (memoId) => {
+    const title = prompt("新しいタイトルを入力してください（空欄で変更なし）");
+    const content = prompt("内容を入力してください");
+    if (title !== null || content !== null) {
+        const { updateMemo } = await import("../db.js");
+        const data = {};
+        if (title) data.title = title;
+        if (content) data.content = content;
+        await updateMemo(currentWorkId, memoId, data);
+    }
+};
+
+/**
+ * メモ削除
+ */
+window.deleteMemoConfirm = async (memoId) => {
+    if (confirm("このメモを削除してもよろしいですか？")) {
+        const { deleteMemo } = await import("../db.js");
+        await deleteMemo(currentWorkId, memoId);
+    }
+};
 
 /**
  * 現在のチャプターを保存
