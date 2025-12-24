@@ -1,0 +1,40 @@
+<div class="form-panel">
+    <div class="info-view-header">
+        <h2 id="info-title" class="retro-subtitle">作品情報の閲覧</h2>
+        <button class="btn-retro edit" onclick="showWorkSetup(currentWorkId)">編集</button>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item full">
+            <label>キャッチコピー</label>
+            <p id="info-catchphrase" class="info-val"></p>
+        </div>
+        <div class="info-item full">
+            <label>あらすじ</label>
+            <p id="info-summary" class="info-val pre-wrap"></p>
+        </div>
+        <div class="info-row">
+            <div class="info-item">
+                <label>ステータス</label>
+                <p id="info-status" class="info-val"></p>
+            </div>
+            <div class="info-item">
+                <label>種別</label>
+                <p id="info-type" class="info-val"></p>
+            </div>
+            <div class="info-item">
+                <label>AI利用</label>
+                <p id="info-ai" class="info-val"></p>
+            </div>
+        </div>
+        <div class="info-item full">
+            <label>レーティング</label>
+            <p id="info-rating" class="info-val"></p>
+        </div>
+    </div>
+
+    <div class="info-view-actions">
+        <button class="btn-retro back flex-1" onclick="switchView('top-view')">◀ TOP</button>
+        <button id="info-open-work" class="btn-retro save flex-2">この作品を書く</button>
+    </div>
+</div>

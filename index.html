@@ -83,199 +83,75 @@
             </div>
         </div>
 
-        <!-- View: Work Setup (Information Form) -->
+        <!-- View: Work Setup (Information Form) - Loaded via components/setup-view.html -->
         <div id="setup-view" class="view-content view-container">
-            <div class="container-narrow">
-                <div class="stats-top-actions">
-                    <button id="work-f-back" class="btn-retro small back" onclick="switchView('top-view')">戻る</button>
-                </div>
+            <!-- Content injected by loader.js -->
+        </div>
 
-                <div class="form-panel">
-                    <div id="setup-view-header" class="relative mb-20">
-                        <h2 id="setup-title" class="retro-subtitle text-center no-margin">作品情報の入力</h2>
-                    </div>
+        <!-- View: Work Info (View Mode) - Loaded via components/info-view.html -->
+        <div id="info-view" class="view-content view-container">
+            <!-- Content injected by loader.js -->
+        </div>
 
-                    <div class="form-group full mb-16">
-                        <label>タイトル</label>
-                        <input type="text" id="work-f-title" placeholder="作品のタイトルを入力">
-                    </div>
-                    <div class="form-group full mb-16">
-                        <div class="flex-baseline-gap">
-                            <label>キャッチコピー</label>
-                            <span id="catchphrase-count" class="count-disp">残35字</span>
-                        </div>
-                        <input type="text" id="work-f-catchphrase" maxlength="35">
-                    </div>
-                    <div class="form-group full mb-16">
-                        <label>あらすじ</label>
-                        <textarea id="work-f-summary" rows="4"></textarea>
-                    </div>
-
-                    <!-- Dynamic Rows (Reordered by JS) -->
-                    <div id="setup-row-1" class="form-row-multi">
-                        <!-- Placeholder for Length/Type or Type/Status -->
-                    </div>
-
-                    <div id="setup-row-2" class="form-row-multi">
-                        <!-- Placeholder for Status/Rating or Rating -->
-                    </div>
-
-                    <!-- AI - Always Full Width -->
-                    <div class="form-group full mt-8">
-                        <label>AI利用</label>
-                        <div class="choice-group ai-choice-group">
-                            <label><input type="radio" name="work-ai" value="none" checked> なし</label>
-                            <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
-                            <label><input type="radio" name="work-ai" value="partial"> 一部利用（50％以下）</label>
-                            <label><input type="radio" name="work-ai" value="main"> 本文利用（50％以上）</label>
-                        </div>
-                    </div>
-
-                    <!-- Hidden source elements for JS to move them -->
-                    <div id="form-elements-source" class="hidden">
-                        <div id="el-f-length" class="form-group">
-                            <label>作品の長さ</label>
-                            <div class="choice-group">
-                                <label><input type="radio" name="work-length" value="long" checked> 長編</label>
-                                <label><input type="radio" name="work-length" value="short"> 短編</label>
-                            </div>
-                        </div>
-                        <div id="el-f-status" class="form-group">
-                            <label>制作ステータス</label>
-                            <div class="choice-group">
-                                <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
-                                <label><input type="radio" name="work-status" value="completed"> 完了</label>
-                                <label><input type="radio" name="work-status" value="suspended"> 中断</label>
-                            </div>
-                        </div>
-                        <div id="el-f-type" class="form-group">
-                            <label>作品種別</label>
-                            <div class="choice-group">
-                                <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
-                                <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
-                            </div>
-                        </div>
-                        <div id="el-f-rating" class="form-group">
-                            <label>レーティング</label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
-                                <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
-                                <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="setup-actions" class="setup-actions-container">
-                        <button id="work-f-delete" class="btn-retro delete hidden">削除</button>
-                        <button id="work-f-submit" class="btn-retro save flex-1"
-                            onclick="handleWorkInfoSubmit()">保存して開始</button>
+        <!-- View: Workspace (Editor) -->
+        <div id="workspace-view" class="view-content">
+            <div class="workspace-header">
+                <div class="workspace-header-top">
+                    <button class="btn-retro small back" onclick="closeWorkspace()">◀ TOPに戻る</button>
+                    <div class="workspace-tabs-container">
+                        <button id="tab-info" class="ws-tab" onclick="switchWorkspaceTab('info')">作品情報</button>
+                        <button id="tab-editor" class="ws-tab active"
+                            onclick="switchWorkspaceTab('editor')">エディター</button>
                     </div>
                 </div>
             </div>
 
-            <!-- View: Work Info (View Mode) -->
-            <div id="info-view" class="view-content view-container">
-                <div class="form-panel">
-                    <div class="info-view-header">
-                        <h2 id="info-title" class="retro-subtitle">作品情報の閲覧</h2>
-                        <button class="btn-retro edit" onclick="showWorkSetup(currentWorkId)">編集</button>
-                    </div>
-
-                    <div class="info-grid">
-                        <div class="info-item full">
-                            <label>キャッチコピー</label>
-                            <p id="info-catchphrase" class="info-val"></p>
-                        </div>
-                        <div class="info-item full">
-                            <label>あらすじ</label>
-                            <p id="info-summary" class="info-val pre-wrap"></p>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-item">
-                                <label>ステータス</label>
-                                <p id="info-status" class="info-val"></p>
+            <div class="workspace-main">
+                <!-- Tab: Editor (2-Pane Layout) -->
+                <div id="ws-content-editor" class="workspace-tab-content active">
+                    <div class="workspace-container">
+                        <!-- Left Pane: Chapter List -->
+                        <div class="editor-sidebar">
+                            <div class="sidebar-header">
+                                <span class="gold">話一覧</span>
+                                <button class="btn-icon save" onclick="addNewChapter()">＋追加</button>
                             </div>
-                            <div class="info-item">
-                                <label>種別</label>
-                                <p id="info-type" class="info-val"></p>
-                            </div>
-                            <div class="info-item">
-                                <label>AI利用</label>
-                                <p id="info-ai" class="info-val"></p>
-                            </div>
+                            <div id="chapter-list"></div>
                         </div>
-                        <div class="info-item full">
-                            <label>レーティング</label>
-                            <p id="info-rating" class="info-val"></p>
-                        </div>
-                    </div>
 
-                    <div class="info-view-actions">
-                        <button class="btn-retro back flex-1" onclick="switchView('top-view')">◀ TOP</button>
-                        <button id="info-open-work" class="btn-retro save flex-2">この作品を書く</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- View: Workspace (Editor) -->
-            <div id="workspace-view" class="view-content">
-                <div class="workspace-header">
-                    <div class="workspace-header-top">
-                        <button class="btn-retro small back" onclick="closeWorkspace()">◀ TOPに戻る</button>
-                        <div class="workspace-tabs-container">
-                            <button id="tab-info" class="ws-tab" onclick="switchWorkspaceTab('info')">作品情報</button>
-                            <button id="tab-editor" class="ws-tab active"
-                                onclick="switchWorkspaceTab('editor')">エディター</button>
+                        <!-- Right Pane: Editor Content -->
+                        <div class="editor-main">
+                            <div class="editor-toolbar">
+                                <button class="btn-icon back" onclick="toggleVerticalMode()">縦/横</button>
+                                <button class="btn-icon back" onclick="insertRuby()">ルビ(R)</button>
+                                <button class="btn-icon back" onclick="insertDash()">ダッシュ(D)</button>
+                                <button class="btn-icon save" onclick="saveCurrentChapter()">保存</button>
+                                <span id="editor-char-count">0 字</span>
+                            </div>
+                            <textarea id="main-editor" placeholder="物語を始めましょう..."></textarea>
                         </div>
                     </div>
                 </div>
 
-                <div class="workspace-main">
-                    <!-- Tab: Editor (2-Pane Layout) -->
-                    <div id="ws-content-editor" class="workspace-tab-content active">
-                        <div class="workspace-container">
-                            <!-- Left Pane: Chapter List -->
-                            <div class="editor-sidebar">
-                                <div class="sidebar-header">
-                                    <span class="gold">話一覧</span>
-                                    <button class="btn-icon save" onclick="addNewChapter()">＋追加</button>
-                                </div>
-                                <div id="chapter-list"></div>
-                            </div>
-
-                            <!-- Right Pane: Editor Content -->
-                            <div class="editor-main">
-                                <div class="editor-toolbar">
-                                    <button class="btn-icon back" onclick="toggleVerticalMode()">縦/横</button>
-                                    <button class="btn-icon back" onclick="insertRuby()">ルビ(R)</button>
-                                    <button class="btn-icon back" onclick="insertDash()">ダッシュ(D)</button>
-                                    <button class="btn-icon save" onclick="saveCurrentChapter()">保存</button>
-                                    <span id="editor-char-count">0 字</span>
-                                </div>
-                                <textarea id="main-editor" placeholder="物語を始めましょう..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab: Work Information -->
-                    <div id="ws-content-info" class="workspace-tab-content">
-                        <div class="container-narrow">
-                            <div id="ws-info-container">
-                                <!-- Setup Form will be moved here by JS when tab is active -->
-                            </div>
+                <!-- Tab: Work Information -->
+                <div id="ws-content-info" class="workspace-tab-content">
+                    <div class="container-narrow">
+                        <div id="ws-info-container">
+                            <!-- Setup Form will be moved here by JS when tab is active -->
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- View: Statistics (Full) - Loaded via components/stats.html -->
-            <div id="stats-view" class="view-content view-container">
-                <!-- Content injected by loader.js -->
             </div>
         </div>
 
-        <!-- Scripts -->
-        <script type="module" src="js/main.js"></script>
+        <!-- View: Statistics (Full) - Loaded via components/stats.html -->
+        <div id="stats-view" class="view-content view-container">
+            <!-- Content injected by loader.js -->
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/main.js"></script>
 </body>
 
 </html>

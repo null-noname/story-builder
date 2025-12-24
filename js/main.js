@@ -52,22 +52,58 @@ let chaptersUnsubscribe = null;
  * Initialize Application
  */
 async function init() {
-    // Load components
-    await loadComponent('stats-view', 'components/stats.html');
+    // --- 1. グローバル関数の登録 (htmlのonclick属性からの呼び出しに即座に応じるため) ---
+    window.switchView = (viewId, skipHash = false) => {
+        switchView(viewId);
+        if (!skipHash) window.location.hash = viewId;
+    };
+    window.views = views;
+    window.openWork = openWork;
+    window.closeWorkspace = closeWorkspace;
+    window.switchWorkspaceTab = switchWorkspaceTab;
+    window.addNewChapter = addNewChapter;
+    window.saveCurrentChapter = saveCurrentChapter;
+    window.toggleVerticalMode = workspaceToggleVerticalMode;
+    window.insertRuby = workspaceInsertRuby;
+    window.insertDash = workspaceInsertDash;
+    window.handleWorkInfoSubmit = handleWorkInfoSubmit;
+    window.showWorkSetup = (id = null) => {
+        const works = getAllWorks();
+        showWorkSetup(id, works);
+    };
+    window.updateFullStats = (period) => {
+        const stats = getAllStatsCache();
+        updateFullStatsPeriod(stats, period);
+    };
 
-    // Auth Listener
+    // --- 2. 認証監視を開始 (読み込み待ちをせず、即座に状態を反映) ---
     observeAuth((user) => {
         if (user) {
-            setupDashBoard(); // モジュール版を呼び出し
-            // リロード時のハッシュ復元
+            setupDashBoard();
             const hash = window.location.hash.replace('#', '');
             if (hash && hash !== views.login) {
                 setTimeout(() => handleRouting(hash), 500);
+            } else {
+                window.switchView(views.top);
             }
         } else {
-            switchView(views.login);
+            window.switchView(views.login);
         }
     });
+
+    // --- 3. ログインボタンの設定 ---
+    const loginBtn = document.getElementById('google-login-btn');
+    if (loginBtn) loginBtn.onclick = login;
+
+    // --- 4. 外部コンポーネントを並列に読み込む (バックグラウンドで処理) ---
+    await Promise.all([
+        loadComponent('stats-view', 'components/stats.html'),
+        loadComponent('setup-view', 'components/setup-view.html'),
+        loadComponent('info-view', 'components/info-view.html')
+    ]).catch(err => console.error("Components load error:", err));
+
+    // 読み込み完了後に必要な初期化 (グラフなど)
+    initStatsChart();
 
     /**
      * URLハッシュに基づいたルーティング制御
@@ -89,13 +125,6 @@ async function init() {
         }
     }
 
-    // Global UI Actions
-    window.switchView = (viewId, skipHash = false) => {
-        switchView(viewId);
-        if (!skipHash) window.location.hash = viewId;
-    };
-    window.views = views;
-
     // ハッシュ変更監視
     window.onhashchange = () => {
         const hash = window.location.hash.replace('#', '');
@@ -104,38 +133,13 @@ async function init() {
         }
     };
 
-    // --- 各画面モジュールへの委譲 ---
-    window.showWorkSetup = (id = null) => {
-        const works = getAllWorks();
-        showWorkSetup(id, works);
-    };
-
-    window.openWork = openWork;
-    window.closeWorkspace = closeWorkspace;
-    window.switchWorkspaceTab = switchWorkspaceTab;
-    window.addNewChapter = addNewChapter;
-    window.saveCurrentChapter = saveCurrentChapter;
-    window.toggleVerticalMode = workspaceToggleVerticalMode;
-    window.insertRuby = workspaceInsertRuby;
-    window.insertDash = workspaceInsertDash;
-
-    window.updateFullStats = (period) => {
-        const stats = getAllStatsCache();
-        updateFullStatsPeriod(stats, period);
-    };
-
-    window.handleWorkInfoSubmit = handleWorkInfoSubmit;
-
-    // 共通初期化
-    initSetupListeners();
-
-    // フィルタ・ソートの監視
+    // フィルタ・ソートの監視設定
     const filterEl = document.getElementById('filter-status');
     const sortEl = document.getElementById('sort-order');
     if (filterEl) filterEl.onchange = renderDashboardList;
     if (sortEl) sortEl.onchange = renderDashboardList;
 
-    // Catchphrase Counter
+    // キャッチフレーズの文字数カウンター設定
     const cpInput = document.getElementById('work-f-catchphrase');
     if (cpInput) {
         cpInput.addEventListener('input', () => {
@@ -144,9 +148,6 @@ async function init() {
             if (countDisp) countDisp.textContent = `残${35 - count}字`;
         });
     }
-
-    // Initialize Chart
-    initStatsChart();
 }
 
 // Start App
