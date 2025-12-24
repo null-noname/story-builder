@@ -1,6 +1,7 @@
 /**
  * UI Management and Rendering
  */
+import { escapeHtml, formatWorkDate, formatDate } from "./core/utils.js";
 
 export const views = {
     login: 'login-screen',
@@ -204,20 +205,7 @@ export function renderWorkList(works, onOpen, onDelete, onPin, filter = 'all', s
     });
 }
 
-/**
- * Helper to handle Firestore Timestamp vs Date
- */
-function formatWorkDate(val, time = false) {
-    if (!val) return "-";
-    let date;
-    if (val.toDate) date = val.toDate(); // Firestore Timestamp
-    else if (val instanceof Date) date = val;
-    else if (typeof val === 'number') date = new Date(val); // Unix ms
-    else if (typeof val === 'string') date = new Date(val);
-    else return "-";
 
-    return formatDate(date, time);
-}
 
 /**
  * Render the chapter list in the sidebar
@@ -302,20 +290,4 @@ export function populateWorkForm(work) {
     if (countDisp) countDisp.textContent = `残${35 - (work.catchphrase || "").length}字`;
 }
 
-/**
- * Helpers
- */
-export function escapeHtml(s) {
-    if (!s) return "";
-    return s.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#039;' }[m]));
-}
 
-export function formatDate(d, time = false) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    if (!time) return `${y}/${m}/${day}`;
-    const h = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${y}/${m}/${day} ${h}:${min}`;
-}

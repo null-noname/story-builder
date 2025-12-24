@@ -1,0 +1,163 @@
+/**
+ * Dashboard Styles (css/pages/dashboard.css)
+ * TOP画面、作品一覧、統計カード等の配置
+ */
+
+.dashboard-top-row {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    margin-bottom: 30px;
+    width: 100%;
+    align-items: stretch;
+}
+
+.stats-card {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: var(--bg-card);
+    border: 1px solid #444;
+    padding: 20px;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.stats-card:hover {
+    background: #333;
+}
+
+.stats-card h3 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.action-stack {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 「＋作品作成」の独立したカード枠 */
+.create-card {
+    background: var(--btn-back);
+    border: 1px solid #999;
+    padding: 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.create-card h3 {
+    font-size: 1.2rem;
+    color: #222;
+    margin: 0;
+    font-weight: bold;
+}
+
+.create-card:hover {
+    background: #bbb;
+}
+
+.create-card:active {
+    background: #aaa;
+    transform: scale(0.98);
+}
+
+/* --- Work List --- */
+.work-item-card {
+    background: var(--bg-card);
+    border: 1px solid #444;
+    padding: 12px 18px;
+    margin-bottom: 12px;
+    border-radius: 15px;
+    transition: transform 0.2s;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.work-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.work-title-link {
+    font-size: 1.2rem;
+    color: var(--text-stats);
+    cursor: pointer;
+}
+
+.work-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid currentColor;
+    font-size: 0.75rem;
+    margin-right: 5px;
+    border-radius: 4px;
+    background: transparent;
+}
+
+.tag-long {
+    color: #ff8c00;
+}
+
+.tag-short {
+    color: #87ceeb;
+}
+
+.tag-original {
+    color: #ffffff;
+}
+
+.tag-derivative {
+    color: #000000;
+    border-color: #000000;
+}
+
+.work-footer-meta {
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    border-top: 1px solid #444;
+    padding-top: 8px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* --- Filter Bar --- */
+.filter-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+/* Mobile Adjustments for Dashboard */
+@media (max-width: 768px) {
+    .dashboard-top-row {
+        flex-direction: row;
+        gap: 12px;
+    }
+
+    .stats-card {
+        flex: 1.5;
+    }
+
+    .action-stack {
+        flex: 1;
+    }
+
+    .create-card h3 {
+        font-size: 0.9rem;
+    }
+}

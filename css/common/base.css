@@ -1,0 +1,135 @@
+/**
+ * Base Styles (css/common/base.css)
+ * 変数定義、リセット、および全画面共通の基本レイアウト
+ */
+
+:root {
+    --bg-dark: #202020;
+    --bg-card: #282828;
+    --bg-input: #1a1a1a;
+    --text-main: #f5f5f5;
+    --text-sub: #aaaaaa;
+    --gold: #d4af37;
+    --bright-green: #00ff7f;
+
+    /* Buttons */
+    --btn-save: #6a8d46;
+    --btn-edit: #4169e1;
+    --btn-delete: #b22222;
+    --btn-back: #d3d3d3;
+    --btn-active: #2b4034;
+
+    --text-stats: #c0c0c0;
+    --val-green: #3CB371;
+
+    --font-ui: "Inter", "Segoe UI", sans-serif;
+    --font-editor: "S源ノ明朝", "Sawarabi Mincho", serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* --- Utilities --- */
+.hidden {
+    display: none !important;
+}
+
+.relative {
+    position: relative;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.no-margin {
+    margin: 0;
+}
+
+.mt-8 {
+    margin-top: 8px;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-30 {
+    margin-top: 30px;
+}
+
+.mb-16 {
+    margin-bottom: 16px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.flex-2 {
+    flex: 2;
+}
+
+.flex-center {
+    flex: 1;
+    text-align: center;
+}
+
+.pre-wrap {
+    white-space: pre-wrap;
+}
+
+/* --- Typography --- */
+.retro-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    text-align: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 15px;
+    margin-bottom: 24px;
+}
+
+.retro-subtitle {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.gold {
+    color: var(--gold);
+}
+
+.gold-bold {
+    color: var(--gold);
+    font-weight: bold;
+}
+
+.view-container {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+
+.container-narrow {
+    max-width: 800px;
+    width: 100%;
+}
