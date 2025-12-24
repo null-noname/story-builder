@@ -178,7 +178,8 @@ body {
 .dashboard-top-row {
     display: flex;
     flex-direction: row;
-    gap: 20px;
+    gap: 24px;
+    /* 全角スペース約2個分 */
     margin-bottom: 30px;
     width: 100%;
     align-items: stretch;
@@ -186,11 +187,14 @@ body {
 }
 
 .stats-card {
-    flex: 2;
-    /* 左側を広く */
+    flex: 1 1 auto;
+    /* 可変、かつ縮小を許可 */
+    min-width: 0;
+    /* 縮小可能にするための設定 */
     background: var(--bg-card);
     border: 1px solid #444;
-    padding: 20px;
+    padding: 15px 20px;
+    /* パディングを少し詰め */
     border-radius: 15px;
     cursor: pointer;
     transition: transform 0.2s, background 0.2s;
@@ -199,12 +203,18 @@ body {
     justify-content: center;
 }
 
+.stats-card h3 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
 .action-stack {
-    flex: 1;
-    /* 右側 */
+    flex: 0 0 140px;
+    /* 右側の幅を固定 */
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+    /* ボタン同士の間隔も少し詰め */
 }
 
 /* --- Buttons --- */
@@ -544,12 +554,20 @@ body {
 /* Mobile Adjustments */
 @media (max-width: 768px) {
     .dashboard-top-row {
-        flex-direction: column;
-        /* スマホでは縦並びに（利便性のため） */
+        flex-direction: row;
+        /* スマホでも横並びを維持 */
+        gap: 12px;
+        /* スマホではさらに余白を詰める */
     }
 
     .action-stack {
-        width: 100%;
+        flex: 0 0 110px;
+        /* スマホではボタン幅を少し狭める */
+    }
+
+    .btn-retro.large {
+        font-size: 1rem;
+        /* スマホ用ボタン文字サイズ */
     }
 
     .workspace-container {
