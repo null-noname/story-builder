@@ -2,9 +2,9 @@
  * ダッシュボード画面専用ロジック (js/pages/dashboard.js)
  */
 import { getCurrentUser } from "../auth.js";
-import { subscribeWorks, getRecentDailyProgress, aggregateStats } from "../db.js";
+import { subscribeWorks, getRecentDailyProgress } from "../db.js";
 import { renderWorkList, renderStatsDashboard, renderStatsFull, views, switchView } from "../ui.js";
-import { updateStatsChart } from "../stats.js";
+import { updateStatsChart, aggregateStats } from "../stats.js";
 
 let worksUnsubscribe = null;
 let allWorksCache = [];

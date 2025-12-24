@@ -90,9 +90,6 @@ async function init() {
         }
     }
 
-    const loginBtn = document.getElementById('google-login-btn');
-    if (loginBtn) loginBtn.onclick = login;
-
     // Global UI Actions
     window.switchView = (viewId, skipHash = false) => {
         switchView(viewId);
