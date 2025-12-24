@@ -44,17 +44,54 @@ function init() {
     observeAuth((user) => {
         if (user) {
             setupDashBoard();
+            // リロード時のハッシュ復元
+            const hash = window.location.hash.replace('#', '');
+            if (hash && hash !== views.login) {
+                // 少し遅延をおいてデータ読み込み完了を待つ（FireStore購読のため）
+                setTimeout(() => handleRouting(hash), 500);
+            }
         } else {
             switchView(views.login);
         }
     });
 
+    /**
+     * URLハッシュに基づいたルーティング制御
+     */
+    async function handleRouting(hash) {
+        if (!hash) return;
+        const [viewId, param] = hash.split('?id=');
+
+        if (viewId === views.workspace && param) {
+            window.openWork(param);
+        } else if (viewId === views.setup && param) {
+            window.showWorkSetup(param);
+        } else if (viewId === views.stats) {
+            window.switchView(views.stats);
+        } else if (viewId === views.memo) {
+            window.switchView(views.memo);
+        } else {
+            window.switchView(views.top);
+        }
+    }
+
     const loginBtn = document.getElementById('google-login-btn');
     if (loginBtn) loginBtn.onclick = login;
 
     // Global UI Actions
-    window.switchView = switchView;
+    window.switchView = (viewId, skipHash = false) => {
+        switchView(viewId);
+        if (!skipHash) window.location.hash = viewId;
+    };
     window.views = views;
+
+    // ハッシュ変更監視（手動のURL変更にも対応）
+    window.onhashchange = () => {
+        const hash = window.location.hash.replace('#', '');
+        if (hash && hash !== views.login) {
+            handleRouting(hash);
+        }
+    };
 
     window.adjustFormLayout = (id = null) => {
         if (id) {
@@ -104,12 +141,14 @@ function init() {
         const setupTitle = document.getElementById('setup-title');
         const submitBtn = document.getElementById('work-f-submit');
 
-        // Use refactored layout logic
+        // ハッシュ更新（リロード対策）
+        window.location.hash = id ? `${views.setup}?id=${id}` : views.setup;
+
         window.adjustFormLayout(id);
 
         if (id) {
             const work = allWorksCache.find(w => w.id === id);
-            if (work) populateWorkForm(work); // UIモジュールを使用
+            if (work) populateWorkForm(work);
             if (setupTitle) setupTitle.textContent = '作品情報の編集';
             if (submitBtn) submitBtn.textContent = '保存';
 
@@ -119,17 +158,17 @@ function init() {
                 deleteBtn.onclick = async () => {
                     if (confirm("本当にこの作品を削除しますか？")) {
                         await deleteWork(id);
-                        switchView(views.top);
+                        window.switchView(views.top);
                     }
                 };
             }
         } else {
-            clearWorkForm(); // UIモジュールを使用
+            clearWorkForm();
             if (setupTitle) setupTitle.textContent = '作品情報の入力';
             if (submitBtn) submitBtn.textContent = '保存して開始';
             toggleElementVisibility('work-f-delete', false);
         }
-        switchView(views.setup);
+        window.switchView(views.setup, true); // ハッシュは上記でセット済み
     };
 
     window.switchWorkspaceTab = (tab) => {
@@ -138,7 +177,7 @@ function init() {
         const contentEditor = document.getElementById('ws-content-editor');
         const contentInfo = document.getElementById('ws-content-info');
         const infoContainer = document.getElementById('ws-info-container');
-        const setupForm = document.querySelector('.form-panel'); // どこにあっても見つけられるように
+        const setupForm = document.querySelector('.form-panel');
 
         if (tab === 'editor') {
             tabEditor.classList.add('active');
@@ -167,8 +206,9 @@ function init() {
 
     window.openWork = (id) => {
         currentWorkId = id;
-        switchView(views.workspace);
-        window.switchWorkspaceTab('editor'); 
+        window.location.hash = `${views.workspace}?id=${id}`;
+        switchView(views.workspace, true); // ハッシュの二重更新を防ぐため第2引数にtrue
+        window.switchWorkspaceTab('editor');
         setupWorkspace(id);
     };
 
@@ -185,6 +225,7 @@ function init() {
         }
 
         currentWorkId = null;
+        window.location.hash = views.top; // ハッシュをリセット
         setupDashBoard();
     };
 

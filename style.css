@@ -219,73 +219,63 @@ body {
 /* 「＋作品作成」の独立したカード枠 */
 .create-card {
     background: var(--btn-back);
-    /* 共通メモ（back）と同じ背景色 */
-    border: none;
-    padding: 20px;
-    border-radius: 15px;
+    border: 1px solid #999;
+    padding: 10px;
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
     flex: 1;
-    box-shadow: 0 4px 0px #000;
-    /* 立体感を追加 */
 }
 
 .create-card h3 {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     color: #222;
-    /* 共通メモと同じ文字色 */
     margin: 0;
     font-weight: bold;
 }
 
 .create-card:hover {
     background: #bbb;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0px #000;
 }
 
 .create-card:active {
-    transform: translate(2px, 4px);
-    box-shadow: 0 0px 0px #000;
+    background: #aaa;
+    transform: scale(0.98);
 }
 
 .stats-card:hover {
     background: #333;
-    transform: translateY(-2px);
 }
 
 /* --- Buttons --- */
 .btn-retro {
     font-family: var(--font-ui);
-    padding: 10px 20px;
-    border: none;
+    padding: 8px 16px;
+    border: 1px solid #888;
     color: #fff;
     cursor: pointer;
     font-weight: bold;
     border-radius: 12px;
     transition: all 0.2s;
     text-align: center;
-    box-shadow: 0 4px 0px #000;
-    /* 全てのボタンに立体感を追加 */
+    background: #444;
 }
 
 .btn-retro:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0px #000;
+    filter: brightness(1.1);
 }
 
 .btn-retro:active {
-    transform: translate(2px, 4px);
-    box-shadow: 0 0px 0px #000;
+    transform: scale(0.98);
     background-color: var(--btn-active) !important;
 }
 
 .btn-retro.large {
     width: 100%;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
 }
 
 .btn-retro.save {
