@@ -194,7 +194,7 @@ function init() {
     };
 
     window.updateFullStats = (period) => {
-        updateActiveTab(getTabLabel(period));
+        // period is now directly from the select value ('1W', '1M', '1Y')
         updateFullStatsPeriod(allStatsCache, period);
     };
 

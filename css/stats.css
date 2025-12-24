@@ -6,26 +6,22 @@
     padding-top: 10px;
 }
 
-.stats-header-container .back {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
-}
-
 .stats-header-inner {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     width: 100%;
+    border-bottom: 1px solid #333;
+    padding-bottom: 12px;
 }
 
-.stats-header-container {
-    padding-top: 5px;
-    margin-bottom: 10px;
-    position: relative;
+.stats-header-inner .retro-subtitle {
+    margin: 0;
+}
+
+.stats-select {
+    cursor: pointer;
 }
 
 .full-stats-card {
