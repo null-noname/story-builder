@@ -1,0 +1,46 @@
+<div class="workspace-header">
+    <div class="workspace-header-top">
+        <button class="btn-retro small back" onclick="closeWorkspace()">◀ TOPに戻る</button>
+        <div class="workspace-tabs-container">
+            <button id="tab-info" class="ws-tab" onclick="switchWorkspaceTab('info')">作品情報</button>
+            <button id="tab-editor" class="ws-tab active" onclick="switchWorkspaceTab('editor')">エディター</button>
+        </div>
+    </div>
+</div>
+
+<div class="workspace-main">
+    <!-- Tab: Editor (2-Pane Layout) -->
+    <div id="ws-content-editor" class="workspace-tab-content active">
+        <div class="workspace-container">
+            <!-- Left Pane: Chapter List -->
+            <div class="editor-sidebar">
+                <div class="sidebar-header">
+                    <span class="gold">話一覧</span>
+                    <button class="btn-icon save" onclick="addNewChapter()">＋追加</button>
+                </div>
+                <div id="chapter-list"></div>
+            </div>
+
+            <!-- Right Pane: Editor Content -->
+            <div class="editor-main">
+                <div class="editor-toolbar">
+                    <button class="btn-icon back" onclick="toggleVerticalMode()">縦/横</button>
+                    <button class="btn-icon back" onclick="insertRuby()">ルビ(R)</button>
+                    <button class="btn-icon back" onclick="insertDash()">ダッシュ(D)</button>
+                    <button class="btn-icon save" onclick="saveCurrentChapter()">保存</button>
+                    <span id="editor-char-count">0 字</span>
+                </div>
+                <textarea id="main-editor" placeholder="物語を始めましょう..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Work Information -->
+    <div id="ws-content-info" class="workspace-tab-content">
+        <div class="container-narrow">
+            <div id="ws-info-container">
+                <!-- Setup Form will be moved here by JS when tab is active -->
+            </div>
+        </div>
+    </div>
+</div>

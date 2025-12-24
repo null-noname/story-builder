@@ -99,7 +99,8 @@ async function init() {
     await Promise.all([
         loadComponent('stats-view', 'components/stats.html'),
         loadComponent('setup-view', 'components/setup-view.html'),
-        loadComponent('info-view', 'components/info-view.html')
+        loadComponent('info-view', 'components/info-view.html'),
+        loadComponent('workspace-view', 'components/workspace-view.html')
     ]).catch(err => console.error("Components load error:", err));
 
     // 読み込み完了後に必要な初期化 (グラフなど)
