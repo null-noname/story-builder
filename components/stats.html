@@ -1,0 +1,40 @@
+<div class="container-narrow">
+    <div class="stats-top-actions">
+        <button class="btn-retro small back" onclick="switchView('top-view')">TOPに戻る</button>
+    </div>
+
+    <div class="stats-full-card">
+        <div class="stats-header-inner">
+            <h2 class="retro-subtitle">執筆文字数の推移</h2>
+            <select id="stats-period-select" class="select-retro stats-select" onchange="updateFullStats(this.value)">
+                <option value="1W">1週</option>
+                <option value="1M">1月</option>
+                <option value="1Y">1年</option>
+            </select>
+        </div>
+
+        <div class="stats-chart-main-container">
+            <canvas id="stats-chart-full"></canvas>
+        </div>
+    </div>
+
+    <div class="stats-summary-grid">
+        <div class="summary-item">
+            <label>今日の文字数</label>
+            <span class="bright-green-bold"><span id="summary-today">0</span> <span class="stats-unit">字</span></span>
+        </div>
+        <div class="summary-item">
+            <label>過去7日間の合計</label>
+            <span class="bright-green-bold"><span id="summary-weekly">0</span> <span class="stats-unit">字</span></span>
+        </div>
+        <div class="summary-item">
+            <label>直近30日間の合計</label>
+            <span class="bright-green-bold"><span id="summary-monthly">0</span> <span class="stats-unit">字</span></span>
+        </div>
+        <div class="summary-item">
+            <label>総制作作品数</label>
+            <span class="bright-green-bold"><span id="summary-total-works">0</span> <span
+                    class="stats-unit">作品</span></span>
+        </div>
+    </div>
+</div>

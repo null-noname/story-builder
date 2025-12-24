@@ -42,6 +42,7 @@ import {
     insertDash as workspaceInsertDash, // Rename to avoid conflict with editor.js
     setupWorkspace // Import setupWorkspace
 } from "./pages/workspace.js";
+import { loadComponent } from "./core/loader.js";
 
 // App State
 let currentWorkId = null;
@@ -51,7 +52,10 @@ let chaptersUnsubscribe = null;
 /**
  * Initialize Application
  */
-function init() {
+async function init() {
+    // Load components
+    await loadComponent('stats-view', 'components/stats.html');
+
     // Auth Listener
     observeAuth((user) => {
         if (user) {
