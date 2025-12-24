@@ -48,9 +48,13 @@
                         </div>
                     </div>
 
-                    <!-- Action Buttons (Right) -->
+                    <!-- Right Column -->
                     <div class="action-stack">
-                        <button class="btn-retro large back" onclick="showWorkSetup()">＋作品作成</button>
+                        <!-- Create Work Section (Top Right) -->
+                        <div class="action-card click-card create-card" onclick="showWorkSetup()">
+                            <h3 class="text-center">＋作品作成</h3>
+                        </div>
+                        <!-- Common Memo Section (Bottom Right) -->
                         <button class="btn-retro large back" onclick="switchView('memo-view')">共通メモ</button>
                     </div>
                 </div>
@@ -78,10 +82,10 @@
 
         <!-- View: Work Setup (Information Form) -->
         <div id="setup-view" class="view-content view-container">
-            <div class="form-panel">
+            <button id="work-f-back" class="btn-retro small back fixed-tl" onclick="switchView('top-view')">戻る</button>
+
+            <div class="form-panel mt-30">
                 <div id="setup-view-header" class="relative mb-20">
-                    <button id="work-f-back" class="btn-retro small back pos-tl"
-                        onclick="switchView('top-view')">戻る</button>
                     <h2 id="setup-title" class="retro-subtitle text-center no-margin">作品情報の入力</h2>
                 </div>
 
@@ -296,8 +300,6 @@
 
             </div>
         </div>
-    </div>
-
     </div>
 
     <!-- Scripts -->

@@ -1,0 +1,149 @@
+/* --- Form & Choice Components --- */
+
+.form-panel {
+    background: var(--bg-card);
+    padding: 30px;
+    width: 100%;
+    max-width: 600px;
+    border-radius: 15px;
+    border: 1px solid #444;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.form-group {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    color: var(--gold);
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    background: var(--bg-input);
+    border: 1px solid #444;
+    color: #fff;
+    padding: 10px 15px;
+    font-family: var(--font-ui);
+    border-radius: 12px;
+}
+
+.form-row-multi {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-row-multi .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.checkbox-group, .choice-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--bg-input);
+    padding: 12px;
+    border: 1px solid #444;
+    border-radius: 12px;
+    justify-content: center; /* センター配置 */
+}
+
+.choice-group label, .checkbox-group label {
+    font-size: 0.9rem;
+    color: var(--text-main) !important;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.ai-choice-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    justify-items: center; /* センター配置 */
+}
+
+.flex-baseline-gap {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.count-disp {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.setup-actions-container {
+    display: flex;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.info-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.info-view-actions {
+    margin-top: 30px;
+    display: flex;
+    gap: 16px;
+}
+
+.info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: flex;
+    gap: 16px;
+}
+
+.info-item {
+    flex: 1;
+}
+
+.info-item label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--gold);
+    margin-bottom: 4px;
+}
+
+.info-val {
+    background: var(--bg-input);
+    border: 1px solid #333;
+    padding: 10px;
+    color: var(--text-main);
+    font-size: 1rem;
+    min-height: 1.4rem;
+}
+
+@media (max-width: 600px) {
+    .form-row-multi {
+        flex-direction: column;
+        gap: 0;
+    }
+    .form-row-multi .form-group {
+        margin-bottom: 16px;
+    }
+    .ai-choice-group {
+        grid-template-columns: 1fr;
+    }
+}
