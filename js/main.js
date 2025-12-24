@@ -39,8 +39,7 @@ import {
     saveCurrentChapter,
     toggleVerticalMode as workspaceToggleVerticalMode, // Rename to avoid conflict with editor.js
     insertRuby as workspaceInsertRuby, // Rename to avoid conflict with editor.js
-    insertDash as workspaceInsertDash, // Rename to avoid conflict with editor.js
-    setupWorkspace // Import setupWorkspace
+    insertDash as workspaceInsertDash // Rename to avoid conflict with editor.js
 } from "./pages/workspace.js";
 import { loadComponent } from "./core/loader.js";
 
