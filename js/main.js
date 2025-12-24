@@ -137,36 +137,30 @@ function init() {
         const tabInfo = document.getElementById('tab-info');
         const contentEditor = document.getElementById('ws-content-editor');
         const contentInfo = document.getElementById('ws-content-info');
-        const setupForm = document.querySelector('#setup-view .form-panel');
+        const infoContainer = document.getElementById('ws-info-container');
+        const setupForm = document.querySelector('.form-panel'); // どこにあっても見つけられるように
 
         if (tab === 'editor') {
             tabEditor.classList.add('active');
             tabInfo.classList.remove('active');
             contentEditor.classList.add('active');
             contentInfo.classList.remove('active');
-            // Move form back to its original view if needed (though it stays in DOM)
         } else {
             tabEditor.classList.remove('active');
             tabInfo.classList.add('active');
             contentEditor.classList.remove('active');
             contentInfo.classList.add('active');
 
-            // Move setup form into the workspace tab if it's not there
-            if (setupForm && contentInfo) {
-                // Ensure form reflects current work
+            if (setupForm && infoContainer) {
                 if (currentWorkId) {
                     const work = allWorksCache.find(w => w.id === currentWorkId);
-                    if (work) populateWorkForm(work); // UIモジュールを使用
-
+                    if (work) populateWorkForm(work);
                     window.adjustFormLayout(currentWorkId);
-
                     const sTitle = document.getElementById('setup-title');
                     if (sTitle) sTitle.textContent = '作品設定';
                     toggleElementVisibility('setup-view-header', false);
-                    const sSubmit = document.getElementById('work-f-submit');
-                    if (sSubmit) sSubmit.textContent = '変更を保存';
                 }
-                contentInfo.appendChild(setupForm);
+                infoContainer.appendChild(setupForm);
             }
         }
     };
@@ -174,18 +168,19 @@ function init() {
     window.openWork = (id) => {
         currentWorkId = id;
         switchView(views.workspace);
-        window.switchWorkspaceTab('editor'); // Default to editor tab
+        window.switchWorkspaceTab('editor'); 
         setupWorkspace(id);
     };
 
     window.closeWorkspace = () => {
         if (chaptersUnsubscribe) chaptersUnsubscribe();
 
-        // Move setup form back to its original view container
-        const setupForm = document.querySelector('.workspace-tab-content .form-panel');
-        const originalSetupContainer = document.querySelector('#setup-view');
-        if (setupForm && originalSetupContainer) {
-            originalSetupContainer.appendChild(setupForm);
+        // フォームを元の位置（setup-view）に戻す
+        const setupForm = document.querySelector('.form-panel');
+        const originalSetupView = document.getElementById('setup-view');
+        const containerNarrow = originalSetupView?.querySelector('.container-narrow');
+        if (setupForm && containerNarrow) {
+            containerNarrow.appendChild(setupForm);
             toggleElementVisibility('setup-view-header', true);
         }
 
