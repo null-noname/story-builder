@@ -1,73 +1,82 @@
-<div class="container-narrow">
-    <div class="stats-top-actions">
-        <button id="work-f-back" class="btn-retro small back" onclick="window.location.hash = window.views.top"
-            title="戻る"></button>
-    </div>
-
-    <div class="form-panel">
-        <div id="setup-view-header" class="relative mb-20">
-            <h2 id="setup-title" class="info-title-display hidden" style="font-size: 1.8rem;"></h2>
+<div class="workspace-info-wrapper">
+    <div class="setup-view-container workspace-full-form">
+        <div id="setup-view-header" class="relative mb-30 text-center">
+            <h2 id="setup-title" class="info-title-display" style="font-size: 2rem; color: var(--gold) !important;">
+                作品情報の編集</h2>
         </div>
 
-        <div class="form-group full mb-16">
+        <div class="form-group full mb-24">
+            <label class="gold-bold mb-8">作品タイトル</label>
             <input type="text" id="work-f-title" placeholder="作品タイトルを入力..." class="white-text-input large-input">
         </div>
-        <div class="form-group full mb-16">
-            <div class="flex-baseline-gap">
+
+        <div class="form-group full mb-24">
+            <div class="flex-baseline-gap mb-8">
+                <label class="gold-bold">キャッチコピー</label>
                 <span id="catchphrase-count" class="count-disp">残35字</span>
             </div>
-            <input type="text" id="work-f-catchphrase" maxlength="35" placeholder="読者を惹きつけるキャッチコピー（一言）"
+            <input type="text" id="work-f-catchphrase" maxlength="35" placeholder="読者を惹きつける一言..."
                 class="white-text-input">
         </div>
-        <div class="form-group full mb-16">
-            <textarea id="work-f-description" placeholder="あらすじ・ストーリーの概要（10行程度まで）" class="minimal-textarea"></textarea>
+
+        <div class="form-group full mb-30">
+            <label class="gold-bold mb-8">あらすじ・概要</label>
+            <textarea id="work-f-description" placeholder="ストーリーの概要を入力してください（10行程度まで）"
+                class="minimal-textarea"></textarea>
         </div>
 
-        <!-- 以前はJSで移動させていたが、バグ防止のため直接記述 -->
-        <div id="setup-row-1" class="form-row-multi">
-            <div id="el-f-length" class="form-group">
-                <div class="choice-group">
-                    <label><input type="radio" name="work-length" value="long" checked> 長編</label>
-                    <label><input type="radio" name="work-length" value="short"> 短編</label>
+        <div class="info-details-grid" style="border-top: 1px solid #444; padding-top: 30px;">
+            <div id="setup-row-1" class="form-row-multi">
+                <div id="el-f-length" class="form-group">
+                    <label class="gold-bold mb-8">作品の長さ</label>
+                    <div class="choice-group">
+                        <label><input type="radio" name="work-length" value="long" checked> 長編</label>
+                        <label><input type="radio" name="work-length" value="short"> 短編</label>
+                    </div>
+                </div>
+                <div id="el-f-type" class="form-group">
+                    <label class="gold-bold mb-8">作品種別</label>
+                    <div class="choice-group">
+                        <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
+                        <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
+                    </div>
                 </div>
             </div>
-            <div id="el-f-type" class="form-group">
-                <div class="choice-group">
-                    <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
-                    <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
+
+            <div id="setup-row-2" class="form-row-multi">
+                <div id="el-f-status" class="form-group">
+                    <label class="gold-bold mb-8">執筆ステータス</label>
+                    <div class="choice-group">
+                        <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
+                        <label><input type="radio" name="work-status" value="completed"> 完了</label>
+                        <label><input type="radio" name="work-status" value="suspended"> 中断</label>
+                    </div>
+                </div>
+                <div id="el-f-rating" class="form-group">
+                    <label class="gold-bold mb-8">レーティング</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
+                        <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
+                        <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group full mt-16">
+                <label class="gold-bold mb-8">AI利用状況</label>
+                <div class="choice-group ai-choice-group">
+                    <label><input type="radio" name="work-ai" value="none" checked> なし</label>
+                    <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
+                    <label><input type="radio" name="work-ai" value="partial"> 一部利用</label>
+                    <label><input type="radio" name="work-ai" value="main"> 本文利用</label>
                 </div>
             </div>
         </div>
 
-        <div id="setup-row-2" class="form-row-multi">
-            <div id="el-f-status" class="form-group">
-                <div class="choice-group">
-                    <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
-                    <label><input type="radio" name="work-status" value="completed"> 完了</label>
-                    <label><input type="radio" name="work-status" value="suspended"> 中断</label>
-                </div>
-            </div>
-            <div id="el-f-rating" class="form-group">
-                <div class="checkbox-group">
-                    <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
-                    <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
-                    <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group full mt-8">
-            <div class="choice-group ai-choice-group">
-                <label><input type="radio" name="work-ai" value="none" checked> AI利用なし</label>
-                <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
-                <label><input type="radio" name="work-ai" value="partial"> 一部利用</label>
-                <label><input type="radio" name="work-ai" value="main"> 本文利用</label>
-            </div>
-        </div>
-
-        <div id="setup-actions" class="setup-actions-container mt-20">
-            <button id="work-f-delete" class="btn-retro delete hidden red">削除</button>
-            <button id="work-f-submit" class="btn-retro save flex-1" onclick="handleWorkInfoSubmit()">保存する</button>
+        <div id="setup-actions" class="setup-actions-container mt-40 pb-60">
+            <button id="work-f-delete" class="btn-retro delete hidden red">この作品を削除する</button>
+            <button id="work-f-submit" class="btn-retro save flex-1" onclick="handleWorkInfoSubmit()"
+                style="padding: 15px;">情報を保存する</button>
         </div>
     </div>
 </div>

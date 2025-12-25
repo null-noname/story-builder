@@ -89,27 +89,27 @@ export function renderWorkInfo(work, prefix = "info-") {
         summary.textContent = work.description || '（未設定）';
     }
 
-    // 各項目にラベルを付与して表示
+    // 各項目を表示
     if (length) {
         const val = lengthLabels[work.length] || work.length || '（未設定）';
-        length.textContent = `長さ：${val}`;
+        length.textContent = val;
     }
     if (status) {
         const val = statusLabels[work.status] || work.status || '（未設定）';
-        status.textContent = `ステータス：${val}`;
+        status.textContent = val;
     }
     if (type) {
         const val = typeLabels[work.type] || work.type || '（未設定）';
-        type.textContent = `作品種別：${val}`;
+        type.textContent = val;
     }
     if (ai) {
         const val = aiLabels[work.ai] || work.ai || '（未設定）';
-        ai.textContent = `AI利用：${val}`;
+        ai.textContent = val;
     }
     if (rating) {
         const items = (work.rating || []).map(r => ratingLabels[r] || r);
         const val = items.length > 0 ? items.join(' / ') : 'なし';
-        rating.textContent = `レーティング：${val}`;
+        rating.textContent = val;
     }
 }
 

@@ -283,65 +283,61 @@ export function toggleWorkInfoMode(mode) {
 
     if (!infoContainer) return;
 
-    // 以前の要素を確実にクリア（3枚目の重なりを防止）
-    infoContainer.innerHTML = '';
+    // 以前のパネルを元の場所へ戻す（innerHTML=''による破壊を防ぐ）
+    const currentPanel = infoContainer.querySelector('.form-panel');
+    if (currentPanel) {
+        if (currentPanel.classList.contains('info-view-container')) {
+            document.querySelector('#info-view .container-narrow')?.appendChild(currentPanel);
+        } else if (currentPanel.classList.contains('setup-view-container')) {
+            document.querySelector('#setup-view .container-narrow')?.appendChild(currentPanel);
+        }
+        currentPanel.classList.remove('workspace-full-form');
+    }
 
     const works = getAllWorks();
     const work = works.find(w => w.id === currentWorkId);
 
     if (mode === 'edit') {
+        // 編集モード
         const setupForm = setupView?.querySelector('.form-panel');
         if (setupForm) {
-            // 現在のデータを各入力欄にセット
-            if (work) populateWorkForm(work);
-            adjustFormLayout(currentWorkId);
+            setupForm.classList.add('workspace-full-form');
+            infoContainer.appendChild(setupForm);
 
-            // 編集モード専用の文字調整
+            // データの流し込み
+            if (work) populateWorkForm(work);
+            if (typeof adjustFormLayout === 'function') adjustFormLayout(currentWorkId);
+
+            // ボタンなどの微調整
             const sTitle = setupForm.querySelector('#setup-title');
             const submitBtn = setupForm.querySelector('#work-f-submit');
-            if (sTitle) {
-                sTitle.textContent = '作品情報の編集';
-            }
-            if (submitBtn) {
-                submitBtn.textContent = '保存する';
-            }
-
-            // 枠なし全画面用のクラスを付与
-            setupForm.classList.add('workspace-full-form');
+            if (sTitle) sTitle.textContent = '作品情報の編集';
+            if (submitBtn) submitBtn.textContent = '保存する';
 
             toggleElementVisibility('setup-view-header', false);
-            infoContainer.appendChild(setupForm);
         }
     } else {
-        // 閲覧モード (2枚目の正式デザインを表示)
+        // 閲覧モード
         const infoPanel = infoView?.querySelector('.form-panel');
         if (infoPanel) {
-            // UI.js の renderWorkInfo を使用 (作品データの描画)
+            infoPanel.classList.add('workspace-full-form');
+            infoContainer.appendChild(infoPanel);
+
+            // データの流し込み
             if (work) renderWorkInfo(work);
 
-            // 執筆画面内では「この作品を書く」ボタンは自分自身の画面なので不要（または別の機能へ）
-            // 一旦、上部の主要アクションエリアを確認
-            const mainActions = infoPanel.querySelector('.info-main-actions');
-            if (mainActions) {
-                // 「この作品を書く」ボタンはエディタタブで既にやっているのでここでは非表示にする、
-                // あるいは「エディタタブへ切替」等に変える
-                const writeBtn = mainActions.querySelector('#info-write-btn-top');
-                if (writeBtn) writeBtn.style.display = 'none';
+            // 「この作品を書く」ボタンは非表示（エディタタブがあるため）
+            const writeBtn = infoPanel.querySelector('#info-write-btn-top');
+            if (writeBtn) writeBtn.style.display = 'none';
 
-                // 「作品情報を修正する」ボタンへのイベント割り当て
-                const editLink = mainActions.querySelector('button.small');
-                if (editLink) {
-                    editLink.onclick = (e) => {
-                        e.preventDefault();
-                        toggleWorkInfoMode('edit');
-                    };
-                }
+            // 「作品情報を編集する」ボタン（一番下に移動させたもの）へのイベント割り当て
+            const editBtn = infoPanel.querySelector('.info-bottom-actions button') || infoPanel.querySelector('button.small');
+            if (editBtn) {
+                editBtn.onclick = (e) => {
+                    e.preventDefault();
+                    toggleWorkInfoMode('edit');
+                };
             }
-
-            // 枠なし全画面用のクラスを付与
-            infoPanel.classList.add('workspace-full-form');
-
-            infoContainer.appendChild(infoPanel);
         }
     }
 }

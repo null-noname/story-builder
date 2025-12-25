@@ -1,35 +1,53 @@
-<div class="form-panel info-view-container">
-    <div class="info-view-top center-layout">
-        <h2 id="info-title" class="info-title-display"></h2>
-        <p id="info-catchphrase" class="info-catch-display"></p>
-        <div class="info-main-actions" style="margin-bottom: 20px;">
-            <button id="info-write-btn-top" class="btn-retro save" style="padding: 15px 50px; font-size: 1.2rem;"
-                onclick="window.openWork(currentWorkId)">この作品を書く</button>
-        </div>
-    </div>
-
-    <div class="info-view-body center-layout">
-        <div class="info-summary-wrap">
-            <p id="info-summary" class="info-val pre-wrap"></p>
-        </div>
-
-        <div class="info-details-grid">
-            <div class="info-details-row">
-                <span id="info-length" class="info-detail-item"></span>
-                <span id="info-status" class="info-detail-item"></span>
-            </div>
-            <div class="info-details-row">
-                <span id="info-type" class="info-detail-item"></span>
-                <span id="info-ai" class="info-detail-item"></span>
-            </div>
-            <div class="info-details-row">
-                <span id="info-rating" class="info-detail-item"></span>
+<div class="workspace-info-wrapper">
+    <div class="info-view-container workspace-full-form">
+        <div class="info-view-top center-layout">
+            <h2 id="info-title" class="info-title-display"></h2>
+            <p id="info-catchphrase" class="info-catch-display"></p>
+            <div class="info-main-actions" style="margin-bottom: 30px;">
+                <button id="info-write-btn-top" class="btn-retro save" style="padding: 15px 50px; font-size: 1.2rem;"
+                    onclick="window.openWork(currentWorkId)">この作品を書く</button>
             </div>
         </div>
 
-        <div class="info-bottom-actions mt-20">
-            <button class="btn-retro small" style="opacity: 0.6; font-size: 0.8rem;"
-                onclick="window.toggleWorkInfoMode('edit')">作品情報を編集する</button>
+        <div class="info-view-body">
+            <div class="info-summary-wrap mb-30">
+                <label class="gold-bold mb-8" style="display: block; text-align: center;">あらすじ・概要</label>
+                <p id="info-summary" class="info-val pre-wrap" style="text-align: center;"></p>
+            </div>
+
+            <div class="info-details-grid" style="border-top: 1px solid #444; padding-top: 30px;">
+                <div class="info-details-row">
+                    <div class="info-detail-item">
+                        <label class="gold-bold">作品の長さ</label>
+                        <span id="info-length"></span>
+                    </div>
+                    <div class="info-detail-item">
+                        <label class="gold-bold">執筆ステータス</label>
+                        <span id="info-status"></span>
+                    </div>
+                </div>
+                <div class="info-details-row">
+                    <div class="info-detail-item">
+                        <label class="gold-bold">作品種別</label>
+                        <span id="info-type"></span>
+                    </div>
+                    <div class="info-detail-item">
+                        <label class="gold-bold">AI利用状況</label>
+                        <span id="info-ai"></span>
+                    </div>
+                </div>
+                <div class="info-details-row">
+                    <div class="info-detail-item">
+                        <label class="gold-bold">レーティング</label>
+                        <span id="info-rating"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-bottom-actions mt-40 text-center pb-60">
+                <button class="btn-retro small" style="opacity: 0.6; font-size: 0.9rem;"
+                    onclick="window.toggleWorkInfoMode('edit')">作品情報を編集する</button>
+            </div>
         </div>
     </div>
 </div>
