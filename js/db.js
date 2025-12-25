@@ -92,43 +92,6 @@ export async function updateChapter(workId, chapterId, content) {
 }
 
 /**
- * CHARACTERS (キャラクター管理)
- */
-
-export function subscribeCharacters(workId, callback) {
-    const q = query(collection(db, "works", workId, "characters"), orderBy("name", "asc"));
-    return onSnapshot(q, (snapshot) => {
-        const characters = [];
-        snapshot.forEach((doc) => {
-            characters.push({ id: doc.id, ...doc.data() });
-        });
-        callback(characters);
-    });
-}
-
-export async function createCharacter(workId, data) {
-    const docRef = await addDoc(collection(db, "works", workId, "characters"), {
-        ...data,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-    });
-    return docRef.id;
-}
-
-export async function updateCharacter(workId, characterId, data) {
-    const docRef = doc(db, "works", workId, "characters", characterId);
-    await updateDoc(docRef, {
-        ...data,
-        updatedAt: serverTimestamp()
-    });
-}
-
-export async function deleteCharacter(workId, characterId) {
-    const docRef = doc(db, "works", workId, "characters", characterId);
-    await deleteDoc(docRef);
-}
-
-/**
  * STATISTICS & HISTORY (統計・履歴)
  */
 
