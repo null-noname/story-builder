@@ -16,7 +16,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /**
- * WORKS
+ * WORKS (作品管理)
  */
 
 export function subscribeWorks(uid, callback) {
@@ -59,7 +59,7 @@ export async function toggleWorkPin(workId, currentPinStatus) {
 }
 
 /**
- * CHAPTERS
+ * CHAPTERS (話管理)
  */
 
 export function subscribeChapters(workId, callback) {
@@ -92,7 +92,44 @@ export async function updateChapter(workId, chapterId, content) {
 }
 
 /**
- * STATISTICS & HISTORY
+ * CHARACTERS (キャラクター管理)
+ */
+
+export function subscribeCharacters(workId, callback) {
+    const q = query(collection(db, "works", workId, "characters"), orderBy("name", "asc"));
+    return onSnapshot(q, (snapshot) => {
+        const characters = [];
+        snapshot.forEach((doc) => {
+            characters.push({ id: doc.id, ...doc.data() });
+        });
+        callback(characters);
+    });
+}
+
+export async function createCharacter(workId, data) {
+    const docRef = await addDoc(collection(db, "works", workId, "characters"), {
+        ...data,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+    });
+    return docRef.id;
+}
+
+export async function updateCharacter(workId, characterId, data) {
+    const docRef = doc(db, "works", workId, "characters", characterId);
+    await updateDoc(docRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+    });
+}
+
+export async function deleteCharacter(workId, characterId) {
+    const docRef = doc(db, "works", workId, "characters", characterId);
+    await deleteDoc(docRef);
+}
+
+/**
+ * STATISTICS & HISTORY (統計・履歴)
  */
 
 export async function updateDailyProgress(uid, count) {
@@ -116,18 +153,19 @@ export async function getRecentDailyProgress(uid, days = 7) {
 }
 
 /**
- * HISTORY BACKUP (Diff)
+ * HISTORY BACKUP (バックアップ)
  */
 export async function saveHistoryBackup(workId, chapterId, content) {
     const historyRef = collection(db, "works", workId, "chapters", chapterId, "history");
-    await addDoc(historyRef, {
+    const data = {
         content: content,
         timestamp: serverTimestamp()
-    });
+    };
+    await addDoc(historyRef, data);
 }
 
 /**
- * MEMOS
+ * MEMOS (メモ管理)
  */
 
 export function subscribeMemos(workId, callback) {
@@ -142,7 +180,6 @@ export function subscribeMemos(workId, callback) {
 }
 
 export async function createMemo(workId, title, content) {
-    // 初期順序として現在のタイムスタンプ（ミリ秒）を使用（末尾に追加されるように）
     const initialOrder = Date.now();
     const docRef = await addDoc(collection(db, "works", workId, "memos"), {
         title: title || "新規メモ",
@@ -162,14 +199,9 @@ export async function updateMemo(workId, memoId, data) {
     });
 }
 
-/**
- * メモの表示順を入れ替える
- */
 export async function updateMemoOrder(workId, id1, order1, id2, order2) {
     const ref1 = doc(db, "works", workId, "memos", id1);
     const ref2 = doc(db, "works", workId, "memos", id2);
-
-    // 順番（order）を交換
     await updateDoc(ref1, { order: order2, updatedAt: serverTimestamp() });
     await updateDoc(ref2, { order: order1, updatedAt: serverTimestamp() });
 }
