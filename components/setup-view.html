@@ -1,60 +1,59 @@
 <div class="container-narrow">
     <div class="stats-top-actions">
-        <button id="work-f-back" class="btn-retro small back" onclick="switchView('top-view')">戻る</button>
+        <!-- 最小限のボタン（文字なし） -->
+        <button id="work-f-back" class="btn-retro small back" onclick="window.location.hash = window.views.top"
+            title="戻る"></button>
     </div>
 
     <div class="form-panel">
+        <!-- 見出しエリア (IDはJS連携のため残すが文字は消去) -->
         <div id="setup-view-header" class="relative mb-20">
-            <h2 id="setup-title" class="retro-subtitle text-center no-margin">作品情報の入力</h2>
+            <h2 id="setup-title" class="info-title-display hidden" style="font-size: 1.8rem;"></h2>
         </div>
 
         <div class="form-group full mb-16">
-            <label>タイトル</label>
-            <input type="text" id="work-f-title" placeholder="作品のタイトルを入力">
+            <input type="text" id="work-f-title" placeholder="作品タイトルを入力..." class="white-text-input large-input">
         </div>
         <div class="form-group full mb-16">
             <div class="flex-baseline-gap">
-                <label>キャッチコピー</label>
                 <span id="catchphrase-count" class="count-disp">残35字</span>
             </div>
-            <input type="text" id="work-f-catchphrase" maxlength="35">
+            <input type="text" id="work-f-catchphrase" maxlength="35" placeholder="読者を惹きつけるキャッチコピー（一言）"
+                class="white-text-input">
         </div>
         <div class="form-group full mb-16">
-            <label>あらすじ</label>
-            <textarea id="work-f-summary" rows="4"></textarea>
+            <!-- 10行制限スタイルが適用されるID -->
+            <textarea id="work-f-description" placeholder="あらすじ・ストーリーの概要（10行程度まで）" class="minimal-textarea"></textarea>
         </div>
 
-        <!-- Dynamic Rows (Reordered by JS) -->
-        <div id="setup-row-1" class="form-row-multi">
-            <!-- Placeholder for Length/Type or Type/Status -->
-        </div>
+        <!-- JS によって要素が流し込まれるエリア -->
+        <div id="setup-row-1" class="form-row-multi"></div>
+        <div id="setup-row-2" class="form-row-multi"></div>
 
-        <div id="setup-row-2" class="form-row-multi">
-            <!-- Placeholder for Status/Rating or Rating -->
-        </div>
-
-        <!-- AI - Always Full Width -->
+        <!-- AI利用の選択 -->
         <div class="form-group full mt-8">
-            <label>AI利用</label>
             <div class="choice-group ai-choice-group">
-                <label><input type="radio" name="work-ai" value="none" checked> なし</label>
+                <label><input type="radio" name="work-ai" value="none" checked> AI利用なし</label>
                 <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
-                <label><input type="radio" name="work-ai" value="partial"> 一部利用（50％以下）</label>
-                <label><input type="radio" name="work-ai" value="main"> 本文利用（50％以上）</label>
+                <label><input type="radio" name="work-ai" value="partial"> 一部利用</label>
+                <label><input type="radio" name="work-ai" value="main"> 本文利用</label>
             </div>
         </div>
 
-        <!-- Hidden source elements for JS to move them -->
+        <div id="setup-actions" class="setup-actions-container mt-20">
+            <button id="work-f-delete" class="btn-retro delete hidden red">削除</button>
+            <button id="work-f-submit" class="btn-retro save flex-1" onclick="handleWorkInfoSubmit()">保存する</button>
+        </div>
+
+        <!-- JavaScriptがパーツを拾い上げるための隠し要素 -->
         <div id="form-elements-source" class="hidden">
             <div id="el-f-length" class="form-group">
-                <label>作品の長さ</label>
                 <div class="choice-group">
                     <label><input type="radio" name="work-length" value="long" checked> 長編</label>
                     <label><input type="radio" name="work-length" value="short"> 短編</label>
                 </div>
             </div>
             <div id="el-f-status" class="form-group">
-                <label>制作ステータス</label>
                 <div class="choice-group">
                     <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
                     <label><input type="radio" name="work-status" value="completed"> 完了</label>
@@ -62,25 +61,18 @@
                 </div>
             </div>
             <div id="el-f-type" class="form-group">
-                <label>作品種別</label>
                 <div class="choice-group">
                     <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
                     <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
                 </div>
             </div>
             <div id="el-f-rating" class="form-group">
-                <label>レーティング</label>
                 <div class="checkbox-group">
                     <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
                     <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
                     <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
                 </div>
             </div>
-        </div>
-
-        <div id="setup-actions" class="setup-actions-container">
-            <button id="work-f-delete" class="btn-retro delete hidden">削除</button>
-            <button id="work-f-submit" class="btn-retro save flex-1" onclick="handleWorkInfoSubmit()">保存して開始</button>
         </div>
     </div>
 </div>

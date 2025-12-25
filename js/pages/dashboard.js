@@ -2,7 +2,7 @@
  * ダッシュボード画面専用ロジック (js/pages/dashboard.js)
  */
 import { getCurrentUser } from "../auth.js";
-import { subscribeWorks, getRecentDailyProgress } from "../db.js";
+import { subscribeWorks, getRecentDailyProgress, deleteWork, toggleWorkPin } from "../db.js";
 import { renderWorkList, renderStatsDashboard, renderStatsFull, views, switchView } from "../ui.js";
 import { updateStatsChart, aggregateStats } from "../stats.js";
 
@@ -14,7 +14,7 @@ let allStatsCache = [];
  * ダッシュボード（TOP画面）のセットアップ
  */
 export function setupDashBoard() {
-    switchView(views.top);
+    // switchView(views.top); // main.js でやっているので不要または冗長
     const user = getCurrentUser();
 
     if (worksUnsubscribe) worksUnsubscribe();
@@ -39,8 +39,14 @@ export function renderDashboardList() {
     renderWorkList(
         allWorksCache,
         window.showWorkInfo, // main.js に残る作品詳細表示
-        null, // 削除処理はdbモジュールを通す必要があるため
-        null, // Pin処理
+        async (id) => {
+            // 削除処理の本体
+            await deleteWork(id);
+        },
+        async (id, currentPinned) => {
+            // お気に入り（ピン）処理
+            await toggleWorkPin(id, currentPinned);
+        },
         filter,
         sort,
         window.openWork // エディタを開く

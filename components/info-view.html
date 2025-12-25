@@ -1,40 +1,35 @@
-<div class="form-panel">
-    <div class="info-view-header">
-        <h2 id="info-title" class="retro-subtitle">作品情報の閲覧</h2>
-        <button class="btn-retro edit" onclick="showWorkSetup(currentWorkId)">編集</button>
+<div class="form-panel info-view-container">
+    <div class="info-view-top center-layout">
+        <h2 id="info-title" class="info-title-display"></h2>
+        <p id="info-catchphrase" class="info-catch-display"></p>
+        <div class="info-main-actions" style="margin-bottom: 20px;">
+            <!-- ユーザー要望により「編集」を「この作品を書く」に変更 -->
+            <button id="info-write-btn-top" class="btn-retro save" style="padding: 15px 50px; font-size: 1.2rem;"
+                onclick="window.openWork(currentWorkId)">この作品を書く</button>
+            <div style="margin-top: 15px;">
+                <button class="btn-retro small" style="opacity: 0.6; font-size: 0.8rem;"
+                    onclick="window.toggleWorkInfoMode('edit')">作品情報を編集する</button>
+            </div>
+        </div>
     </div>
 
-    <div class="info-grid">
-        <div class="info-item full">
-            <label>キャッチコピー</label>
-            <p id="info-catchphrase" class="info-val"></p>
-        </div>
-        <div class="info-item full">
-            <label>あらすじ</label>
+    <div class="info-view-body center-layout">
+        <div class="info-summary-wrap">
             <p id="info-summary" class="info-val pre-wrap"></p>
         </div>
-        <div class="info-row">
-            <div class="info-item">
-                <label>ステータス</label>
-                <p id="info-status" class="info-val"></p>
-            </div>
-            <div class="info-item">
-                <label>種別</label>
-                <p id="info-type" class="info-val"></p>
-            </div>
-            <div class="info-item">
-                <label>AI利用</label>
-                <p id="info-ai" class="info-val"></p>
-            </div>
-        </div>
-        <div class="info-item full">
-            <label>レーティング</label>
-            <p id="info-rating" class="info-val"></p>
-        </div>
-    </div>
 
-    <div class="info-view-actions">
-        <button class="btn-retro back flex-1" onclick="switchView('top-view')">◀ TOP</button>
-        <button id="info-open-work" class="btn-retro save flex-2">この作品を書く</button>
+        <div class="info-details-grid">
+            <div class="info-details-row">
+                <span id="info-length" class="info-detail-item"></span>
+                <span id="info-status" class="info-detail-item"></span>
+            </div>
+            <div class="info-details-row">
+                <span id="info-type" class="info-detail-item"></span>
+                <span id="info-ai" class="info-detail-item"></span>
+            </div>
+            <div class="info-details-row">
+                <span id="info-rating" class="info-detail-item"></span>
+            </div>
+        </div>
     </div>
 </div>

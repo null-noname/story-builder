@@ -39,19 +39,36 @@
     <!-- Tab: Work Information -->
     <div id="ws-content-info" class="workspace-tab-content">
         <div class="workspace-full-panel">
-            <div id="ws-info-container">
-                <!-- Setup Form will be moved here by JS when tab is active -->
+            <div id="ws-info-container" class="workspace-info-wrapper">
+                <!-- info-view (閲覧) または setup-view (編集) がここに移動されます -->
             </div>
         </div>
     </div>
 
     <!-- Tab: Memos -->
     <div id="ws-content-memo" class="workspace-tab-content">
-        <div class="memo-pane-container">
-            <button class="btn-memo-add" onclick="addNewMemo()">＋ 新しいメモを追加</button>
+        <!-- View 1: List View -->
+        <div id="memo-view-list" class="memo-pane-container active-subview">
+            <div class="memo-actions-bar">
+                <button class="btn-memo-add" onclick="addNewMemo()">＋ 新しいメモを追加</button>
+            </div>
             <div id="memo-list" class="memo-list-container">
                 <!-- Memos will be rendered here -->
             </div>
+        </div>
+
+        <!-- View 2: Edit/Create View (Full Screen) -->
+        <div id="memo-view-edit" class="memo-edit-pane hidden">
+            <div class="memo-edit-header">
+                <button class="btn-retro small back" onclick="closeMemoEdit()">＜ 戻る</button>
+                <div class="memo-edit-actions">
+                    <button id="memo-delete-btn" class="btn-retro small delete"
+                        onclick="deleteMemoCurrent()">削除</button>
+                    <button class="btn-retro small save" onclick="saveMemoCurrent()">保存</button>
+                </div>
+            </div>
+            <input type="text" id="memo-title-input" class="memo-edit-title-input" placeholder="タイトルを入力...">
+            <textarea id="memo-content-input" class="memo-edit-textarea" placeholder="内容を入力..."></textarea>
         </div>
     </div>
 </div>

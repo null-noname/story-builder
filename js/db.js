@@ -118,10 +118,12 @@ export async function getRecentDailyProgress(uid, days = 7) {
 /**
  * HISTORY BACKUP (Diff)
  */
-await addDoc(historyRef, {
-    content: content,
-    timestamp: serverTimestamp()
-});
+export async function saveHistoryBackup(workId, chapterId, content) {
+    const historyRef = collection(db, "works", workId, "chapters", chapterId, "history");
+    await addDoc(historyRef, {
+        content: content,
+        timestamp: serverTimestamp()
+    });
 }
 
 /**
@@ -129,7 +131,7 @@ await addDoc(historyRef, {
  */
 
 export function subscribeMemos(workId, callback) {
-    const q = query(collection(db, "works", workId, "memos"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "works", workId, "memos"), orderBy("order", "asc"));
     return onSnapshot(q, (snapshot) => {
         const memos = [];
         snapshot.forEach((doc) => {
@@ -140,9 +142,12 @@ export function subscribeMemos(workId, callback) {
 }
 
 export async function createMemo(workId, title, content) {
+    // 初期順序として現在のタイムスタンプ（ミリ秒）を使用（末尾に追加されるように）
+    const initialOrder = Date.now();
     const docRef = await addDoc(collection(db, "works", workId, "memos"), {
         title: title || "新規メモ",
         content: content || "",
+        order: initialOrder,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     });
@@ -155,6 +160,18 @@ export async function updateMemo(workId, memoId, data) {
         ...data,
         updatedAt: serverTimestamp()
     });
+}
+
+/**
+ * メモの表示順を入れ替える
+ */
+export async function updateMemoOrder(workId, id1, order1, id2, order2) {
+    const ref1 = doc(db, "works", workId, "memos", id1);
+    const ref2 = doc(db, "works", workId, "memos", id2);
+
+    // 順番（order）を交換
+    await updateDoc(ref1, { order: order2, updatedAt: serverTimestamp() });
+    await updateDoc(ref2, { order: order1, updatedAt: serverTimestamp() });
 }
 
 export async function deleteMemo(workId, memoId) {

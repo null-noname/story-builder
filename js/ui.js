@@ -60,29 +60,56 @@ export function updateActiveTab(label) {
 }
 
 /**
- * Render Work Details for View Mode
+ * 作品詳細を表示（閲覧モード）
  */
-export function renderWorkInfo(work) {
-    const catchphrase = document.getElementById('info-catchphrase');
-    const summary = document.getElementById('info-summary');
-    const status = document.getElementById('info-status');
-    const type = document.getElementById('info-type');
-    const ai = document.getElementById('info-ai');
-    const rating = document.getElementById('info-rating');
+export function renderWorkInfo(work, prefix = "info-") {
+    const pf = prefix || "info-";
+    const title = document.getElementById(`${pf}title`);
+    const catchphrase = document.getElementById(`${pf}catchphrase`);
+    const summary = document.getElementById(`${pf}summary`) || document.getElementById(`${pf}description`);
+    const length = document.getElementById(`${pf}length`);
+    const status = document.getElementById(`${pf}status`);
+    const type = document.getElementById(`${pf}type`);
+    const ai = document.getElementById(`${pf}ai`);
+    const rating = document.getElementById(`${pf}rating`);
 
     const statusLabels = { 'in-progress': '制作中', 'completed': '完了', 'suspended': '中断' };
     const typeLabels = { 'original': 'オリジナル', 'derivative': '二次創作' };
     const aiLabels = { 'none': 'なし', 'assist': '補助利用', 'partial': '一部利用（50％以下）', 'main': '本文利用（50％以上）' };
+    const lengthLabels = { 'long': '長編', 'short': '短編' };
     const ratingLabels = { 'sexual': '性描写', 'violent': '暴力', 'cruel': '残酷' };
 
-    if (catchphrase) catchphrase.textContent = work.catchphrase || '（未設定）';
-    if (summary) summary.textContent = work.description || '（未設定）';
-    if (status) status.textContent = statusLabels[work.status] || work.status;
-    if (type) type.textContent = typeLabels[work.type] || work.type;
-    if (ai) ai.textContent = aiLabels[work.ai] || work.ai;
+    if (title) {
+        title.textContent = work.title || '無題';
+    }
+    if (catchphrase) {
+        catchphrase.textContent = work.catchphrase || '（未設定）';
+    }
+    if (summary) {
+        summary.textContent = work.description || '（未設定）';
+    }
+
+    // 各項目にラベルを付与して表示
+    if (length) {
+        const val = lengthLabels[work.length] || work.length || '（未設定）';
+        length.textContent = `長さ：${val}`;
+    }
+    if (status) {
+        const val = statusLabels[work.status] || work.status || '（未設定）';
+        status.textContent = `ステータス：${val}`;
+    }
+    if (type) {
+        const val = typeLabels[work.type] || work.type || '（未設定）';
+        type.textContent = `作品種別：${val}`;
+    }
+    if (ai) {
+        const val = aiLabels[work.ai] || work.ai || '（未設定）';
+        ai.textContent = `AI利用：${val}`;
+    }
     if (rating) {
-        const ratings = (work.rating || []).map(r => ratingLabels[r] || r);
-        rating.textContent = ratings.length > 0 ? ratings.join(' / ') : 'なし';
+        const items = (work.rating || []).map(r => ratingLabels[r] || r);
+        const val = items.length > 0 ? items.join(' / ') : 'なし';
+        rating.textContent = `レーティング：${val}`;
     }
 }
 
@@ -123,6 +150,14 @@ export function switchView(viewId) {
     } else {
         if (loginScreen) loginScreen.classList.add('hidden');
         if (mainApp) mainApp.classList.remove('hidden');
+
+        // クリーンアップ処理: 執筆画面内の全画面表示設定が残っていたらリセットする
+        document.querySelectorAll('.workspace-full-form').forEach(el => {
+            el.classList.remove('workspace-full-form');
+        });
+        document.querySelectorAll('.info-view-actions').forEach(el => {
+            el.style.display = ''; // 隠していたボタンを元に戻す
+        });
 
         const target = document.getElementById(viewId);
         if (target) {

@@ -45,7 +45,8 @@
     margin-bottom: 0;
 }
 
-.checkbox-group, .choice-group {
+.checkbox-group,
+.choice-group {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
@@ -53,10 +54,12 @@
     padding: 12px;
     border: 1px solid #444;
     border-radius: 12px;
-    justify-content: center; /* センター配置 */
+    justify-content: center;
+    /* センター配置 */
 }
 
-.choice-group label, .checkbox-group label {
+.choice-group label,
+.checkbox-group label {
     font-size: 0.9rem;
     color: var(--text-main) !important;
     display: flex;
@@ -68,9 +71,10 @@
 
 .ai-choice-group {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
-    justify-items: center; /* センター配置 */
+    justify-items: center;
+    /* センター配置 */
 }
 
 .flex-baseline-gap {
@@ -140,9 +144,11 @@
         flex-direction: column;
         gap: 0;
     }
+
     .form-row-multi .form-group {
         margin-bottom: 16px;
     }
+
     .ai-choice-group {
         grid-template-columns: 1fr;
     }
