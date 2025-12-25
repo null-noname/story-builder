@@ -38,7 +38,7 @@ export function renderDashboardList() {
 
     renderWorkList(
         allWorksCache,
-        window.showWorkInfo, // main.js に残る作品詳細表示
+        window.openWork,     // タイトルクリックで「エディター」を開く
         async (id) => {
             // 削除処理の本体
             await deleteWork(id);
@@ -49,7 +49,7 @@ export function renderDashboardList() {
         },
         filter,
         sort,
-        window.openWork // エディタを開く
+        window.showWorkInfo  // 「編集」ボタンで「作品情報（閲覧）」を開く
     );
 }
 

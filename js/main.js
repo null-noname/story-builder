@@ -88,6 +88,7 @@ async function init() {
     });
 
     // 画面固有の機能登録
+    safeRegister('openWork', openWork);
     safeRegister('switchWorkspaceTab', switchWorkspaceTab);
     safeRegister('addNewChapter', addNewChapter);
     safeRegister('addNewMemo', addNewMemo);
@@ -151,14 +152,8 @@ async function init() {
             // openWork はワークスペースを表示しデータをロードする
             await openWork(id, tab || 'editor');
         } else if (viewId === views.info && id) {
-            window.switchView(views.info, true);
-            const works = getAllWorks();
-            const work = works.find(w => w.id === id);
-            if (work) {
-                renderWorkInfo(work);
-                const openBtn = document.getElementById('info-open-work');
-                if (openBtn) openBtn.onclick = () => window.openWork(id);
-            }
+            // 独立した詳細ページではなく、執筆画面内の「作品情報」タブとして開く
+            await openWork(id, 'info');
         } else if (viewId === views.setup) {
             const works = getAllWorks();
             showWorkSetup(id, works);

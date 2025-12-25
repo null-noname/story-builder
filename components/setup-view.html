@@ -1,5 +1,9 @@
 <div class="workspace-info-wrapper">
     <div class="setup-view-container workspace-full-form">
+        <div class="mb-20">
+            <button class="btn-retro small" onclick="window.location.hash = window.views.top">← TOP画面に戻る</button>
+        </div>
+
         <div id="setup-view-header" class="relative mb-30 text-center">
             <h2 id="setup-title" class="info-title-display" style="font-size: 2rem; color: var(--gold) !important;">
                 作品情報の編集</h2>
@@ -29,14 +33,14 @@
             <div id="setup-row-1" class="form-row-multi">
                 <div id="el-f-length" class="form-group">
                     <label class="gold-bold mb-8">作品の長さ</label>
-                    <div class="choice-group">
+                    <div class="choice-group fill-group">
                         <label><input type="radio" name="work-length" value="long" checked> 長編</label>
                         <label><input type="radio" name="work-length" value="short"> 短編</label>
                     </div>
                 </div>
                 <div id="el-f-type" class="form-group">
                     <label class="gold-bold mb-8">作品種別</label>
-                    <div class="choice-group">
+                    <div class="choice-group fill-group">
                         <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
                         <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
                     </div>
@@ -46,7 +50,7 @@
             <div id="setup-row-2" class="form-row-multi">
                 <div id="el-f-status" class="form-group">
                     <label class="gold-bold mb-8">執筆ステータス</label>
-                    <div class="choice-group">
+                    <div class="choice-group fill-group">
                         <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
                         <label><input type="radio" name="work-status" value="completed"> 完了</label>
                         <label><input type="radio" name="work-status" value="suspended"> 中断</label>
@@ -54,7 +58,7 @@
                 </div>
                 <div id="el-f-rating" class="form-group">
                     <label class="gold-bold mb-8">レーティング</label>
-                    <div class="checkbox-group">
+                    <div class="checkbox-group fill-group">
                         <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
                         <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
                         <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
@@ -64,7 +68,7 @@
 
             <div class="form-group full mt-16">
                 <label class="gold-bold mb-8">AI利用状況</label>
-                <div class="choice-group ai-choice-group">
+                <div class="choice-group ai-choice-group fill-group">
                     <label><input type="radio" name="work-ai" value="none" checked> なし</label>
                     <label><input type="radio" name="work-ai" value="assist"> 補助利用</label>
                     <label><input type="radio" name="work-ai" value="partial"> 一部利用</label>

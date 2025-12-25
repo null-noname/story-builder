@@ -100,12 +100,14 @@ export async function handleWorkInfoSubmit() {
         updatedAt: new Date().getTime()
     };
 
-    // 重要：workspace.js等、外部で管理されている currentWorkId も考慮する
-    let workId = currentWorkId || (typeof window.getCurrentWorkId === 'function' ? window.getCurrentWorkId() : null);
+    // 事前に既存IDがあったか記録しておく
+    const wasExistingId = !!(currentWorkId || (typeof window.getCurrentWorkId === 'function' ? window.getCurrentWorkId() : null));
 
     try {
-        if (workId) {
-            await updateWork(workId, data);
+        if (wasExistingId) {
+            const workIdToUpdate = currentWorkId || window.getCurrentWorkId();
+            await updateWork(workIdToUpdate, data);
+            workId = workIdToUpdate;
         } else {
             workId = await createWork(data);
             currentWorkId = workId;
@@ -116,14 +118,16 @@ export async function handleWorkInfoSubmit() {
         const isInWorkspace = workspaceView && !workspaceView.classList.contains('hidden');
 
         if (isInWorkspace) {
-            // 執筆画面内の場合は、確実に「閲覧モード」に戻す
+            // 執筆画面内の編集から保存した場合は、閲覧モードに戻る
             if (typeof window.toggleWorkInfoMode === 'function') {
                 window.toggleWorkInfoMode('view');
             }
         } else {
-            // 独立した編集画面の場合は詳細（閲覧）ページへ
-            if (typeof window.showWorkInfo === 'function') {
-                window.showWorkInfo(workId);
+            // 新規作成、または一覧からの編集の場合
+            if (typeof window.openWork === 'function') {
+                // 新規ならエディタータブ、一覧からの編集（既存IDあり）なら作品情報タブへ
+                const targetTab = wasExistingId ? 'info' : 'editor';
+                window.openWork(workId, targetTab);
             }
         }
     } catch (error) {
