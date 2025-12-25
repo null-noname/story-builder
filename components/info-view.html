@@ -3,13 +3,8 @@
         <h2 id="info-title" class="info-title-display"></h2>
         <p id="info-catchphrase" class="info-catch-display"></p>
         <div class="info-main-actions" style="margin-bottom: 20px;">
-            <!-- ユーザー要望により「編集」を「この作品を書く」に変更 -->
             <button id="info-write-btn-top" class="btn-retro save" style="padding: 15px 50px; font-size: 1.2rem;"
                 onclick="window.openWork(currentWorkId)">この作品を書く</button>
-            <div style="margin-top: 15px;">
-                <button class="btn-retro small" style="opacity: 0.6; font-size: 0.8rem;"
-                    onclick="window.toggleWorkInfoMode('edit')">作品情報を編集する</button>
-            </div>
         </div>
     </div>
 
@@ -30,6 +25,11 @@
             <div class="info-details-row">
                 <span id="info-rating" class="info-detail-item"></span>
             </div>
+        </div>
+
+        <div class="info-bottom-actions mt-20">
+            <button class="btn-retro small" style="opacity: 0.6; font-size: 0.8rem;"
+                onclick="window.toggleWorkInfoMode('edit')">作品情報を編集する</button>
         </div>
     </div>
 </div>

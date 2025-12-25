@@ -74,28 +74,14 @@ export function showWorkSetup(id = null, allWorksCache = []) {
 }
 
 /**
- * フォームレイアウトの調整（新規・編集で共通のフルUIを提供）
+ * フォームレイアウトの調整（現在はHTML側で固定しているため、表示状態の維持のみ）
  */
 export function adjustFormLayout(id = null) {
-    const row1 = document.getElementById('setup-row-1');
-    const row2 = document.getElementById('setup-row-2');
-    const elLength = document.getElementById('el-f-length');
-    const elStatus = document.getElementById('el-f-status');
-    const elType = document.getElementById('el-f-type');
-    const elRating = document.getElementById('el-f-rating');
-
-    // ユーザー要望により、新規・編集問わず全ての項目（長編/短編含む）を出せるようにする
-    if (row1 && elLength && elType) {
-        row1.innerHTML = '';
-        row1.appendChild(elLength);
-        row1.appendChild(elType);
-        toggleElementVisibility('el-f-length', true);
-    }
-    if (row2 && elStatus && elRating) {
-        row2.innerHTML = '';
-        row2.appendChild(elStatus);
-        row2.appendChild(elRating);
-    }
+    // 全ての項目を表示状態にする（toggleElementVisibilityは念のため）
+    toggleElementVisibility('el-f-length', true);
+    toggleElementVisibility('el-f-type', true);
+    toggleElementVisibility('el-f-status', true);
+    toggleElementVisibility('el-f-rating', true);
 }
 
 /**

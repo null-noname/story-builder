@@ -120,7 +120,7 @@ export function getWorkFormData() {
     return {
         title: document.getElementById('work-f-title').value.trim(),
         catchphrase: document.getElementById('work-f-catchphrase').value.trim(),
-        description: document.getElementById('work-f-summary').value.trim(),
+        description: document.getElementById('work-f-description')?.value.trim() || "",
         status: document.querySelector('input[name="work-status"]:checked')?.value || 'in-progress',
         length: document.querySelector('input[name="work-length"]:checked')?.value || 'long',
         type: document.querySelector('input[name="work-type"]:checked')?.value || 'original',
@@ -270,7 +270,7 @@ export function clearWorkForm() {
     const fields = {
         'work-f-title': '',
         'work-f-catchphrase': '',
-        'work-f-summary': ''
+        'work-f-description': ''
     };
     Object.entries(fields).forEach(([id, val]) => {
         const el = document.getElementById(id);
@@ -299,7 +299,7 @@ export function populateWorkForm(work) {
     const fields = {
         'work-f-title': work.title || "",
         'work-f-catchphrase': work.catchphrase || "",
-        'work-f-summary': work.description || ""
+        'work-f-description': work.description || ""
     };
     Object.entries(fields).forEach(([id, val]) => {
         const el = document.getElementById(id);

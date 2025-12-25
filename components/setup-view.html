@@ -1,12 +1,10 @@
 <div class="container-narrow">
     <div class="stats-top-actions">
-        <!-- 最小限のボタン（文字なし） -->
         <button id="work-f-back" class="btn-retro small back" onclick="window.location.hash = window.views.top"
             title="戻る"></button>
     </div>
 
     <div class="form-panel">
-        <!-- 見出しエリア (IDはJS連携のため残すが文字は消去) -->
         <div id="setup-view-header" class="relative mb-20">
             <h2 id="setup-title" class="info-title-display hidden" style="font-size: 1.8rem;"></h2>
         </div>
@@ -22,15 +20,42 @@
                 class="white-text-input">
         </div>
         <div class="form-group full mb-16">
-            <!-- 10行制限スタイルが適用されるID -->
             <textarea id="work-f-description" placeholder="あらすじ・ストーリーの概要（10行程度まで）" class="minimal-textarea"></textarea>
         </div>
 
-        <!-- JS によって要素が流し込まれるエリア -->
-        <div id="setup-row-1" class="form-row-multi"></div>
-        <div id="setup-row-2" class="form-row-multi"></div>
+        <!-- 以前はJSで移動させていたが、バグ防止のため直接記述 -->
+        <div id="setup-row-1" class="form-row-multi">
+            <div id="el-f-length" class="form-group">
+                <div class="choice-group">
+                    <label><input type="radio" name="work-length" value="long" checked> 長編</label>
+                    <label><input type="radio" name="work-length" value="short"> 短編</label>
+                </div>
+            </div>
+            <div id="el-f-type" class="form-group">
+                <div class="choice-group">
+                    <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
+                    <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
+                </div>
+            </div>
+        </div>
 
-        <!-- AI利用の選択 -->
+        <div id="setup-row-2" class="form-row-multi">
+            <div id="el-f-status" class="form-group">
+                <div class="choice-group">
+                    <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
+                    <label><input type="radio" name="work-status" value="completed"> 完了</label>
+                    <label><input type="radio" name="work-status" value="suspended"> 中断</label>
+                </div>
+            </div>
+            <div id="el-f-rating" class="form-group">
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
+                    <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
+                    <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
+                </div>
+            </div>
+        </div>
+
         <div class="form-group full mt-8">
             <div class="choice-group ai-choice-group">
                 <label><input type="radio" name="work-ai" value="none" checked> AI利用なし</label>
@@ -43,36 +68,6 @@
         <div id="setup-actions" class="setup-actions-container mt-20">
             <button id="work-f-delete" class="btn-retro delete hidden red">削除</button>
             <button id="work-f-submit" class="btn-retro save flex-1" onclick="handleWorkInfoSubmit()">保存する</button>
-        </div>
-
-        <!-- JavaScriptがパーツを拾い上げるための隠し要素 -->
-        <div id="form-elements-source" class="hidden">
-            <div id="el-f-length" class="form-group">
-                <div class="choice-group">
-                    <label><input type="radio" name="work-length" value="long" checked> 長編</label>
-                    <label><input type="radio" name="work-length" value="short"> 短編</label>
-                </div>
-            </div>
-            <div id="el-f-status" class="form-group">
-                <div class="choice-group">
-                    <label><input type="radio" name="work-status" value="in-progress" checked> 制作中</label>
-                    <label><input type="radio" name="work-status" value="completed"> 完了</label>
-                    <label><input type="radio" name="work-status" value="suspended"> 中断</label>
-                </div>
-            </div>
-            <div id="el-f-type" class="form-group">
-                <div class="choice-group">
-                    <label><input type="radio" name="work-type" value="original" checked> オリジナル</label>
-                    <label><input type="radio" name="work-type" value="derivative"> 二次創作</label>
-                </div>
-            </div>
-            <div id="el-f-rating" class="form-group">
-                <div class="checkbox-group">
-                    <label><input type="checkbox" name="rating" value="sexual"> 性描写</label>
-                    <label><input type="checkbox" name="rating" value="violent"> 暴力</label>
-                    <label><input type="checkbox" name="rating" value="cruel"> 残酷</label>
-                </div>
-            </div>
         </div>
     </div>
 </div>
